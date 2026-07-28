@@ -1,0 +1,372 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function isCurrentUser(userId) {
+      return signedIn() && request.auth.uid == userId;
+    }
+
+    function ownsExistingDocument() {
+      return signedIn()
+        && resource.data.userId is string
+        && resource.data.userId == request.auth.uid;
+    }
+
+    function ownsIncomingDocument() {
+      return signedIn()
+        && request.resource.data.userId is string
+        && request.resource.data.userId == request.auth.uid;
+    }
+
+    function isShortString(value, maximumLength) {
+      return value is string && value.size() <= maximumLength;
+    }
+
+    function isStringList(value, maximumItems) {
+      return value is list && value.size() <= maximumItems;
+    }
+
+    function isIsoDate(value) {
+      return value is string
+        && value.matches(
+          '^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}[.][0-9]{3}Z$'
+        );
+    }
+
+    function hasValidPrivacyPreferences(value) {
+      return value is map
+        && value.keys().hasOnly([
+          'requirePrivateCheck',
+          'showReflectionDates'
+        ])
+        && value.keys().hasAll([
+          'requirePrivateCheck',
+          'showReflectionDates'
+        ])
+        && value.requirePrivateCheck is bool
+        && value.requirePrivateCheck == true
+        && value.showReflectionDates is bool;
+    }
+
+    function hasValidUserShape(data) {
+      return data.keys().hasOnly([
+          'id',
+          'email',
+          'createdAt',
+          'updatedAt',
+          'privacyConsentAt',
+          'spiritualIntroSeenAt',
+          'profileCompleted',
+          'privacyPreferences'
+        ])
+        && data.keys().hasAll([
+          'id',
+          'email',
+          'createdAt',
+          'updatedAt',
+          'profileCompleted'
+        ])
+        && data.id is string
+        && data.email is string
+        && data.email.size() <= 320
+        && isIsoDate(data.createdAt)
+        && isIsoDate(data.updatedAt)
+        && data.profileCompleted is bool
+        && (
+          !('privacyConsentAt' in data)
+          || data.privacyConsentAt == null
+          || isIsoDate(data.privacyConsentAt)
+        )
+        && (
+          !('spiritualIntroSeenAt' in data)
+          || data.spiritualIntroSeenAt == null
+          || isIsoDate(data.spiritualIntroSeenAt)
+        )
+        && (
+          !('privacyPreferences' in data)
+          || hasValidPrivacyPreferences(data.privacyPreferences)
+        );
+    }
+
+    function hasValidProfileShape(data) {
+      return data.keys().hasOnly([
+          'id',
+          'userId',
+          'profileName',
+          'imageUrl',
+          'selectedSymbol',
+          'spiritualBio',
+          'followers',
+          'following',
+          'heartSeeks',
+          'godsComment',
+          'heavenlyHashtag',
+          'createdAt',
+          'updatedAt'
+        ])
+        && data.keys().hasAll([
+          'id',
+          'userId',
+          'profileName',
+          'imageUrl',
+          'selectedSymbol',
+          'spiritualBio',
+          'followers',
+          'following',
+          'heartSeeks',
+          'godsComment',
+          'heavenlyHashtag',
+          'createdAt',
+          'updatedAt'
+        ])
+        && data.id is string
+        && data.userId is string
+        && isShortString(data.profileName, 60)
+        && data.profileName.size() > 0
+        && isShortString(data.imageUrl, 2048)
+        && data.selectedSymbol in [
+          '',
+          'candle',
+          'seed',
+          'cross',
+          'heart',
+          'open-hands',
+          'road'
+        ]
+        && isShortString(data.spiritualBio, 320)
+        && isStringList(data.followers, 30)
+        && isStringList(data.following, 30)
+        && isStringList(data.heartSeeks, 30)
+        && isShortString(data.godsComment, 280)
+        && isShortString(data.heavenlyHashtag, 40)
+        && isIsoDate(data.createdAt)
+        && isIsoDate(data.updatedAt);
+    }
+
+    function hasValidPrivateProfileShape(data) {
+      return data.keys().hasOnly([
+          'userId',
+          'hiddenStory',
+          'updatedAt'
+        ])
+        && data.keys().hasAll([
+          'userId',
+          'hiddenStory',
+          'updatedAt'
+        ])
+        && data.userId is string
+        && isShortString(data.hiddenStory, 1000)
+        && isIsoDate(data.updatedAt);
+    }
+
+    function hasValidDraftData(value) {
+      return value is map
+        && value.keys().hasOnly([
+          'profileName',
+          'imageUrl',
+          'selectedSymbol',
+          'spiritualBio',
+          'followers',
+          'following',
+          'onboardingPosts',
+          'heartSeeks',
+          'hiddenStory',
+          'godsComment',
+          'heavenlyHashtag'
+        ])
+        && value.keys().hasAll([
+          'profileName',
+          'imageUrl',
+          'selectedSymbol',
+          'spiritualBio',
+          'followers',
+          'following',
+          'onboardingPosts',
+          'heartSeeks',
+          'hiddenStory',
+          'godsComment',
+          'heavenlyHashtag'
+        ])
+        && isShortString(value.profileName, 60)
+        && isShortString(value.imageUrl, 2048)
+        && value.selectedSymbol in [
+          '',
+          'candle',
+          'seed',
+          'cross',
+          'heart',
+          'open-hands',
+          'road'
+        ]
+        && isShortString(value.spiritualBio, 320)
+        && isStringList(value.followers, 30)
+        && isStringList(value.following, 30)
+        && isStringList(value.onboardingPosts, 20)
+        && isStringList(value.heartSeeks, 30)
+        && isShortString(value.hiddenStory, 1000)
+        && isShortString(value.godsComment, 280)
+        && isShortString(value.heavenlyHashtag, 40);
+    }
+
+    function hasValidDraftShape(data) {
+      return data.keys().hasOnly([
+          'id',
+          'userId',
+          'currentStep',
+          'draftData',
+          'updatedAt'
+        ])
+        && data.keys().hasAll([
+          'id',
+          'userId',
+          'currentStep',
+          'draftData',
+          'updatedAt'
+        ])
+        && data.id is string
+        && data.userId is string
+        && data.currentStep is int
+        && data.currentStep >= 0
+        && data.currentStep <= 10
+        && hasValidDraftData(data.draftData)
+        && isIsoDate(data.updatedAt);
+    }
+
+    function hasValidReflectionShape(data) {
+      return data.keys().hasOnly([
+          'id',
+          'userId',
+          'content',
+          'isPrivate',
+          'createdAt',
+          'updatedAt'
+        ])
+        && data.keys().hasAll([
+          'id',
+          'userId',
+          'content',
+          'isPrivate',
+          'createdAt',
+          'updatedAt'
+        ])
+        && data.id is string
+        && data.userId is string
+        && isShortString(data.content, 500)
+        && data.content.size() > 0
+        && data.isPrivate is bool
+        && isIsoDate(data.createdAt)
+        && isIsoDate(data.updatedAt);
+    }
+
+    // Account metadata is private and keyed by the Firebase Authentication UID.
+    match /users/{userId} {
+      allow get: if isCurrentUser(userId);
+      allow list: if false;
+
+      allow create: if isCurrentUser(userId)
+        && request.resource.data.id == userId
+        && (
+          request.auth.token.email == null
+          || request.resource.data.email == request.auth.token.email
+        )
+        && hasValidUserShape(request.resource.data);
+
+      allow update: if isCurrentUser(userId)
+        && hasValidUserShape(request.resource.data)
+        && request.resource.data.id == resource.data.id
+        && request.resource.data.email == resource.data.email
+        && request.resource.data.createdAt == resource.data.createdAt;
+
+      allow delete: if isCurrentUser(userId);
+    }
+
+    // Public-facing profile data is still owner-accessible only. hiddenStory is
+    // forbidden by this schema and stored separately in privateProfiles/{uid}.
+    match /profiles/{profileId} {
+      // Path ownership also permits a missing-document read to return exists=false.
+      allow get: if isCurrentUser(profileId);
+      allow list: if false;
+
+      allow create: if isCurrentUser(profileId)
+        && ownsIncomingDocument()
+        && request.resource.data.id == profileId
+        && request.resource.data.userId == profileId
+        && hasValidProfileShape(request.resource.data);
+
+      allow update: if isCurrentUser(profileId)
+        && ownsExistingDocument()
+        && ownsIncomingDocument()
+        && request.resource.data.id == resource.data.id
+        && request.resource.data.userId == resource.data.userId
+        && request.resource.data.createdAt == resource.data.createdAt
+        && hasValidProfileShape(request.resource.data);
+
+      // Account cleanup may delete this UID-keyed document when it is absent.
+      allow delete: if isCurrentUser(profileId);
+    }
+
+    // Sensitive profile fields have a separate owner-only document. No list or
+    // public projection is permitted.
+    match /privateProfiles/{userId} {
+      allow get: if isCurrentUser(userId);
+      allow list: if false;
+
+      allow create: if isCurrentUser(userId)
+        && request.resource.data.userId == userId
+        && hasValidPrivateProfileShape(request.resource.data);
+
+      allow update: if isCurrentUser(userId)
+        && resource.data.userId == userId
+        && request.resource.data.userId == userId
+        && hasValidPrivateProfileShape(request.resource.data);
+
+      allow delete: if isCurrentUser(userId);
+    }
+
+    match /drafts/{draftId} {
+      allow get: if isCurrentUser(draftId);
+      allow list: if false;
+
+      allow create: if isCurrentUser(draftId)
+        && ownsIncomingDocument()
+        && request.resource.data.id == draftId
+        && request.resource.data.userId == draftId
+        && hasValidDraftShape(request.resource.data);
+
+      allow update: if isCurrentUser(draftId)
+        && ownsExistingDocument()
+        && ownsIncomingDocument()
+        && request.resource.data.id == resource.data.id
+        && request.resource.data.userId == resource.data.userId
+        && hasValidDraftShape(request.resource.data);
+
+      allow delete: if isCurrentUser(draftId);
+    }
+
+    match /reflectionPosts/{reflectionId} {
+      allow get, list: if ownsExistingDocument();
+
+      allow create: if ownsIncomingDocument()
+        && request.resource.data.id == reflectionId
+        && hasValidReflectionShape(request.resource.data);
+
+      allow update: if ownsExistingDocument()
+        && ownsIncomingDocument()
+        && request.resource.data.id == resource.data.id
+        && request.resource.data.userId == resource.data.userId
+        && request.resource.data.createdAt == resource.data.createdAt
+        && hasValidReflectionShape(request.resource.data);
+
+      allow delete: if ownsExistingDocument();
+    }
+
+    // Fail closed for every collection not explicitly declared above.
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

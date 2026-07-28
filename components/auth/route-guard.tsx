@@ -1,0 +1,54 @@
+"use client";
+
+import { useEffect, type ReactNode } from "react";
+import { usePathname, useRouter } from "next/navigation";
+import { useAuth } from "@/components/providers/auth-provider";
+import { LoadingState } from "@/components/ui/loading-state";
+import { resolvePostAuthRoute } from "@/lib/routes";
+
+export function RouteGuard({
+  children,
+  requireConsent = true,
+  requireIntroduction = false,
+  requireProfile = false,
+  redirectCompleted = false
+}: {
+  children: ReactNode;
+  requireConsent?: boolean;
+  requireIntroduction?: boolean;
+  requireProfile?: boolean;
+  redirectCompleted?: boolean;
+}) {
+  const { user, loading } = useAuth();
+  const router = useRouter();
+  const pathname = usePathname();
+
+  let destination: string | null = null;
+  if (!loading) {
+    if (!user) {
+      destination = `/auth?mode=login&next=${encodeURIComponent(pathname)}`;
+    } else if (requireConsent && !user.privacyConsentAt) {
+      destination = "/privacy";
+    } else if (
+      (requireIntroduction || requireProfile) &&
+      !user.profileCompleted &&
+      !user.spiritualIntroSeenAt
+    ) {
+      destination = "/introduction";
+    } else if (requireProfile && !user.profileCompleted) {
+      destination = "/create";
+    } else if (redirectCompleted && user.profileCompleted) {
+      destination = resolvePostAuthRoute(user);
+    }
+  }
+
+  useEffect(() => {
+    if (destination) router.replace(destination);
+  }, [destination, router]);
+
+  if (loading || destination) {
+    return <LoadingState label="Opening your private space…" fullPage />;
+  }
+
+  return <>{children}</>;
+}

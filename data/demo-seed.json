@@ -1,0 +1,55 @@
+{
+  "account": {
+    "email": "grace@saintagram.demo",
+    "password": "Beloved123!",
+    "note": "Local demonstration credentials only. The password is hashed before browser storage."
+  },
+  "user": {
+    "id": "demo-grace",
+    "email": "grace@saintagram.demo",
+    "createdAt": "2026-01-06T08:00:00.000Z",
+    "updatedAt": "2026-07-24T18:30:00.000Z",
+    "privacyConsentAt": "2026-01-06T08:00:00.000Z",
+    "spiritualIntroSeenAt": "2026-01-06T08:00:00.000Z",
+    "profileCompleted": true
+  },
+  "profile": {
+    "id": "demo-grace",
+    "userId": "demo-grace",
+    "profileName": "Still Growing",
+    "imageUrl": "",
+    "selectedSymbol": "seed",
+    "spiritualBio": "Before God, I am someone who is learning to receive grace, begin again, and notice quiet gifts.",
+    "followers": ["My parents", "St. Thérèse", "A trusted friend", "Jesus"],
+    "following": ["Jesus", "God’s will", "Friends"],
+    "heartSeeks": ["Peace", "Belonging", "God’s love", "Truth"],
+    "godsComment": "You do not need to become perfect before you let Me love you.",
+    "heavenlyHashtag": "#StillGrowing",
+    "createdAt": "2026-01-06T08:00:00.000Z",
+    "updatedAt": "2026-07-24T18:30:00.000Z"
+  },
+  "privateProfile": {
+    "userId": "demo-grace",
+    "hiddenStory": "I sometimes hide how uncertain I feel. I am practicing bringing that uncertainty to prayer.",
+    "updatedAt": "2026-07-24T18:30:00.000Z",
+    "note": "Never merge this object into a standard profile response."
+  },
+  "reflectionPosts": [
+    {
+      "id": "demo-post-1",
+      "userId": "demo-grace",
+      "content": "I checked in on a friend even though I did not know the perfect thing to say.",
+      "isPrivate": false,
+      "createdAt": "2026-07-24T18:30:00.000Z",
+      "updatedAt": "2026-07-24T18:30:00.000Z"
+    },
+    {
+      "id": "demo-private-post",
+      "userId": "demo-grace",
+      "content": "A private journal note held only in the confirmed private space.",
+      "isPrivate": true,
+      "createdAt": "2026-07-20T20:00:00.000Z",
+      "updatedAt": "2026-07-20T20:00:00.000Z"
+    }
+  ]
+}

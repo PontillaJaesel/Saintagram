@@ -1,0 +1,94 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: light;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  min-height: 100vh;
+  color: #27312e;
+  background:
+    radial-gradient(circle at 10% 0%, rgba(249, 223, 147, 0.24), transparent 31rem),
+    radial-gradient(circle at 100% 15%, rgba(203, 218, 207, 0.38), transparent 34rem),
+    #f8f5ef;
+}
+
+::selection {
+  background: #f9df93;
+  color: #27312e;
+}
+
+@layer base {
+  h1,
+  h2,
+  h3 {
+    text-wrap: balance;
+  }
+
+  p {
+    text-wrap: pretty;
+  }
+
+  :focus-visible {
+    @apply outline-none ring-2 ring-gold-500 ring-offset-2 ring-offset-canvas;
+  }
+}
+
+@layer components {
+  .surface {
+    @apply rounded-3xl border border-sage-100 bg-paper shadow-soft;
+  }
+
+  .field {
+    @apply min-h-12 w-full rounded-2xl border border-sage-200 bg-white px-4 py-3 text-base text-ink placeholder:text-sage-400 transition hover:border-sage-300 focus:border-sage-600 focus:outline-none focus:ring-2 focus:ring-sage-200;
+  }
+
+  .label {
+    @apply mb-2 block text-sm font-semibold text-ink;
+  }
+
+  .eyebrow {
+    @apply text-xs font-bold uppercase tracking-[0.18em] text-sage-600;
+  }
+
+  .btn-primary {
+    @apply inline-flex min-h-12 items-center justify-center gap-2 rounded-full bg-sage-700 px-6 py-3 text-sm font-bold text-white shadow-sm transition hover:bg-sage-800 active:translate-y-px disabled:cursor-not-allowed disabled:opacity-50;
+  }
+
+  .btn-secondary {
+    @apply inline-flex min-h-12 items-center justify-center gap-2 rounded-full border border-sage-200 bg-white px-6 py-3 text-sm font-bold text-sage-800 transition hover:border-sage-300 hover:bg-sage-50 active:translate-y-px disabled:cursor-not-allowed disabled:opacity-50;
+  }
+
+  .btn-quiet {
+    @apply inline-flex min-h-11 items-center justify-center gap-2 rounded-full px-4 py-2 text-sm font-bold text-sage-700 transition hover:bg-sage-100;
+  }
+
+  .chip {
+    @apply inline-flex min-h-11 items-center gap-2 rounded-full border border-sage-200 bg-white px-4 py-2 text-sm font-semibold text-sage-800 transition;
+  }
+
+  .chip-selected {
+    @apply border-sage-600 bg-sage-700 text-white;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+  }
+}
