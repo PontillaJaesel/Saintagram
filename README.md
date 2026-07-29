@@ -51,19 +51,6 @@ npm run dev
 
 Open [http://localhost:3000](http://localhost:3000).
 
-Before starting, copy `.env.example` to `.env.local` and configure the private
-entrance:
-
-```dotenv
-SITE_ACCESS_CODE=use-a-private-code-with-12-or-more-characters
-SITE_ACCESS_SESSION_SECRET=use-a-separate-random-secret-with-32-or-more-characters
-```
-
-The access code is checked only on the server. A successful visitor receives a
-signed, HttpOnly cookie that expires after seven days; the code itself is never
-stored in browser storage or shipped in client JavaScript. Rotate both values
-to change the code and invalidate all existing access sessions.
-
 Without Firebase variables, Saintagram automatically enters **Private demo**
 mode. Data stays in that browser's local storage. This fallback is convenient
 for demonstrations but is not production-grade storage on a shared device.
