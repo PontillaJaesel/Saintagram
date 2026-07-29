@@ -21,7 +21,12 @@ import { afterAll, beforeAll, beforeEach, describe, it } from "vitest";
 const ALICE_ID = "alice";
 const BOB_ID = "bob";
 const NOW = "2026-07-28T10:00:00.000Z";
-const PROJECT_ID = process.env.GCLOUD_PROJECT ?? "demo-saintagram";
+const PROJECT_ID = process.env.GCLOUD_PROJECT ?? "demo-no-project";
+const ALICE_IMAGE_PATH =
+  "users/alice/profile/04fefae1-e03e-42ee-9cd4-dc86823426e8.png";
+const BOB_IMAGE_PATH =
+  "users/bob/profile/14fefae1-e03e-42ee-9cd4-dc86823426e8.png";
+const LEGACY_IMAGE_FIELD = ["image", "Url"].join("");
 
 function emulatorAddress(): { host: string; port: number } {
   const address = process.env.FIRESTORE_EMULATOR_HOST ?? "127.0.0.1:8080";
@@ -50,7 +55,7 @@ const aliceProfile = {
   id: ALICE_ID,
   userId: ALICE_ID,
   profileName: "Still Growing",
-  imageUrl: "",
+  imagePath: "",
   selectedSymbol: "seed",
   spiritualBio: "Before God, I am learning to receive grace.",
   followers: ["Jesus", "My family"],
@@ -74,7 +79,7 @@ const aliceDraft = {
   currentStep: 5,
   draftData: {
     profileName: "Still Growing",
-    imageUrl: "",
+    imagePath: "",
     selectedSymbol: "seed",
     spiritualBio: "",
     followers: [],
@@ -124,7 +129,9 @@ describe("Saintagram Firestore ownership rules", () => {
   });
 
   it("allows owners and rejects cross-user access to user records", async () => {
-    const aliceDb = testEnv.authenticatedContext(ALICE_ID).firestore();
+    const aliceDb = testEnv
+      .authenticatedContext(ALICE_ID, { email: aliceUser.email })
+      .firestore();
     const bobDb = testEnv.authenticatedContext(BOB_ID).firestore();
     const aliceRef = doc(aliceDb, "users", ALICE_ID);
 
@@ -169,6 +176,41 @@ describe("Saintagram Firestore ownership rules", () => {
     );
     await assertFails(deleteDoc(doc(bobDb, "profiles", ALICE_ID)));
     await assertSucceeds(deleteDoc(aliceRef));
+  });
+
+  it("accepts only the owner's exact Supabase image path on profiles", async () => {
+    const aliceDb = testEnv.authenticatedContext(ALICE_ID).firestore();
+    const aliceRef = doc(aliceDb, "profiles", ALICE_ID);
+
+    await assertSucceeds(
+      setDoc(aliceRef, {
+        ...aliceProfile,
+        imagePath: ALICE_IMAGE_PATH,
+        selectedSymbol: ""
+      })
+    );
+    await assertFails(updateDoc(aliceRef, { imagePath: BOB_IMAGE_PATH }));
+    await assertFails(
+      updateDoc(aliceRef, {
+        imagePath: "https://example.test/public-avatar.png"
+      })
+    );
+    await assertFails(
+      updateDoc(aliceRef, {
+        imagePath: "data:image/png;base64,aGVsbG8="
+      })
+    );
+    await assertFails(
+      updateDoc(aliceRef, {
+        imagePath: "users/alice/profile/not-a-uuid.png"
+      })
+    );
+    await assertFails(updateDoc(aliceRef, { selectedSymbol: "seed" }));
+    await assertFails(
+      updateDoc(aliceRef, {
+        [LEGACY_IMAGE_FIELD]: "https://legacy.example.test/avatar.png"
+      })
+    );
   });
 
   it("allows only the owner to access the private profile", async () => {
@@ -219,6 +261,36 @@ describe("Saintagram Firestore ownership rules", () => {
     );
     await assertFails(deleteDoc(doc(bobDb, "drafts", ALICE_ID)));
     await assertSucceeds(deleteDoc(aliceRef));
+  });
+
+  it("accepts only the owner's exact Supabase image path in drafts", async () => {
+    const aliceDb = testEnv.authenticatedContext(ALICE_ID).firestore();
+    const aliceRef = doc(aliceDb, "drafts", ALICE_ID);
+
+    await assertSucceeds(
+      setDoc(aliceRef, {
+        ...aliceDraft,
+        draftData: {
+          ...aliceDraft.draftData,
+          imagePath: ALICE_IMAGE_PATH,
+          selectedSymbol: ""
+        }
+      })
+    );
+    await assertFails(
+      updateDoc(aliceRef, { "draftData.imagePath": BOB_IMAGE_PATH })
+    );
+    await assertFails(
+      updateDoc(aliceRef, {
+        "draftData.imagePath": "users/alice/profile/not-a-uuid.webp"
+      })
+    );
+    await assertFails(
+      updateDoc(aliceRef, {
+        [`draftData.${LEGACY_IMAGE_FIELD}`]:
+          "https://legacy.example.test/avatar.png"
+      })
+    );
   });
 
   it("allows only the owner to access a reflection post", async () => {

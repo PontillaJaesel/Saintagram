@@ -4,7 +4,7 @@ import type { ProfileDraftData } from "@/types";
 
 const draft: ProfileDraftData = {
   profileName: "Beloved Test User",
-  imageUrl: "",
+  imagePath: "",
   selectedSymbol: "cross",
   spiritualBio: "is learning to trust.",
   followers: ["Mary"],

@@ -84,6 +84,8 @@ export function ProfileEditor() {
   const [clearHiddenOpen, setClearHiddenOpen] = useState(false);
   const [privacyConfirmed, setPrivacyConfirmed] = useState(false);
   const nameRef = useRef<HTMLInputElement>(null);
+  const committedImagePathRef = useRef("");
+  const latestImagePathRef = useRef("");
 
   useEffect(() => {
     if (!user || !privacyConfirmed) return;
@@ -91,7 +93,11 @@ export function ProfileEditor() {
     appService
       .getFullProfile(user.id)
       .then((nextProfile) => {
-        if (active) setProfile(nextProfile);
+        if (active) {
+          committedImagePathRef.current = nextProfile?.imagePath ?? "";
+          latestImagePathRef.current = nextProfile?.imagePath ?? "";
+          setProfile(nextProfile);
+        }
       })
       .catch((loadError) => {
         if (active) {
@@ -109,6 +115,25 @@ export function ProfileEditor() {
       active = false;
     };
   }, [privacyConfirmed, user]);
+
+  useEffect(() => {
+    latestImagePathRef.current = profile?.imagePath ?? "";
+  }, [profile?.imagePath]);
+
+  useEffect(() => {
+    return () => {
+      const stagedImagePath = latestImagePathRef.current;
+      if (
+        user &&
+        stagedImagePath &&
+        stagedImagePath !== committedImagePathRef.current
+      ) {
+        void appService
+          .deleteProfileImage(user.id, stagedImagePath)
+          .catch(() => undefined);
+      }
+    };
+  }, [user]);
 
   const setField = <Key extends keyof SpiritualProfile>(
     key: Key,
@@ -129,7 +154,9 @@ export function ProfileEditor() {
     setSaving(true);
     setError("");
     try {
-      await appService.updateProfile(user.id, profile);
+      const updated = await appService.updateProfile(user.id, profile);
+      committedImagePathRef.current = updated.imagePath;
+      latestImagePathRef.current = updated.imagePath;
       notify("Your profile changes were saved.");
       router.replace("/profile?saved=1");
     } catch (saveError) {
@@ -212,7 +239,8 @@ export function ProfileEditor() {
           />
           <div className="mt-6">
             <ImageSymbolPicker
-              imageUrl={profile.imageUrl}
+              imagePath={profile.imagePath}
+              committedImagePath={committedImagePathRef.current}
               selectedSymbol={profile.selectedSymbol}
               profileName={profile.profileName}
               onChange={(value) =>

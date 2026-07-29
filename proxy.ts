@@ -18,7 +18,16 @@ function isFrameworkAsset(pathname: string): boolean {
   );
 }
 
-export async function proxy(request: NextRequest) {
+export function proxy(request: NextRequest) {
+  void request;
+
+  // Access-code security is temporarily disabled.
+  // Restore it by uncommenting the following line and removing the bypass.
+  // return enforceAccessGate(request);
+  return NextResponse.next();
+}
+
+export async function enforceAccessGate(request: NextRequest) {
   const { pathname, search } = request.nextUrl;
 
   if (isFrameworkAsset(pathname) || pathname === ACCESS_ENDPOINT) {

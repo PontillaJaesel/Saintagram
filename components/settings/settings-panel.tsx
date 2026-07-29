@@ -21,6 +21,7 @@ import { useToast } from "@/components/providers/toast-provider";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { ModeBadge } from "@/components/ui/mode-badge";
 import { appService } from "@/lib/app-service";
+import { isSupabaseConfigured } from "@/lib/supabase";
 import { formatFriendlyDate, passwordError } from "@/lib/validation";
 
 function SettingsSection({
@@ -240,7 +241,9 @@ export function SettingsPanel() {
             <p className="mt-1 text-xs leading-5 text-muted">
               {mode === "local"
                 ? "Demonstration data is stored only in this browser."
-                : "Account data is protected by Firebase ownership rules."}
+                : isSupabaseConfigured
+                  ? "Account data uses Firebase ownership rules and private Supabase image policies."
+                  : "Firebase is connected, but Supabase profile-image storage still needs its project URL and publishable key."}
             </p>
           </div>
           <ModeBadge expanded />

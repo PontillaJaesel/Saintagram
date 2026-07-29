@@ -74,5 +74,7 @@ export const LIMITS = {
   hiddenStory: 1000,
   godsComment: 280,
   hashtag: 40,
-  imageBytes: 2 * 1024 * 1024
+  imageBytes: 2 * 1024 * 1024,
+  imagePath: 512,
+  localImageDataUrl: 3 * 1024 * 1024
 } as const;

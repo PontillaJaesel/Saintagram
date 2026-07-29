@@ -50,7 +50,8 @@ import {
 import { formatFriendlyDate, normalizeHashtag } from "@/lib/validation";
 import {
   EMPTY_DRAFT,
-  type ProfileDraftData
+  type ProfileDraftData,
+  type SpiritualSymbol
 } from "@/types";
 
 const STEPS = [
@@ -166,7 +167,13 @@ export function ProfileWizard() {
   const [discardOpen, setDiscardOpen] = useState(false);
   const [discarding, setDiscarding] = useState(false);
   const [finishing, setFinishing] = useState(false);
+  const [persistedImagePath, setPersistedImagePath] = useState("");
   const finishingRef = useRef(false);
+  const pendingSaveRef = useRef<Promise<unknown> | null>(null);
+  const skipNextAutosaveRef = useRef(false);
+  const persistedImagePathRef = useRef("");
+  const latestImagePathRef = useRef("");
+  const knownImagePathsRef = useRef(new Set<string>());
   const nameRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -177,6 +184,13 @@ export function ProfileWizard() {
       .then((draft) => {
         if (!active) return;
         if (draft) {
+          const restoredImagePath = draft.draftData.imagePath ?? "";
+          persistedImagePathRef.current = restoredImagePath;
+          latestImagePathRef.current = restoredImagePath;
+          if (restoredImagePath) {
+            knownImagePathsRef.current.add(restoredImagePath);
+          }
+          setPersistedImagePath(restoredImagePath);
           setData({
             ...cloneEmptyDraft(),
             ...draft.draftData,
@@ -208,8 +222,37 @@ export function ProfileWizard() {
     async (showNotification = false) => {
       if (!user || finishingRef.current) return;
       setSaveStatus("saving");
+      const imagePathBeingSaved = data.imagePath;
+      if (imagePathBeingSaved) {
+        knownImagePathsRef.current.add(imagePathBeingSaved);
+      }
+      const previousSave = pendingSaveRef.current;
+      const saveOperation = (previousSave
+        ? previousSave.catch(() => undefined)
+        : Promise.resolve()
+      ).then(async () => {
+        const savedDraft = await appService.saveDraft(user.id, step, data);
+        const previousImagePath = persistedImagePathRef.current;
+        persistedImagePathRef.current = imagePathBeingSaved;
+        setPersistedImagePath(imagePathBeingSaved);
+
+        if (
+          previousImagePath &&
+          previousImagePath !== imagePathBeingSaved
+        ) {
+          try {
+            await appService.deleteProfileImage(user.id, previousImagePath);
+            knownImagePathsRef.current.delete(previousImagePath);
+          } catch {
+            // The replacement path is already durable. Keep the old path in
+            // the cleanup set so completion, discard, or unmount can retry.
+          }
+        }
+        return savedDraft;
+      });
+      pendingSaveRef.current = saveOperation;
       try {
-        await appService.saveDraft(user.id, step, data);
+        await saveOperation;
         setSaveStatus("saved");
         if (showNotification) notify("Your draft is saved.");
       } catch (saveError) {
@@ -222,13 +265,54 @@ export function ProfileWizard() {
             "error"
           );
         }
+      } finally {
+        if (pendingSaveRef.current === saveOperation) {
+          pendingSaveRef.current = null;
+        }
       }
     },
     [data, notify, step, user]
   );
 
+  const waitForPendingSave = async () => {
+    try {
+      await pendingSaveRef.current;
+    } catch {
+      // Completion and discard perform their own durable write/delete. A
+      // failed background save must not recreate a draft or block either.
+    }
+  };
+
+  const cleanupKnownImages = async (
+    keepImagePath: string,
+    failOnError: boolean
+  ) => {
+    if (!user) return;
+    const candidates = new Set(knownImagePathsRef.current);
+    if (latestImagePathRef.current) {
+      candidates.add(latestImagePathRef.current);
+    }
+    if (persistedImagePathRef.current) {
+      candidates.add(persistedImagePathRef.current);
+    }
+
+    for (const imagePath of candidates) {
+      if (!imagePath || imagePath === keepImagePath) continue;
+      try {
+        await appService.deleteProfileImage(user.id, imagePath);
+        knownImagePathsRef.current.delete(imagePath);
+      } catch (cleanupError) {
+        if (failOnError) throw cleanupError;
+      }
+    }
+  };
+
   useEffect(() => {
     if (!loaded || !user || finishingRef.current) return;
+    if (skipNextAutosaveRef.current) {
+      skipNextAutosaveRef.current = false;
+      return;
+    }
     setSaveStatus("saving");
     const timer = window.setTimeout(() => {
       void persistDraft();
@@ -242,11 +326,53 @@ export function ProfileWizard() {
     heading?.focus();
   }, [step, loaded]);
 
+  useEffect(() => {
+    latestImagePathRef.current = data.imagePath;
+    if (data.imagePath) knownImagePathsRef.current.add(data.imagePath);
+  }, [data.imagePath]);
+
+  useEffect(() => {
+    const userId = user?.id;
+    return () => {
+      if (!userId) return;
+      void (async () => {
+        try {
+          await pendingSaveRef.current;
+        } catch {
+          // A failed save leaves only the last successful path committed.
+        }
+        const keepImagePath = persistedImagePathRef.current;
+        const candidates = new Set(knownImagePathsRef.current);
+        if (latestImagePathRef.current) {
+          candidates.add(latestImagePathRef.current);
+        }
+        await Promise.allSettled(
+          [...candidates]
+            .filter((imagePath) => imagePath !== keepImagePath)
+            .map((imagePath) =>
+              appService.deleteProfileImage(userId, imagePath)
+            )
+        );
+      })();
+    };
+  }, [user?.id]);
+
   const updateData = <Key extends keyof ProfileDraftData>(
     key: Key,
     value: ProfileDraftData[Key]
   ) => {
     setData((current) => ({ ...current, [key]: value }));
+    setError("");
+  };
+
+  const updateImageChoice = (value: {
+    imagePath: string;
+    selectedSymbol: SpiritualSymbol;
+  }) => {
+    if (data.imagePath) knownImagePathsRef.current.add(data.imagePath);
+    if (value.imagePath) knownImagePathsRef.current.add(value.imagePath);
+    latestImagePathRef.current = value.imagePath;
+    setData((current) => ({ ...current, ...value }));
     setError("");
   };
 
@@ -273,8 +399,16 @@ export function ProfileWizard() {
   const discardDraft = async () => {
     if (!user) return;
     setDiscarding(true);
+    finishingRef.current = true;
     try {
+      await waitForPendingSave();
+      await cleanupKnownImages("", true);
       await appService.deleteDraft(user.id);
+      skipNextAutosaveRef.current = true;
+      persistedImagePathRef.current = "";
+      latestImagePathRef.current = "";
+      knownImagePathsRef.current.clear();
+      setPersistedImagePath("");
       setData(cloneEmptyDraft());
       setStep(0);
       setRestoredAt("");
@@ -289,6 +423,7 @@ export function ProfileWizard() {
         "error"
       );
     } finally {
+      finishingRef.current = false;
       setDiscarding(false);
     }
   };
@@ -304,7 +439,13 @@ export function ProfileWizard() {
     setFinishing(true);
     setError("");
     try {
+      await waitForPendingSave();
       await appService.completeProfile(user.id, data);
+      persistedImagePathRef.current = data.imagePath;
+      latestImagePathRef.current = data.imagePath;
+      setPersistedImagePath(data.imagePath);
+      await cleanupKnownImages(data.imagePath, false);
+      if (data.imagePath) knownImagePathsRef.current.add(data.imagePath);
       await refreshUser();
       router.replace("/profile?created=1");
     } catch (completeError) {
@@ -386,12 +527,12 @@ export function ProfileWizard() {
       case 1:
         return (
           <ImageSymbolPicker
-            imageUrl={data.imageUrl}
+            imagePath={data.imagePath}
+            committedImagePath={persistedImagePath}
+            deferImageCleanup
             selectedSymbol={data.selectedSymbol}
             profileName={data.profileName}
-            onChange={(value) =>
-              setData((currentData) => ({ ...currentData, ...value }))
-            }
+            onChange={updateImageChoice}
           />
         );
       case 2:
@@ -667,7 +808,7 @@ export function ProfileWizard() {
           <div>
             <div className="mb-6 flex flex-col items-center gap-4 rounded-3xl bg-sage-50 p-6 text-center sm:flex-row sm:text-left">
               <ProfileAvatar
-                imageUrl={data.imageUrl}
+                imagePath={data.imagePath}
                 symbol={data.selectedSymbol}
                 profileName={data.profileName}
               />
@@ -972,7 +1113,7 @@ export function ProfileWizard() {
       <ConfirmDialog
         open={discardOpen}
         title="Discard this draft?"
-        description="This removes every unfinished answer on this device and, when connected, from Firebase. This cannot be undone."
+        description="This removes every unfinished answer and uploaded draft image from this device and the connected services. This cannot be undone."
         confirmLabel="Discard draft"
         destructive
         busy={discarding}

@@ -1,8 +1,9 @@
 # Saintagram data model and privacy boundaries
 
-Saintagram stores all user-generated content in owner-only Firebase resources.
-There are no public collections, public profile projections, facilitator records,
-groups, assignments, follower counts, rankings, or engagement metrics.
+Saintagram stores structured user-generated content in owner-only Firebase
+resources and profile-image files in an owner-only Supabase bucket. There are
+no public collections, public profile projections, facilitator records, groups,
+assignments, follower counts, rankings, or engagement metrics.
 
 ## Firestore collections
 
@@ -35,7 +36,7 @@ standard profile interface, this collection remains owner-only.
 | `id` | string | Must equal the Firestore document ID. |
 | `userId` | string | Firebase UID; immutable and used for ownership checks. |
 | `profileName` | string | Display name or faith-centered identity. |
-| `imageUrl` | string | Empty or the Firebase Storage download URL returned after upload. |
+| `imagePath` | string | Empty or the private Supabase object path `users/{uid}/profile/{uuid}.{jpg|png|webp}`. |
 | `selectedSymbol` | string | Predefined symbol key, or an empty string when skipped. |
 | `spiritualBio` | string | Up to 320 characters. |
 | `followers` | string[] | Faith guides; no count is stored or displayed. |
@@ -98,18 +99,39 @@ Queries must include `where("userId", "==", auth.currentUser.uid)`. The supplied
 indexes support reverse-chronological queries, with or without an `isPrivate`
 filter. Security rules validate ownership independently of client queries.
 
-## Cloud Storage
+## Supabase Storage
 
-Profile images use:
+Profile images are stored in the private bucket `profile-images` under:
 
 ```text
-users/{uid}/profile/{fileName}
+users/{firebaseUid}/profile/{uuid}.{jpg|png|webp}
 ```
 
-Reads and writes require a matching authenticated UID. Uploads are limited to
-2 MiB and the explicit MIME types JPEG, PNG, and WebP. The upload metadata
-`ownerId` must also equal the authenticated UID, matching the client upload.
-All other paths are denied.
+The client supplies the current Firebase ID token through Supabase's
+Third-Party Auth integration. Reads, inserts, and deletes require all of the
+following:
+
+- The JWT has the Firebase UID in `sub` and the custom claim
+  `role: "authenticated"`.
+- The JWT issuer is Firebase and matches its Firebase project audience.
+- The second path segment equals that `sub`.
+- Supabase's `owner_id` equals that `sub`.
+- The object is inside the exact three-folder owner prefix and has a UUID file
+  name with a JPG, PNG, or WebP extension.
+
+The bucket is private, uploads are limited to 2 MiB and JPEG/PNG/WebP MIME
+types, and object updates/upserts are denied. Replacing a picture creates a new
+UUID object, commits its path to Firestore, and then removes the old object.
+Firestore never stores image bytes, a public URL, or a signed URL.
+
+If a signed-in Firebase user does not yet have the required role claim, the
+browser calls the same-origin `POST /api/image-access` route. The Node route
+verifies the Firebase ID token with server-only Admin credentials, derives the
+UID from that verified token, preserves existing claims, and idempotently adds
+`role: "authenticated"`. It accepts no client-selected UID or role. The browser
+then force-refreshes the ID token before contacting Supabase. This avoids a
+manual per-account claim step without exposing Admin credentials or bypassing
+Supabase row-level security.
 
 ## Security invariants
 
@@ -118,7 +140,7 @@ All other paths are denied.
 - Every user-content write must carry the authenticated user's UID.
 - Ownership fields, document IDs, and creation timestamps cannot be reassigned
   during updates.
-- Unknown Firestore collections and Storage paths fail closed.
+- Unknown Firestore collections and Supabase object paths fail closed.
 - Hidden Stories exist only in `privateProfiles/{uid}` (and unfinished,
   owner-only drafts); completed `profiles/{uid}` documents reject that field.
 - Hidden Stories, drafts, profile data, and all reflections have no anonymous
@@ -131,10 +153,15 @@ All other paths are denied.
 ## Deleting an account
 
 Deleting Firebase Authentication credentials does not automatically remove
-Firestore documents or Storage objects. The account-deletion workflow should
-first confirm the action, delete the owner's profile image(s), reflection posts,
-draft, public profile, private profile, and user document, and then delete the
-Authentication account.
-For production, a privileged backend or Firebase Extension should perform this
-cascade atomically/reliably; admin credentials must never be bundled into the
-client.
+Firestore documents or Supabase objects. The account-deletion workflow first
+reauthenticates, removes every object in the owner's `profile-images` prefix,
+deletes reflection posts and the UID-keyed Firestore documents, and then
+deletes the Authentication account. A failure stops the workflow before later
+destructive steps so it can be retried.
+
+For production, a privileged retryable backend should verify and repeat the
+cascade. In particular, an already-issued Firebase ID token can remain valid
+until expiry even after the Firebase user is deleted, so high-assurance
+deletion should schedule a second Supabase prefix cleanup after the token
+window. Admin and Supabase service-role credentials must never be bundled into
+the browser.

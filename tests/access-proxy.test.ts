@@ -10,7 +10,10 @@ import {
   vi
 } from "vitest";
 import { NextRequest } from "next/server";
-import { proxy } from "@/proxy";
+import {
+  enforceAccessGate as proxy,
+  proxy as bypassedAccessProxy
+} from "@/proxy";
 import {
   ACCESS_COOKIE_NAME,
   createAccessSessionToken
@@ -41,6 +44,13 @@ describe("access proxy", () => {
 
   afterAll(() => {
     vi.unstubAllGlobals();
+  });
+
+  it("leaves site routes open while access-code security is disabled", async () => {
+    const response = await bypassedAccessProxy(nextRequest("/profile"));
+
+    expect(response.headers.get("x-middleware-next")).toBe("1");
+    expect(response.headers.get("location")).toBeNull();
   });
 
   it.each([
