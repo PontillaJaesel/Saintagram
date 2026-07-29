@@ -16,6 +16,7 @@ import {
   doc,
   getDoc,
   getDocs,
+  limit as firestoreLimit,
   query,
   setDoc,
   updateDoc,
@@ -24,7 +25,7 @@ import {
 } from "firebase/firestore";
 import {
   deleteObject,
-  listAll,
+  list,
   getDownloadURL,
   ref,
   uploadBytes
@@ -562,8 +563,13 @@ export const appService = {
       assertFirebaseOwner(userId);
       const services = getFirebaseServices();
       if (!services) return null;
-      const snapshot = await getDoc(doc(services.db, "drafts", userId));
-      if (snapshot.exists()) return snapshot.data() as ProfileDraft;
+      try {
+        const snapshot = await getDoc(doc(services.db, "drafts", userId));
+        if (snapshot.exists()) return snapshot.data() as ProfileDraft;
+      } catch {
+        // A sanitized browser copy keeps non-sensitive progress recoverable
+        // during a temporary network interruption.
+      }
       return readJson<ProfileDraft | null>(firebaseDraftCacheKey(userId), null);
     }
     assertLocalOwner(userId);
@@ -586,13 +592,13 @@ export const appService = {
       assertFirebaseOwner(userId);
       const services = getFirebaseServices();
       if (!services) throw new Error("Firebase is not available.");
-      await setDoc(doc(services.db, "drafts", userId), draft);
       // Keep only a non-sensitive local fallback. The Hidden Story remains in
       // the owner-protected Firestore draft and never persists in this cache.
       writeJson(firebaseDraftCacheKey(userId), {
         ...draft,
         draftData: { ...draft.draftData, hiddenStory: "" }
       });
+      await setDoc(doc(services.db, "drafts", userId), draft);
       return draft;
     }
     assertLocalOwner(userId);
@@ -1024,27 +1030,53 @@ export const appService = {
       } catch (error) {
         throw friendlyAuthError(error);
       }
-      const reflectionsSnapshot = await getDocs(
-        query(
-          collection(services.db, "reflectionPosts"),
-          where("userId", "==", userId)
-        )
-      );
-      const batch = writeBatch(services.db);
-      reflectionsSnapshot.docs.forEach((item) => batch.delete(item.ref));
-      batch.delete(doc(services.db, "profiles", userId));
-      batch.delete(doc(services.db, "privateProfiles", userId));
-      batch.delete(doc(services.db, "drafts", userId));
-      batch.delete(doc(services.db, "users", userId));
-      await batch.commit();
+      // Remove Storage first. If this fails, retain the account and Firestore
+      // records so the owner can retry instead of silently leaving image data.
       try {
         const imageFolder = ref(services.storage, `users/${userId}/profile`);
-        const uploadedImages = await listAll(imageFolder);
-        await Promise.all(uploadedImages.items.map((item) => deleteObject(item)));
-      } catch {
-        // Data deletion still proceeds if Storage is unavailable. A production
-        // backend cleanup job should retry any failed object deletion.
+        while (true) {
+          const page = await list(imageFolder, {
+            maxResults: 100
+          });
+          if (!page.items.length) break;
+          await Promise.all(page.items.map((item) => deleteObject(item)));
+        }
+      } catch (storageError) {
+        const detail =
+          storageError instanceof Error
+            ? ` ${storageError.message}`
+            : "";
+        throw new Error(
+          `Your profile images could not be removed, so account deletion stopped.${detail}`
+        );
       }
+
+      // A Firestore WriteBatch accepts at most 500 writes. Delete reflections
+      // in bounded pages, then remove the four UID-keyed account documents.
+      const reflectionBatchSize = 400;
+      while (true) {
+        const reflectionsPage = await getDocs(
+          query(
+            collection(services.db, "reflectionPosts"),
+            where("userId", "==", userId),
+            firestoreLimit(reflectionBatchSize)
+          )
+        );
+        if (reflectionsPage.empty) break;
+
+        const reflectionBatch = writeBatch(services.db);
+        reflectionsPage.docs.forEach((item) =>
+          reflectionBatch.delete(item.ref)
+        );
+        await reflectionBatch.commit();
+      }
+
+      const accountBatch = writeBatch(services.db);
+      accountBatch.delete(doc(services.db, "profiles", userId));
+      accountBatch.delete(doc(services.db, "privateProfiles", userId));
+      accountBatch.delete(doc(services.db, "drafts", userId));
+      accountBatch.delete(doc(services.db, "users", userId));
+      await accountBatch.commit();
       await deleteUser(firebaseUser);
       return;
     }

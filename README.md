@@ -118,9 +118,10 @@ boundaries.
   as text; uploaded images are restricted to JPG, PNG, or WebP and 2 MiB.
 - Personal export is explicitly an owner-requested private archive, never a
   public profile export.
-- Account deletion reauthenticates, removes Firestore content, attempts to
-  remove all images beneath the user's Storage prefix, then deletes the
-  Authentication user.
+- Account deletion reauthenticates, removes all images beneath the user's
+  Storage prefix in bounded pages, deletes Firestore content in bounded
+  batches, and then deletes the Authentication user. Cleanup failures stop the
+  process with a visible error.
 
 The browser confirmation before showing private content is a visual privacy
 check, not the authorization boundary. Firebase ownership rules remain the
@@ -130,10 +131,11 @@ authorization boundary.
 
 ```bash
 npm run dev        # development server
+npm run lint       # source lint
 npm run typecheck  # strict TypeScript check
 npm test           # unit and component tests
 npm run build      # optimized production build
-npm start          # serve the generated static production build
+npm start          # serve the generated production build
 npm run test:rules # Firestore ownership tests using the emulator
 ```
 
@@ -148,7 +150,7 @@ lib/app-service.ts   Firebase/local repository and authentication adapters
 lib/profile.ts       Private-safe profile projections and normalization
 types/               Application data models
 tests/               Guard, redirect, storage, and privacy tests
-scripts/             Static host packaging and production preview server
+scripts/             Production-host package preparation
 docs/data-model.md   Firestore and Storage contract
 firestore.rules      Owner-only database rules
 storage.rules        Owner-only image rules

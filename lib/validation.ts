@@ -1,7 +1,7 @@
 import { LIMITS } from "@/lib/constants";
 
 export function cleanText(value: string, maxLength: number): string {
-  return value.replace(/\u0000/g, "").trim().slice(0, maxLength);
+  return value.split("\u0000").join("").trim().slice(0, maxLength);
 }
 
 export function normalizeList(values: string[]): string[] {

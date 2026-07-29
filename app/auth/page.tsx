@@ -27,6 +27,12 @@ import { resolvePostAuthRoute } from "@/lib/routes";
 import { isValidEmail, passwordError } from "@/lib/validation";
 
 type AuthMode = "login" | "signup" | "reset";
+type AuthErrorField =
+  | "email"
+  | "password"
+  | "confirmPassword"
+  | "credentials"
+  | null;
 
 function AuthForm() {
   const searchParams = useSearchParams();
@@ -42,11 +48,13 @@ function AuthForm() {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
+  const [errorField, setErrorField] = useState<AuthErrorField>(null);
   const [message, setMessage] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
     setError("");
+    setErrorField(null);
     setMessage("");
   }, [mode]);
 
@@ -88,23 +96,28 @@ function AuthForm() {
   const submit = async (event: FormEvent) => {
     event.preventDefault();
     setError("");
+    setErrorField(null);
     setMessage("");
     if (!isValidEmail(email)) {
       setError("Enter a valid email address.");
+      setErrorField("email");
       return;
     }
     if (mode === "signup") {
       const validation = passwordError(password);
       if (validation) {
         setError(validation);
+        setErrorField("password");
         return;
       }
     } else if (mode === "login" && !password) {
       setError("Enter your password.");
+      setErrorField("password");
       return;
     }
     if (mode === "signup" && password !== confirmPassword) {
       setError("Those passwords do not match yet.");
+      setErrorField("confirmPassword");
       return;
     }
 
@@ -129,6 +142,13 @@ function AuthForm() {
         submitError instanceof Error
           ? submitError.message
           : "Something went wrong. Please try again."
+      );
+      setErrorField(
+        mode === "reset"
+          ? "email"
+          : mode === "login"
+            ? "credentials"
+            : null
       );
     } finally {
       setSubmitting(false);
@@ -180,9 +200,27 @@ function AuthForm() {
                   autoComplete="email"
                   className="field pl-12"
                   value={email}
-                  onChange={(event) => setEmail(event.target.value)}
+                  onChange={(event) => {
+                    setEmail(event.target.value);
+                    if (
+                      errorField === "email" ||
+                      errorField === "credentials"
+                    ) {
+                      setError("");
+                      setErrorField(null);
+                    }
+                  }}
                   placeholder="you@example.com"
                   required
+                  aria-invalid={
+                    errorField === "email" || errorField === "credentials"
+                  }
+                  aria-describedby={
+                    error &&
+                    (errorField === "email" || errorField === "credentials")
+                      ? "auth-error"
+                      : undefined
+                  }
                 />
               </div>
             </div>
@@ -215,9 +253,28 @@ function AuthForm() {
                     }
                     className="field px-12"
                     value={password}
-                    onChange={(event) => setPassword(event.target.value)}
+                    onChange={(event) => {
+                      setPassword(event.target.value);
+                      if (
+                        errorField === "password" ||
+                        errorField === "credentials"
+                      ) {
+                        setError("");
+                        setErrorField(null);
+                      }
+                    }}
                     required
-                    aria-describedby="password-help"
+                    aria-invalid={
+                      errorField === "password" ||
+                      errorField === "credentials"
+                    }
+                    aria-describedby={
+                      error &&
+                      (errorField === "password" ||
+                        errorField === "credentials")
+                        ? "password-help auth-error"
+                        : "password-help"
+                    }
                   />
                   <button
                     type="button"
@@ -249,14 +306,27 @@ function AuthForm() {
                   autoComplete="new-password"
                   className="field"
                   value={confirmPassword}
-                  onChange={(event) => setConfirmPassword(event.target.value)}
+                  onChange={(event) => {
+                    setConfirmPassword(event.target.value);
+                    if (errorField === "confirmPassword") {
+                      setError("");
+                      setErrorField(null);
+                    }
+                  }}
                   required
+                  aria-invalid={errorField === "confirmPassword"}
+                  aria-describedby={
+                    error && errorField === "confirmPassword"
+                      ? "auth-error"
+                      : undefined
+                  }
                 />
               </div>
             )}
 
             {error && (
               <div
+                id="auth-error"
                 className="rounded-2xl border border-clay-200 bg-clay-50 px-4 py-3 text-sm font-semibold text-clay-600"
                 role="alert"
               >

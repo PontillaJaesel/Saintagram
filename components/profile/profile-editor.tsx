@@ -82,10 +82,11 @@ export function ProfileEditor() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [clearHiddenOpen, setClearHiddenOpen] = useState(false);
+  const [privacyConfirmed, setPrivacyConfirmed] = useState(false);
   const nameRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    if (!user) return;
+    if (!user || !privacyConfirmed) return;
     let active = true;
     appService
       .getFullProfile(user.id)
@@ -107,7 +108,7 @@ export function ProfileEditor() {
     return () => {
       active = false;
     };
-  }, [user]);
+  }, [privacyConfirmed, user]);
 
   const setField = <Key extends keyof SpiritualProfile>(
     key: Key,
@@ -142,6 +143,28 @@ export function ProfileEditor() {
       setSaving(false);
     }
   };
+
+  if (!privacyConfirmed) {
+    return (
+      <ConfirmDialog
+        open
+        title="Open your private profile editor?"
+        description="This editor includes your Hidden Story. Confirm that you are in a place where only you can read the screen before it is loaded."
+        confirmLabel="I’m ready to edit privately"
+        cancelLabel="Back to profile"
+        onClose={() => router.replace("/profile")}
+        onConfirm={() => setPrivacyConfirmed(true)}
+      >
+        <div className="flex items-start gap-3 rounded-2xl bg-clay-50 p-4 text-sm leading-6 text-muted">
+          <ShieldCheck
+            className="mt-0.5 size-5 shrink-0 text-clay-600"
+            aria-hidden="true"
+          />
+          Your Hidden Story stays unloaded until you confirm.
+        </div>
+      </ConfirmDialog>
+    );
+  }
 
   if (loading) return <LoadingState label="Opening profile editor…" />;
 

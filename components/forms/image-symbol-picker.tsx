@@ -152,7 +152,7 @@ export function ImageSymbolPicker({
         </button>
       </div>
       <p className="mt-3 text-xs leading-5 text-muted">
-        JPG, PNG, or WebP. Maximum 2 MB. Your image is private to your account.
+        JPG, PNG, or WebP. Maximum 2 MB. Avoid uploading highly sensitive images.
       </p>
       {error && (
         <p className="mt-3 text-sm font-semibold text-clay-600" role="alert">

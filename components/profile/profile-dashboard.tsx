@@ -21,7 +21,6 @@ import {
   Pencil,
   Settings,
   ShieldCheck,
-  Sparkles,
   UsersRound
 } from "lucide-react";
 import { useAuth } from "@/components/providers/auth-provider";

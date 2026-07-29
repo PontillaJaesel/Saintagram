@@ -265,7 +265,11 @@ export function ReflectionManager() {
             maxLength={LIMITS.post}
             placeholder="A quiet kindness, a hard choice, a prayer, an honest struggle…"
             aria-invalid={Boolean(error)}
-            aria-describedby="reflection-count"
+            aria-describedby={
+              error
+                ? "reflection-count reflection-error"
+                : "reflection-count"
+            }
           />
           <p
             id="reflection-count"
@@ -322,6 +326,7 @@ export function ReflectionManager() {
 
           {error && (
             <div
+              id="reflection-error"
               className="mt-4 rounded-2xl border border-clay-200 bg-clay-50 p-3 text-sm font-semibold text-clay-600"
               role="alert"
             >
