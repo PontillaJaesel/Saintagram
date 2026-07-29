@@ -4,7 +4,7 @@ import path from "node:path";
 export default defineConfig({
   test: {
     environment: "node",
-    include: ["tests/firestore-rules.test.ts"],
+    include: ["tests/database-rules.test.ts"],
     testTimeout: 20_000,
     hookTimeout: 20_000
   },

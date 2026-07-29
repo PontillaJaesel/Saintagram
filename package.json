@@ -11,7 +11,7 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:rules": "npx firebase-tools emulators:exec --only firestore \"vitest run --config vitest.rules.config.ts\""
+    "test:rules": "npx firebase-tools emulators:exec --only database \"vitest run --config vitest.rules.config.ts\""
   },
   "dependencies": {
     "firebase": "^11.4.0",

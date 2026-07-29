@@ -236,7 +236,7 @@ export function SettingsPanel() {
         </dl>
         <div className="mt-4 flex flex-col gap-3 rounded-2xl border border-sage-100 p-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <p className="text-sm font-bold text-ink">Storage connection</p>
+            <p className="text-sm font-bold text-ink">Data connection</p>
             <p className="mt-1 text-xs leading-5 text-muted">
               {mode === "local"
                 ? "Demonstration data is stored only in this browser."

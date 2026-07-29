@@ -587,7 +587,7 @@ export function ProfileDashboard() {
             aria-hidden="true"
           />
           This confirmation adds visual privacy. Your account ownership remains
-          protected separately by storage rules.
+          protected separately by database ownership rules.
         </div>
       </ConfirmDialog>
     </div>

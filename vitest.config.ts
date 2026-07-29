@@ -6,7 +6,10 @@ export default defineConfig({
     environment: "jsdom",
     setupFiles: ["./tests/setup.ts"],
     include: ["tests/**/*.test.{ts,tsx}"],
-    exclude: ["tests/firestore-rules.test.ts"],
+    exclude: [
+      "tests/firestore-rules.test.ts",
+      "tests/database-rules.test.ts"
+    ],
     css: true
   },
   resolve: {

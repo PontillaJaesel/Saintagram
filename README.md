@@ -26,9 +26,9 @@ controls.
 - Owner reflection create, edit, delete, privacy, and creation-date controls
 - Profile editing, privacy preferences, private personal export, and
   destructive-action confirmations
-- Firebase Authentication, Firestore, and Storage adapters
+- Firebase Authentication and Realtime Database adapters
 - A fully functional browser-local demonstration mode when Firebase is absent
-- Strict Firestore and Storage ownership rules
+- Strict Realtime Database ownership rules
 - Vitest coverage for route guards, redirects, profile saving, validation, and
   private-field projection
 
@@ -68,16 +68,15 @@ New accounts and the entire onboarding journey also work in demo mode.
 
 1. Create a Firebase project.
 2. Enable **Authentication → Email/Password**.
-3. Create a Firestore database.
-4. Enable Firebase Storage.
+3. Create a Realtime Database.
 5. Copy `.env.example` to `.env.local`.
 6. Fill in the Firebase web configuration:
 
 ```dotenv
 NEXT_PUBLIC_FIREBASE_API_KEY=
 NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=
+NEXT_PUBLIC_FIREBASE_DATABASE_URL=
 NEXT_PUBLIC_FIREBASE_PROJECT_ID=
-NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=
 NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=
 NEXT_PUBLIC_FIREBASE_APP_ID=
 ```
@@ -91,7 +90,7 @@ Deploy the supplied rules and indexes after selecting the project:
 ```bash
 npx firebase login
 npx firebase use --add
-npx firebase deploy --only firestore:rules,firestore:indexes,storage
+npx firebase deploy --only database
 ```
 
 The application uses these collections:
@@ -108,9 +107,7 @@ boundaries.
 
 ## Security model
 
-- Every page is behind the server-side invitation gate except the code-entry
-  route and its verification endpoint.
-- Firestore and Storage require an authenticated UID that matches the resource
+- Realtime Database requires an authenticated UID that matches the resource
   owner.
 - Standard profile reads query only `profiles/{uid}`. Hidden Story content is
   stored separately and is not fetched until the user passes an additional
@@ -121,14 +118,9 @@ boundaries.
   as text; uploaded images are restricted to JPG, PNG, or WebP and 2 MiB.
 - Personal export is explicitly an owner-requested private archive, never a
   public profile export.
-- Account deletion reauthenticates, removes all images beneath the user's
-  Storage prefix in bounded pages, deletes Firestore content in bounded
-  batches, and then deletes the Authentication user. Cleanup failures stop the
-  process with a visible error.
-
-The shared entrance code proves possession of an invitation, not a person's
-identity, and can be forwarded. Firebase Authentication and owner-only rules
-remain the authorization boundary for personal data.
+- Account deletion reauthenticates, removes all owner data from Realtime
+  Database and the device-local profile image, then deletes the Authentication
+  user.
 
 The browser confirmation before showing private content is a visual privacy
 check, not the authorization boundary. Firebase ownership rules remain the
@@ -143,10 +135,10 @@ npm run typecheck  # strict TypeScript check
 npm test           # unit and component tests
 npm run build      # optimized production build
 npm start          # serve the generated production build
-npm run test:rules # Firestore ownership tests using the emulator
+npm run test:rules # Realtime Database ownership tests using the emulator
 ```
 
-Firestore emulator tests require Java 11 or newer.
+Realtime Database emulator tests require Java 11 or newer.
 
 ## Project map
 
@@ -158,15 +150,14 @@ lib/profile.ts       Private-safe profile projections and normalization
 types/               Application data models
 tests/               Guard, redirect, storage, and privacy tests
 scripts/             Production-host package preparation
-docs/data-model.md   Firestore and Storage contract
-firestore.rules      Owner-only database rules
-storage.rules        Owner-only image rules
+docs/data-model.md   Realtime Database contract
+database.rules.json  Owner-only database rules
 data/demo-seed.json  Fictional demonstration data
 ```
 
 ## Production notes
 
 The local fallback is intentionally scoped to demonstration. A production
-launch should also add server-side retryable account cleanup (for any Storage
-object deletion that fails), Firebase App Check, abuse monitoring, and an
+launch should also add server-side retryable account cleanup, Firebase App
+Check, abuse monitoring, and an
 approved pastoral/privacy review of prompts and copy.
