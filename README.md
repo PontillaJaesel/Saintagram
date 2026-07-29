@@ -13,6 +13,7 @@ controls.
 
 - Email/password registration, login, persistent sessions, logout, password
   reset request, password change, and account deletion
+- A server-verified invitation-code entrance protecting every application route
 - Consent and spiritual introduction gates
 - Protected-route routing based on consent and profile completion
 - Ten-step profile builder with automatic draft saves, explicit save,
@@ -49,6 +50,19 @@ npm run dev
 ```
 
 Open [http://localhost:3000](http://localhost:3000).
+
+Before starting, copy `.env.example` to `.env.local` and configure the private
+entrance:
+
+```dotenv
+SITE_ACCESS_CODE=use-a-private-code-with-12-or-more-characters
+SITE_ACCESS_SESSION_SECRET=use-a-separate-random-secret-with-32-or-more-characters
+```
+
+The access code is checked only on the server. A successful visitor receives a
+signed, HttpOnly cookie that expires after seven days; the code itself is never
+stored in browser storage or shipped in client JavaScript. Rotate both values
+to change the code and invalidate all existing access sessions.
 
 Without Firebase variables, Saintagram automatically enters **Private demo**
 mode. Data stays in that browser's local storage. This fallback is convenient
@@ -107,6 +121,8 @@ boundaries.
 
 ## Security model
 
+- Every page is behind the server-side invitation gate except the code-entry
+  route and its verification endpoint.
 - Firestore and Storage require an authenticated UID that matches the resource
   owner.
 - Standard profile reads query only `profiles/{uid}`. Hidden Story content is
@@ -122,6 +138,10 @@ boundaries.
   Storage prefix in bounded pages, deletes Firestore content in bounded
   batches, and then deletes the Authentication user. Cleanup failures stop the
   process with a visible error.
+
+The shared entrance code proves possession of an invitation, not a person's
+identity, and can be forwarded. Firebase Authentication and owner-only rules
+remain the authorization boundary for personal data.
 
 The browser confirmation before showing private content is a visual privacy
 check, not the authorization boundary. Firebase ownership rules remain the
