@@ -18,7 +18,7 @@ function makeProfile(): SpiritualProfile {
     id: "profile-1",
     userId: "user-1",
     profileName: "Beloved Child of God",
-    imageUrl: "",
+    imagePath: "",
     selectedSymbol: "candle",
     spiritualBio: "Still growing in faith.",
     followers: ["Mary", "A trusted friend"],
@@ -82,7 +82,8 @@ describe("normalizeDraft", () => {
   it("normalizes every user-authored profile field while preserving private data", () => {
     const draft: ProfileDraftData = {
       profileName: `  Beloved\u0000 Child  ${"x".repeat(LIMITS.profileName)}  `,
-      imageUrl: "  https://example.com/avatar.png  ",
+      imagePath:
+        "  users/user-1/profile/04fefae1-e03e-42ee-9cd4-dc86823426e8.png  ",
       selectedSymbol: "heart",
       spiritualBio: `  Learning\u0000 to trust  `,
       followers: [" Mary ", "mary", "", "  Jesus  "],
@@ -105,7 +106,9 @@ describe("normalizeDraft", () => {
     expect(normalized.profileName.length).toBeLessThanOrEqual(
       LIMITS.profileName
     );
-    expect(normalized.imageUrl).toBe("https://example.com/avatar.png");
+    expect(normalized.imagePath).toBe(
+      "users/user-1/profile/04fefae1-e03e-42ee-9cd4-dc86823426e8.png"
+    );
     expect(normalized.spiritualBio).toBe("Learning to trust");
     expect(normalized.followers).toEqual(["Mary", "Jesus"]);
     expect(normalized.following).toEqual(["God's will", "Jesus"]);
@@ -120,7 +123,7 @@ describe("normalizeDraft", () => {
   it("does not mutate the draft supplied by the form", () => {
     const draft: ProfileDraftData = {
       profileName: "  Still Growing  ",
-      imageUrl: "",
+      imagePath: "",
       selectedSymbol: "",
       spiritualBio: "",
       followers: [" Mary "],

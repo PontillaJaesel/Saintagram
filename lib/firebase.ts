@@ -5,7 +5,11 @@ import {
   setPersistence,
   type Auth
 } from "firebase/auth";
+<<<<<<< HEAD
 import { getDatabase, type Database } from "firebase/database";
+=======
+import { getFirestore, type Firestore } from "firebase/firestore";
+>>>>>>> origin/feature/Access-Code
 
 const firebaseConfig = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
@@ -21,7 +25,11 @@ export const isFirebaseConfigured = Object.values(firebaseConfig).every(Boolean)
 export interface FirebaseServices {
   app: FirebaseApp;
   auth: Auth;
+<<<<<<< HEAD
   db: Database;
+=======
+  db: Firestore;
+>>>>>>> origin/feature/Access-Code
 }
 
 let services: FirebaseServices | null = null;
@@ -36,7 +44,11 @@ export function getFirebaseServices(): FirebaseServices | null {
   services = {
     app,
     auth,
+<<<<<<< HEAD
     db: getDatabase(app)
+=======
+    db: getFirestore(app)
+>>>>>>> origin/feature/Access-Code
   };
   return services;
 }

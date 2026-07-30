@@ -11,6 +11,7 @@ import {
   type Unsubscribe
 } from "firebase/auth";
 import {
+<<<<<<< HEAD
   get,
   push,
   ref,
@@ -18,9 +19,33 @@ import {
   set,
   update
 } from "firebase/database";
+=======
+  collection,
+  deleteDoc,
+  doc,
+  getDoc,
+  getDocs,
+  limit as firestoreLimit,
+  query,
+  setDoc,
+  updateDoc,
+  where,
+  writeBatch
+} from "firebase/firestore";
+>>>>>>> origin/feature/Access-Code
 import { DEMO_EMAIL, DEMO_PASSWORD, LIMITS } from "@/lib/constants";
 import { getFirebaseServices, isFirebaseConfigured } from "@/lib/firebase";
-import { normalizeDraft, toPublicProfile } from "@/lib/profile";
+import {
+  deleteAllSupabaseProfileImages,
+  deleteSupabaseProfileImage,
+  isOwnedProfileImagePath,
+  uploadSupabaseProfileImage
+} from "@/lib/profile-images";
+import {
+  normalizeDraft,
+  normalizeProfileImageReference,
+  toPublicProfile
+} from "@/lib/profile";
 import {
   cleanText,
   normalizeHashtag,
@@ -28,13 +53,15 @@ import {
 } from "@/lib/validation";
 import {
   DEFAULT_PRIVACY_PREFERENCES,
+  EMPTY_DRAFT,
   type AppUser,
   type PersonalDataExport,
   type ProfileDraft,
   type ProfileDraftData,
   type PublicSpiritualProfile,
   type ReflectionPost,
-  type SpiritualProfile
+  type SpiritualProfile,
+  type SpiritualSymbol
 } from "@/types";
 
 const STORAGE_PREFIX = "saintagram:v1";
@@ -151,6 +178,108 @@ function createUserRecord(id: string, email: string): AppUser {
   };
 }
 
+function stringValue(value: unknown): string {
+  return typeof value === "string" ? value : "";
+}
+
+function stringList(value: unknown): string[] {
+  return Array.isArray(value)
+    ? value.filter((item): item is string => typeof item === "string")
+    : [];
+}
+
+function storedPublicProfile(
+  value: unknown,
+  expectedUserId?: string
+): PublicSpiritualProfile {
+  const data =
+    typeof value === "object" && value
+      ? (value as Record<string, unknown>)
+      : {};
+  const storedImagePath = stringValue(data.imagePath);
+  return {
+    id: stringValue(data.id),
+    userId: stringValue(data.userId),
+    profileName: stringValue(data.profileName),
+    imagePath:
+      expectedUserId &&
+      storedImagePath &&
+      !isOwnedProfileImagePath(storedImagePath, expectedUserId)
+        ? ""
+        : storedImagePath,
+    selectedSymbol: stringValue(data.selectedSymbol) as SpiritualSymbol,
+    spiritualBio: stringValue(data.spiritualBio),
+    followers: stringList(data.followers),
+    following: stringList(data.following),
+    heartSeeks: stringList(data.heartSeeks),
+    godsComment: stringValue(data.godsComment),
+    heavenlyHashtag: stringValue(data.heavenlyHashtag),
+    createdAt: stringValue(data.createdAt),
+    updatedAt: stringValue(data.updatedAt)
+  };
+}
+
+function storedProfileDraft(
+  value: unknown,
+  expectedUserId?: string
+): ProfileDraft | null {
+  if (typeof value !== "object" || !value) return null;
+  const data = value as Record<string, unknown>;
+  const rawDraft =
+    typeof data.draftData === "object" && data.draftData
+      ? (data.draftData as Record<string, unknown>)
+      : {};
+  const storedImagePath = stringValue(rawDraft.imagePath);
+  const draftData: ProfileDraftData = {
+    ...EMPTY_DRAFT,
+    profileName: stringValue(rawDraft.profileName),
+    imagePath:
+      expectedUserId &&
+      storedImagePath &&
+      !isOwnedProfileImagePath(storedImagePath, expectedUserId)
+        ? ""
+        : storedImagePath,
+    selectedSymbol: stringValue(rawDraft.selectedSymbol) as SpiritualSymbol,
+    spiritualBio: stringValue(rawDraft.spiritualBio),
+    followers: stringList(rawDraft.followers),
+    following: stringList(rawDraft.following),
+    onboardingPosts: stringList(rawDraft.onboardingPosts),
+    heartSeeks: stringList(rawDraft.heartSeeks),
+    hiddenStory: stringValue(rawDraft.hiddenStory),
+    godsComment: stringValue(rawDraft.godsComment),
+    heavenlyHashtag: stringValue(rawDraft.heavenlyHashtag)
+  };
+  return {
+    id: stringValue(data.id),
+    userId: stringValue(data.userId),
+    currentStep:
+      typeof data.currentStep === "number" ? data.currentStep : 0,
+    draftData,
+    updatedAt: stringValue(data.updatedAt)
+  };
+}
+
+function assertStoredProfileImagePath(userId: string, imagePath: string): void {
+  if (imagePath && !isOwnedProfileImagePath(imagePath, userId)) {
+    throw new Error("The selected image path is not valid for this account.");
+  }
+}
+
+async function cleanupReplacedProfileImage(
+  userId: string,
+  previousPath: string,
+  nextPath: string
+): Promise<void> {
+  if (!previousPath || previousPath === nextPath) return;
+  try {
+    await deleteSupabaseProfileImage(userId, previousPath);
+  } catch {
+    // The profile write is already durable. Account deletion scans the entire
+    // owner folder, so a failed best-effort replacement cleanup remains
+    // recoverable without rolling the profile back to a stale image.
+  }
+}
+
 async function ensureLocalSeed(): Promise<void> {
   if (!storageAvailable() || localAccounts().length > 0) return;
 
@@ -178,7 +307,7 @@ async function ensureLocalSeed(): Promise<void> {
     id: userId,
     userId,
     profileName: "Still Growing",
-    imageUrl: "",
+    imagePath: "",
     selectedSymbol: "seed",
     spiritualBio:
       "Before God, I am someone who is learning to receive grace, begin again, and notice quiet gifts.",
@@ -515,6 +644,7 @@ export const appService = {
       if (!services) return null;
       const snapshot = await get(ref(services.db, `profiles/${userId}`));
       return snapshot.exists()
+<<<<<<< HEAD
         ? {
             ...(snapshot.val() as PublicSpiritualProfile),
             imageUrl: readJson<string>(
@@ -522,13 +652,17 @@ export const appService = {
               ""
             )
           }
+=======
+        ? storedPublicProfile(snapshot.data(), userId)
+>>>>>>> origin/feature/Access-Code
         : null;
     }
     assertLocalOwner(userId);
-    return readJson<JsonMap<PublicSpiritualProfile>>(
+    const profile = readJson<JsonMap<PublicSpiritualProfile>>(
       LOCAL_KEYS.profiles,
       {}
-    )[userId] ?? null;
+    )[userId];
+    return profile ? storedPublicProfile(profile) : null;
   },
 
   async getPrivateStory(userId: string): Promise<string> {
@@ -562,6 +696,7 @@ export const appService = {
       const services = getFirebaseServices();
       if (!services) return null;
       try {
+<<<<<<< HEAD
         const snapshot = await get(ref(services.db, `drafts/${userId}`));
         if (snapshot.exists()) {
           const draft = snapshot.val() as ProfileDraft;
@@ -575,15 +710,25 @@ export const appService = {
               )
             }
           };
+=======
+        const snapshot = await getDoc(doc(services.db, "drafts", userId));
+        if (snapshot.exists()) {
+          return storedProfileDraft(snapshot.data(), userId);
+>>>>>>> origin/feature/Access-Code
         }
       } catch {
         // A sanitized browser copy keeps non-sensitive progress recoverable
         // during a temporary network interruption.
       }
-      return readJson<ProfileDraft | null>(firebaseDraftCacheKey(userId), null);
+      return storedProfileDraft(
+        readJson<ProfileDraft | null>(firebaseDraftCacheKey(userId), null),
+        userId
+      );
     }
     assertLocalOwner(userId);
-    return readJson<JsonMap<ProfileDraft>>(LOCAL_KEYS.drafts, {})[userId] ?? null;
+    return storedProfileDraft(
+      readJson<JsonMap<ProfileDraft>>(LOCAL_KEYS.drafts, {})[userId] ?? null
+    );
   },
 
   async saveDraft(
@@ -600,6 +745,7 @@ export const appService = {
     };
     if (isFirebaseConfigured) {
       assertFirebaseOwner(userId);
+      assertStoredProfileImagePath(userId, draftData.imagePath);
       const services = getFirebaseServices();
       if (!services) throw new Error("Firebase is not available.");
       // Keep only a non-sensitive local fallback. The Hidden Story remains in
@@ -647,6 +793,7 @@ export const appService = {
 
     if (isFirebaseConfigured) {
       assertFirebaseOwner(userId);
+      assertStoredProfileImagePath(userId, data.imagePath);
       const services = getFirebaseServices();
       if (!services) throw new Error("Firebase is not available.");
       const existing = await this.getProfileView(userId);
@@ -654,7 +801,7 @@ export const appService = {
         id: userId,
         userId,
         profileName: data.profileName,
-        imageUrl: data.imageUrl,
+        imagePath: data.imagePath,
         selectedSymbol: data.selectedSymbol,
         spiritualBio: data.spiritualBio,
         followers: data.followers,
@@ -695,10 +842,19 @@ export const appService = {
         };
         changes[`reflectionPosts/${userId}/${postId}`] = post;
       });
+<<<<<<< HEAD
       await update(ref(services.db), changes);
       if (storageAvailable()) {
         window.localStorage.removeItem(firebaseDraftCacheKey(userId));
       }
+=======
+      await batch.commit();
+      await cleanupReplacedProfileImage(
+        userId,
+        existing?.imagePath ?? "",
+        fullProfile.imagePath
+      );
+>>>>>>> origin/feature/Access-Code
       return fullProfile;
     }
 
@@ -712,7 +868,7 @@ export const appService = {
       id: userId,
       userId,
       profileName: data.profileName,
-      imageUrl: data.imageUrl,
+      imagePath: data.imagePath,
       selectedSymbol: data.selectedSymbol,
       spiritualBio: data.spiritualBio,
       followers: data.followers,
@@ -768,6 +924,7 @@ export const appService = {
       id: userId,
       userId,
       profileName: cleanText(profile.profileName, LIMITS.profileName),
+      imagePath: normalizeProfileImageReference(profile.imagePath),
       spiritualBio: cleanText(profile.spiritualBio, LIMITS.bio),
       followers: normalizeList(profile.followers),
       following: normalizeList(profile.following),
@@ -781,8 +938,10 @@ export const appService = {
 
     if (isFirebaseConfigured) {
       assertFirebaseOwner(userId);
+      assertStoredProfileImagePath(userId, updated.imagePath);
       const services = getFirebaseServices();
       if (!services) throw new Error("Firebase is not available.");
+<<<<<<< HEAD
       await update(ref(services.db), {
         [`profiles/${userId}`]: {
           ...toPublicProfile(updated),
@@ -795,6 +954,23 @@ export const appService = {
         },
         [`users/${userId}/updatedAt`]: now
       });
+=======
+      const existing = await this.getProfileView(userId);
+      const batch = writeBatch(services.db);
+      batch.set(doc(services.db, "profiles", userId), toPublicProfile(updated));
+      batch.set(doc(services.db, "privateProfiles", userId), {
+        userId,
+        hiddenStory: updated.hiddenStory,
+        updatedAt: now
+      });
+      batch.update(doc(services.db, "users", userId), { updatedAt: now });
+      await batch.commit();
+      await cleanupReplacedProfileImage(
+        userId,
+        existing?.imagePath ?? "",
+        updated.imagePath
+      );
+>>>>>>> origin/feature/Access-Code
       return updated;
     }
 
@@ -822,6 +998,7 @@ export const appService = {
   async uploadProfileImage(userId: string, file: File): Promise<string> {
     if (isFirebaseConfigured) {
       assertFirebaseOwner(userId);
+<<<<<<< HEAD
       return new Promise<string>((resolve, reject) => {
         const reader = new FileReader();
         reader.onload = () => {
@@ -832,6 +1009,9 @@ export const appService = {
         reader.onerror = () => reject(new Error("The image could not be read."));
         reader.readAsDataURL(file);
       });
+=======
+      return uploadSupabaseProfileImage(userId, file);
+>>>>>>> origin/feature/Access-Code
     }
 
     assertLocalOwner(userId);
@@ -841,6 +1021,13 @@ export const appService = {
       reader.onerror = () => reject(new Error("The image could not be read."));
       reader.readAsDataURL(file);
     });
+  },
+
+  async deleteProfileImage(userId: string, imagePath: string): Promise<void> {
+    if (isFirebaseConfigured) {
+      assertFirebaseOwner(userId);
+      await deleteSupabaseProfileImage(userId, imagePath);
+    }
   },
 
   async getReflections(userId: string): Promise<ReflectionPost[]> {
@@ -1055,6 +1242,7 @@ export const appService = {
       } catch (error) {
         throw friendlyAuthError(error);
       }
+<<<<<<< HEAD
       await update(ref(services.db), {
         [`profiles/${userId}`]: null,
         [`privateProfiles/${userId}`]: null,
@@ -1065,6 +1253,20 @@ export const appService = {
       if (storageAvailable()) {
         window.localStorage.removeItem(firebaseDraftCacheKey(userId));
         window.localStorage.removeItem(firebaseProfileImageKey(userId));
+=======
+      // Remove Supabase Storage first. If this fails, retain the account and
+      // Firestore records so the owner can retry without orphaning image data.
+      try {
+        await deleteAllSupabaseProfileImages(userId);
+      } catch (imageError) {
+        const detail =
+          imageError instanceof Error
+            ? ` ${imageError.message}`
+            : "";
+        throw new Error(
+          `Your profile images could not be removed, so account deletion stopped.${detail}`
+        );
+>>>>>>> origin/feature/Access-Code
       }
       await deleteUser(firebaseUser);
       return;

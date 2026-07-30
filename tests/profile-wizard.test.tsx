@@ -12,6 +12,8 @@ const mocks = vi.hoisted(() => ({
   getDraft: vi.fn(),
   saveDraft: vi.fn(),
   deleteDraft: vi.fn(),
+  uploadProfileImage: vi.fn(),
+  deleteProfileImage: vi.fn(),
   completeProfile: vi.fn()
 }));
 
@@ -38,6 +40,8 @@ vi.mock("@/lib/app-service", () => ({
     getDraft: mocks.getDraft,
     saveDraft: mocks.saveDraft,
     deleteDraft: mocks.deleteDraft,
+    uploadProfileImage: mocks.uploadProfileImage,
+    deleteProfileImage: mocks.deleteProfileImage,
     completeProfile: mocks.completeProfile
   }
 }));
@@ -56,7 +60,7 @@ const TEST_USER: AppUser = {
 
 const COMPLETED_DRAFT: ProfileDraftData = {
   profileName: "Beloved Child of God",
-  imageUrl: "",
+  imagePath: "",
   selectedSymbol: "cross",
   spiritualBio: "Learning to trust grace.",
   followers: ["Mary"],
@@ -67,6 +71,10 @@ const COMPLETED_DRAFT: ProfileDraftData = {
   godsComment: "You are loved.",
   heavenlyHashtag: "#Beloved"
 };
+const RESTORED_IMAGE_PATH =
+  "users/user-1/profile/04fefae1-e03e-42ee-9cd4-dc86823426e8.png";
+const STAGED_IMAGE_PATH =
+  "users/user-1/profile/14fefae1-e03e-42ee-9cd4-dc86823426e8.png";
 
 describe("ProfileWizard completion", () => {
   beforeEach(() => {
@@ -83,6 +91,8 @@ describe("ProfileWizard completion", () => {
     });
     mocks.saveDraft.mockResolvedValue(undefined);
     mocks.deleteDraft.mockResolvedValue(undefined);
+    mocks.uploadProfileImage.mockResolvedValue(STAGED_IMAGE_PATH);
+    mocks.deleteProfileImage.mockResolvedValue(undefined);
     mocks.completeProfile.mockResolvedValue(undefined);
     mocks.refreshUser.mockResolvedValue({
       ...TEST_USER,
@@ -133,5 +143,84 @@ describe("ProfileWizard completion", () => {
     ).toHaveTextContent("Your profile could not be stored.");
     expect(mocks.refreshUser).not.toHaveBeenCalled();
     expect(mocks.replace).not.toHaveBeenCalled();
+  });
+
+  it("keeps a restored image until its replacement draft is durable", async () => {
+    const user = userEvent.setup();
+    let resolveSave: (() => void) | undefined;
+    mocks.getDraft.mockResolvedValue({
+      id: TEST_USER.id,
+      userId: TEST_USER.id,
+      currentStep: 1,
+      draftData: {
+        ...COMPLETED_DRAFT,
+        imagePath: RESTORED_IMAGE_PATH,
+        selectedSymbol: ""
+      },
+      updatedAt: "2026-07-28T08:00:00.000Z"
+    });
+    mocks.saveDraft.mockImplementation(
+      () =>
+        new Promise<void>((resolve) => {
+          resolveSave = resolve;
+        })
+    );
+    render(<ProfileWizard />);
+
+    await user.click(
+      await screen.findByRole("button", {
+        name: /Seed/
+      })
+    );
+
+    expect(mocks.deleteProfileImage).not.toHaveBeenCalled();
+    await waitFor(
+      () => expect(mocks.saveDraft).toHaveBeenCalledTimes(1),
+      { timeout: 2_000 }
+    );
+    expect(mocks.deleteProfileImage).not.toHaveBeenCalled();
+
+    resolveSave?.();
+    await waitFor(() => {
+      expect(mocks.deleteProfileImage).toHaveBeenCalledWith(
+        TEST_USER.id,
+        RESTORED_IMAGE_PATH
+      );
+    });
+  });
+
+  it("removes an unsaved staged upload on unmount but preserves the restored image", async () => {
+    const user = userEvent.setup();
+    mocks.getDraft.mockResolvedValue({
+      id: TEST_USER.id,
+      userId: TEST_USER.id,
+      currentStep: 1,
+      draftData: {
+        ...COMPLETED_DRAFT,
+        imagePath: RESTORED_IMAGE_PATH,
+        selectedSymbol: ""
+      },
+      updatedAt: "2026-07-28T08:00:00.000Z"
+    });
+    const view = render(<ProfileWizard />);
+    const file = new File(["image"], "avatar.png", { type: "image/png" });
+
+    await user.upload(
+      await screen.findByLabelText("Upload profile image"),
+      file
+    );
+    expect(mocks.uploadProfileImage).toHaveBeenCalledWith(TEST_USER.id, file);
+
+    view.unmount();
+    await waitFor(() => {
+      expect(mocks.deleteProfileImage).toHaveBeenCalledWith(
+        TEST_USER.id,
+        STAGED_IMAGE_PATH
+      );
+    });
+    expect(mocks.deleteProfileImage).not.toHaveBeenCalledWith(
+      TEST_USER.id,
+      RESTORED_IMAGE_PATH
+    );
   });
 });

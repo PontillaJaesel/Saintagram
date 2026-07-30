@@ -27,7 +27,7 @@ export interface PublicSpiritualProfile {
   id: string;
   userId: string;
   profileName: string;
-  imageUrl: string;
+  imagePath: string;
   selectedSymbol: SpiritualSymbol;
   spiritualBio: string;
   followers: string[];
@@ -54,7 +54,7 @@ export interface ReflectionPost {
 
 export interface ProfileDraftData {
   profileName: string;
-  imageUrl: string;
+  imagePath: string;
   selectedSymbol: SpiritualSymbol;
   spiritualBio: string;
   followers: string[];
@@ -85,7 +85,7 @@ export interface PersonalDataExport {
 
 export const EMPTY_DRAFT: ProfileDraftData = {
   profileName: "",
-  imageUrl: "",
+  imagePath: "",
   selectedSymbol: "",
   spiritualBio: "",
   followers: [],

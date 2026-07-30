@@ -245,7 +245,7 @@ export function ProfileDashboard() {
             <div className="-mt-12 flex flex-col gap-4 sm:-mt-14 sm:flex-row sm:items-end sm:justify-between">
               <div className="flex flex-col items-start gap-4 sm:flex-row sm:items-end">
                 <ProfileAvatar
-                  imageUrl={profile.imageUrl}
+                  imagePath={profile.imagePath}
                   symbol={profile.selectedSymbol}
                   profileName={profile.profileName}
                 />
@@ -587,7 +587,11 @@ export function ProfileDashboard() {
             aria-hidden="true"
           />
           This confirmation adds visual privacy. Your account ownership remains
+<<<<<<< HEAD
           protected separately by database ownership rules.
+=======
+          protected separately by database rules and storage policies.
+>>>>>>> origin/feature/Access-Code
         </div>
       </ConfirmDialog>
     </div>

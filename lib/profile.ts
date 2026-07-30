@@ -25,10 +25,17 @@ export function publicReflections(posts: ReflectionPost[]): ReflectionPost[] {
   return posts.filter((post) => !post.isPrivate);
 }
 
+export function normalizeProfileImageReference(value: string): string {
+  const imagePath = value.trim();
+  return imagePath.startsWith("data:image/")
+    ? imagePath.slice(0, LIMITS.localImageDataUrl)
+    : cleanText(imagePath, LIMITS.imagePath);
+}
+
 export function normalizeDraft(data: ProfileDraftData): ProfileDraftData {
   return {
     profileName: cleanText(data.profileName, LIMITS.profileName),
-    imageUrl: data.imageUrl.trim().slice(0, 500_000),
+    imagePath: normalizeProfileImageReference(data.imagePath),
     selectedSymbol: data.selectedSymbol,
     spiritualBio: cleanText(data.spiritualBio, LIMITS.bio),
     followers: normalizeList(data.followers),

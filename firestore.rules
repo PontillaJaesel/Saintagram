@@ -26,6 +26,19 @@ service cloud.firestore {
       return value is string && value.size() <= maximumLength;
     }
 
+    function hasValidProfileImagePath(value, userId) {
+      return isShortString(value, 512)
+        && (
+          value == ''
+          || value.matches(
+            '^users/' + userId
+              + '/profile/[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-'
+              + '[1-5][0-9A-Fa-f]{3}-[89AaBb][0-9A-Fa-f]{3}-'
+              + '[0-9A-Fa-f]{12}[.](jpg|png|webp)$'
+          )
+        );
+    }
+
     function isStringList(value, maximumItems) {
       return value is list && value.size() <= maximumItems;
     }
@@ -97,7 +110,7 @@ service cloud.firestore {
           'id',
           'userId',
           'profileName',
-          'imageUrl',
+          'imagePath',
           'selectedSymbol',
           'spiritualBio',
           'followers',
@@ -112,7 +125,7 @@ service cloud.firestore {
           'id',
           'userId',
           'profileName',
-          'imageUrl',
+          'imagePath',
           'selectedSymbol',
           'spiritualBio',
           'followers',
@@ -127,7 +140,7 @@ service cloud.firestore {
         && data.userId is string
         && isShortString(data.profileName, 60)
         && data.profileName.size() > 0
-        && isShortString(data.imageUrl, 2048)
+        && hasValidProfileImagePath(data.imagePath, data.userId)
         && data.selectedSymbol in [
           '',
           'candle',
@@ -137,6 +150,7 @@ service cloud.firestore {
           'open-hands',
           'road'
         ]
+        && (data.imagePath == '' || data.selectedSymbol == '')
         && isShortString(data.spiritualBio, 320)
         && isStringList(data.followers, 30)
         && isStringList(data.following, 30)
@@ -163,11 +177,11 @@ service cloud.firestore {
         && isIsoDate(data.updatedAt);
     }
 
-    function hasValidDraftData(value) {
+    function hasValidDraftData(value, userId) {
       return value is map
         && value.keys().hasOnly([
           'profileName',
-          'imageUrl',
+          'imagePath',
           'selectedSymbol',
           'spiritualBio',
           'followers',
@@ -180,7 +194,7 @@ service cloud.firestore {
         ])
         && value.keys().hasAll([
           'profileName',
-          'imageUrl',
+          'imagePath',
           'selectedSymbol',
           'spiritualBio',
           'followers',
@@ -192,7 +206,7 @@ service cloud.firestore {
           'heavenlyHashtag'
         ])
         && isShortString(value.profileName, 60)
-        && isShortString(value.imageUrl, 2048)
+        && hasValidProfileImagePath(value.imagePath, userId)
         && value.selectedSymbol in [
           '',
           'candle',
@@ -202,6 +216,7 @@ service cloud.firestore {
           'open-hands',
           'road'
         ]
+        && (value.imagePath == '' || value.selectedSymbol == '')
         && isShortString(value.spiritualBio, 320)
         && isStringList(value.followers, 30)
         && isStringList(value.following, 30)
@@ -232,7 +247,7 @@ service cloud.firestore {
         && data.currentStep is int
         && data.currentStep >= 0
         && data.currentStep <= 10
-        && hasValidDraftData(data.draftData)
+        && hasValidDraftData(data.draftData, data.userId)
         && isIsoDate(data.updatedAt);
     }
 

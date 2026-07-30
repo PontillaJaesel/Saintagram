@@ -67,7 +67,7 @@ const PROFILE: PublicSpiritualProfile = {
   id: TEST_USER.id,
   userId: TEST_USER.id,
   profileName: "Still Growing",
-  imageUrl: "",
+  imagePath: "",
   selectedSymbol: "seed",
   spiritualBio: "Learning to receive grace.",
   followers: ["Mary"],

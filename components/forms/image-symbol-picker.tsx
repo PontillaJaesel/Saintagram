@@ -1,8 +1,9 @@
 "use client";
 
-import { useRef, useState, type ChangeEvent } from "react";
+import { useEffect, useRef, useState, type ChangeEvent } from "react";
 import { ImagePlus, LoaderCircle, Trash2 } from "lucide-react";
 import { useAuth } from "@/components/providers/auth-provider";
+import { useToast } from "@/components/providers/toast-provider";
 import { ProfileAvatar } from "@/components/ui/profile-avatar";
 import { SymbolIcon } from "@/components/ui/symbol-icon";
 import { appService } from "@/lib/app-service";
@@ -11,23 +12,58 @@ import { validateImage } from "@/lib/validation";
 import type { SpiritualSymbol } from "@/types";
 
 export function ImageSymbolPicker({
-  imageUrl,
+  imagePath,
+  committedImagePath = "",
+  deferImageCleanup = false,
   selectedSymbol,
   profileName,
   onChange
 }: {
-  imageUrl: string;
+  imagePath: string;
+  committedImagePath?: string;
+  deferImageCleanup?: boolean;
   selectedSymbol: SpiritualSymbol;
   profileName: string;
   onChange: (value: {
-    imageUrl: string;
+    imagePath: string;
     selectedSymbol: SpiritualSymbol;
   }) => void;
 }) {
   const { user } = useAuth();
+  const { notify } = useToast();
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
+  const mountedRef = useRef(true);
+
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+    };
+  }, []);
+
+  const removePendingImage = async (path: string) => {
+    if (
+      deferImageCleanup ||
+      !user ||
+      !path ||
+      path === committedImagePath
+    ) {
+      return;
+    }
+    try {
+      await appService.deleteProfileImage(user.id, path);
+    } catch (removeError) {
+      if (mountedRef.current) {
+        setError(
+          removeError instanceof Error
+            ? removeError.message
+            : "The unused image could not be removed."
+        );
+      }
+    }
+  };
 
   const upload = async (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -36,21 +72,40 @@ export function ImageSymbolPicker({
     const validationError = validateImage(file);
     if (validationError) {
       setError(validationError);
+      notify(validationError, "error");
       return;
     }
     setUploading(true);
     setError("");
+    const userId = user.id;
     try {
-      const nextUrl = await appService.uploadProfileImage(user.id, file);
-      onChange({ imageUrl: nextUrl, selectedSymbol: "" });
+      const previousPath = imagePath;
+      const nextPath = await appService.uploadProfileImage(userId, file);
+      if (!mountedRef.current) {
+        try {
+          await appService.deleteProfileImage(userId, nextPath);
+        } catch {
+          // Account deletion scans the entire owner prefix and can retry a
+          // late-upload cleanup that loses its authenticated browser context.
+        }
+        return;
+      }
+      onChange({ imagePath: nextPath, selectedSymbol: "" });
+      notify("Your profile image was uploaded.");
+      if (previousPath !== nextPath) {
+        await removePendingImage(previousPath);
+      }
     } catch (uploadError) {
-      setError(
-        uploadError instanceof Error
-          ? uploadError.message
-          : "The image could not be uploaded."
-      );
+      if (mountedRef.current) {
+        const message =
+          uploadError instanceof Error
+            ? uploadError.message
+            : "The image could not be uploaded.";
+        setError(message);
+        notify(message, "error");
+      }
     } finally {
-      setUploading(false);
+      if (mountedRef.current) setUploading(false);
     }
   };
 
@@ -58,7 +113,7 @@ export function ImageSymbolPicker({
     <div>
       <div className="mb-6 flex flex-col items-center gap-4 rounded-3xl bg-sage-50 p-6 sm:flex-row sm:items-center">
         <ProfileAvatar
-          imageUrl={imageUrl}
+          imagePath={imagePath}
           symbol={selectedSymbol}
           profileName={profileName}
         />
@@ -75,7 +130,7 @@ export function ImageSymbolPicker({
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
           {SPIRITUAL_SYMBOLS.map((symbol) => {
             const selected =
-              selectedSymbol === symbol.id && imageUrl.length === 0;
+              selectedSymbol === symbol.id && imagePath.length === 0;
             return (
               <button
                 key={symbol.id}
@@ -85,12 +140,14 @@ export function ImageSymbolPicker({
                     ? "border-sage-600 bg-sage-700 text-white"
                     : "border-sage-200 bg-white text-ink hover:border-sage-400"
                 }`}
-                onClick={() =>
+                disabled={uploading}
+                onClick={() => {
                   onChange({
-                    imageUrl: "",
+                    imagePath: "",
                     selectedSymbol: symbol.id
-                  })
-                }
+                  });
+                  void removePendingImage(imagePath);
+                }}
                 aria-pressed={selected}
               >
                 <SymbolIcon
@@ -144,8 +201,11 @@ export function ImageSymbolPicker({
         <button
           type="button"
           className="btn-quiet flex-1"
-          onClick={() => onChange({ imageUrl: "", selectedSymbol: "" })}
-          disabled={!imageUrl && !selectedSymbol}
+          onClick={() => {
+            onChange({ imagePath: "", selectedSymbol: "" });
+            void removePendingImage(imagePath);
+          }}
+          disabled={uploading || (!imagePath && !selectedSymbol)}
         >
           <Trash2 className="size-4" aria-hidden="true" />
           Skip image
