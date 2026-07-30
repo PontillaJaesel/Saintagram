@@ -68,7 +68,7 @@ function AuthForm() {
         eyebrow: "Create your private space",
         title: "Begin as you are.",
         description:
-          "Your profile is for reflection—not performance. Only a profile name is required later."
+          "Your profile is for reflection—not performance. Each guided step asks for an honest answer."
       };
     }
     if (mode === "reset") {

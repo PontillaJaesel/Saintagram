@@ -57,7 +57,7 @@ function PrivacyContent() {
       icon: LockKeyhole,
       title: "You control what is saved",
       description:
-        "Most prompts are optional, and sensitive questions always have a way to skip."
+        "Each profile question must be answered before moving forward, and you may return to revise an earlier answer."
     },
     {
       icon: EyeOff,
@@ -125,8 +125,8 @@ function PrivacyContent() {
             <p className="text-sm font-bold text-clay-600">Please remember</p>
             <ul className="mt-3 space-y-2 text-sm leading-6 text-ink">
               {[
-                "You may leave optional prompts blank.",
-                "You can clear an optional response whenever you need to.",
+                "Each profile step explains what answer is needed to continue.",
+                "You can return to an earlier step and revise your response.",
                 "Private content must never appear in a public or shareable view.",
                 "You can export or delete your personal data in Settings."
               ].map((item) => (

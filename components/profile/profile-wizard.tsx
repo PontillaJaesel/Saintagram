@@ -156,6 +156,7 @@ export function ProfileWizard() {
   const [restoredAt, setRestoredAt] = useState("");
   const [saveStatus, setSaveStatus] = useState<SaveStatus>("idle");
   const [error, setError] = useState("");
+  const [stepError, setStepError] = useState("");
   const [discardOpen, setDiscardOpen] = useState(false);
   const [discarding, setDiscarding] = useState(false);
   const [finishing, setFinishing] = useState(false);
@@ -167,6 +168,7 @@ export function ProfileWizard() {
   const latestImagePathRef = useRef("");
   const knownImagePathsRef = useRef(new Set<string>());
   const nameRef = useRef<HTMLInputElement>(null);
+  const stepContentRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!user) return;
@@ -355,6 +357,7 @@ export function ProfileWizard() {
   ) => {
     setData((current) => ({ ...current, [key]: value }));
     setError("");
+    setStepError("");
   };
 
   const updateImageChoice = (value: {
@@ -366,15 +369,67 @@ export function ProfileWizard() {
     latestImagePathRef.current = value.imagePath;
     setData((current) => ({ ...current, ...value }));
     setError("");
+    setStepError("");
+  };
+
+  const validationMessage = (targetStep: number): string => {
+    const messages = [
+      !data.profileName.trim()
+        ? "Add a profile name before continuing."
+        : "",
+      !data.imagePath && !data.selectedSymbol
+        ? "Choose a profile picture or spiritual symbol before continuing."
+        : "",
+      !data.spiritualBio.trim()
+        ? "Answer the spiritual bio question before continuing."
+        : "",
+      data.followers.length === 0
+        ? "Add at least one person or holy companion before continuing."
+        : "",
+      data.following.length === 0
+        ? "Add at least one influence you are following before continuing."
+        : "",
+      data.onboardingPosts.length === 0 ||
+      data.onboardingPosts.some((post) => !post.trim())
+        ? "Answer every moment field before continuing."
+        : "",
+      data.heartSeeks.length === 0
+        ? "Choose or add something your heart seeks before continuing."
+        : "",
+      !data.hiddenStory.trim()
+        ? "Answer the Hidden Story question before continuing."
+        : "",
+      !data.godsComment.trim()
+        ? "Answer God’s Comment before continuing."
+        : "",
+      !data.heavenlyHashtag.trim()
+        ? "Choose or create a Heavenly Hashtag before continuing."
+        : ""
+    ];
+    return messages[targetStep] ?? "";
+  };
+
+  const focusFirstStepField = () => {
+    window.requestAnimationFrame(() => {
+      const target =
+        stepContentRef.current?.querySelector<HTMLElement>(
+          "input:not([type='hidden']), textarea, button:not([disabled])"
+        ) ?? nameRef.current;
+      target?.focus();
+      if (typeof target?.scrollIntoView === "function") {
+        target.scrollIntoView({ behavior: "smooth", block: "center" });
+      }
+    });
   };
 
   const validateCurrentStep = (): boolean => {
-    if (step === 0 && !data.profileName.trim()) {
-      setError("Add a profile name before continuing.");
-      window.requestAnimationFrame(() => nameRef.current?.focus());
+    const message = validationMessage(step);
+    if (message) {
+      setStepError(message);
+      focusFirstStepField();
       return false;
     }
-    setError("");
+    setStepError("");
     return true;
   };
 
@@ -385,6 +440,7 @@ export function ProfileWizard() {
 
   const previous = () => {
     setError("");
+    setStepError("");
     setStep((current) => Math.max(0, current - 1));
   };
 
@@ -418,9 +474,14 @@ export function ProfileWizard() {
 
   const complete = async () => {
     if (!user) return;
-    if (!data.profileName.trim()) {
-      setStep(0);
-      setError("Add a profile name before saving your profile.");
+    const firstIncompleteStep = Array.from(
+      { length: STEPS.length - 1 },
+      (_item, index) => index
+    ).find((index) => validationMessage(index));
+    if (firstIncompleteStep !== undefined) {
+      setStep(firstIncompleteStep);
+      setStepError(validationMessage(firstIncompleteStep));
+      window.requestAnimationFrame(focusFirstStepField);
       return;
     }
     finishingRef.current = true;
@@ -473,7 +534,7 @@ export function ProfileWizard() {
               ref={nameRef}
               id="profile-name"
               className={`field text-lg font-semibold ${
-                error ? "border-clay-500 ring-2 ring-clay-100" : ""
+                stepError ? "border-clay-500 ring-2 ring-clay-100" : ""
               }`}
               value={data.profileName}
               onChange={(event) =>
@@ -482,22 +543,13 @@ export function ProfileWizard() {
               maxLength={LIMITS.profileName}
               placeholder="For example, Still Growing"
               required
-              aria-invalid={Boolean(error)}
+              aria-invalid={Boolean(stepError)}
               aria-describedby={
-                error
-                  ? "profile-name-error profile-name-count"
+                stepError
+                  ? "wizard-step-error profile-name-count"
                   : "profile-name-count"
               }
             />
-            {error && (
-              <p
-                id="profile-name-error"
-                className="mt-2 text-sm font-semibold text-clay-600"
-                role="alert"
-              >
-                {error}
-              </p>
-            )}
             <CharacterCount
               id="profile-name-count"
               value={data.profileName}
@@ -682,7 +734,7 @@ export function ProfileWizard() {
                 <ShieldCheck className="size-5" aria-hidden="true" />
               </div>
               <div>
-                <p className="font-bold text-clay-600">Owner-only · Optional</p>
+                <p className="font-bold text-clay-600">Owner-only · Required</p>
                 <p className="mt-1 text-sm leading-6 text-muted">
                   Your Hidden Story is stored separately and never loaded into
                   the standard profile, journey, preview, or public view.
@@ -700,7 +752,7 @@ export function ProfileWizard() {
                 updateData("hiddenStory", event.target.value)
               }
               maxLength={LIMITS.hiddenStory}
-              placeholder="You may leave this completely blank."
+              placeholder="Share the private answer only you can access."
               aria-describedby="hidden-story-privacy hidden-story-count"
             />
             <p id="hidden-story-privacy" className="sr-only">
@@ -937,11 +989,8 @@ export function ProfileWizard() {
                               ? "text-sage-700 hover:bg-sage-50"
                               : "text-muted"
                         }`}
-                        onClick={() => {
-                          if (index <= step || data.profileName.trim()) {
-                            setStep(index);
-                          }
-                        }}
+                        disabled
+                        aria-current={index === step ? "step" : undefined}
                       >
                         <span
                           className={`grid size-6 place-items-center rounded-full ${
@@ -1040,7 +1089,7 @@ export function ProfileWizard() {
                 </h1>
               </div>
               <div className="p-5 sm:p-8">
-                {error && step !== 0 && (
+                {error && (
                   <div
                     id="wizard-error"
                     className="mb-5 rounded-2xl border border-clay-200 bg-clay-50 px-4 py-3 text-sm font-semibold text-clay-600"
@@ -1049,7 +1098,32 @@ export function ProfileWizard() {
                     {error}
                   </div>
                 )}
-                {stepContent}
+                <div
+                  ref={stepContentRef}
+                  className={
+                    stepError
+                      ? "rounded-2xl border border-clay-300 bg-clay-50/40 p-4"
+                      : ""
+                  }
+                  aria-describedby={
+                    stepError ? "wizard-step-error" : undefined
+                  }
+                >
+                  {stepContent}
+                </div>
+                {stepError && (
+                  <div
+                    id="wizard-step-error"
+                    className="mt-4 flex items-start gap-2 rounded-2xl border border-clay-300 bg-clay-50 px-4 py-3 text-sm font-semibold text-clay-700"
+                    role="alert"
+                  >
+                    <CircleAlert
+                      className="mt-0.5 size-4 shrink-0"
+                      aria-hidden="true"
+                    />
+                    {stepError}
+                  </div>
+                )}
               </div>
               <div className="flex flex-col-reverse gap-3 border-t border-sage-100 bg-sage-50/50 p-5 sm:flex-row sm:items-center sm:justify-between sm:p-6">
                 <button

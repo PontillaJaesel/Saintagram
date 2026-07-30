@@ -198,6 +198,50 @@ describe("ProfileWizard completion", () => {
     expect(name).toHaveAttribute("aria-invalid", "false");
   });
 
+  it("locks step picking and requires each sequential question before advancing", async () => {
+    const user = userEvent.setup();
+    mocks.getDraft.mockResolvedValue(null);
+    render(<ProfileWizard />);
+
+    const name = await screen.findByLabelText(
+      /What would you like this profile to be called/
+    );
+    expect(screen.getByRole("button", { name: "Image" })).toBeDisabled();
+
+    await user.type(name, "Still Growing");
+    await user.click(screen.getByRole("button", { name: "Next" }));
+    expect(
+      screen.getByRole("heading", { name: "Picture or symbol" })
+    ).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Next" }));
+    expect(screen.getByRole("alert")).toHaveTextContent(
+      "Choose a profile picture or spiritual symbol before continuing."
+    );
+    expect(
+      screen.getByRole("heading", { name: "Picture or symbol" })
+    ).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: /Seed/ }));
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Next" }));
+
+    const bio = screen.getByLabelText(/Before God, I am someone who/);
+    expect(
+      screen.getByRole("heading", { name: "Spiritual bio" })
+    ).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Next" }));
+    expect(screen.getByRole("alert")).toHaveTextContent(
+      "Answer the spiritual bio question before continuing."
+    );
+    await waitFor(() => expect(bio).toHaveFocus());
+
+    await user.click(screen.getByRole("button", { name: "Previous" }));
+    expect(
+      screen.getByRole("heading", { name: "Picture or symbol" })
+    ).toBeInTheDocument();
+  });
+
   it("keeps a restored image until its replacement draft is durable", async () => {
     const user = userEvent.setup();
     let resolveSave: (() => void) | undefined;
