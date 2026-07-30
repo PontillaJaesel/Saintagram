@@ -44,15 +44,15 @@ const config: Config = {
         }
       },
       boxShadow: {
-        soft: "0 18px 50px -28px rgba(42, 55, 48, .35)",
-        lift: "0 18px 40px -18px rgba(64, 78, 70, .25)"
+        soft: "0 1px 2px rgba(26, 20, 30, .05), 0 12px 32px rgba(26, 20, 30, .06)",
+        lift: "0 18px 50px rgba(26, 20, 30, .12)"
       },
       borderRadius: {
         "4xl": "2rem"
       },
       fontFamily: {
-        sans: ["var(--font-sans)", "ui-sans-serif", "system-ui", "sans-serif"],
-        serif: ["var(--font-serif)", "Georgia", "serif"]
+        sans: ["New York", "New York Small", "Iowan Old Style", "Georgia", "serif"],
+        serif: ["SF Pro Display", "SF Pro Rounded", "-apple-system", "BlinkMacSystemFont", "Helvetica Neue", "Arial", "sans-serif"]
       }
     }
   },
