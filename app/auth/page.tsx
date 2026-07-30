@@ -5,6 +5,7 @@ import {
   Suspense,
   useEffect,
   useMemo,
+  useRef,
   useState
 } from "react";
 import Link from "next/link";
@@ -51,6 +52,9 @@ function AuthForm() {
   const [errorField, setErrorField] = useState<AuthErrorField>(null);
   const [message, setMessage] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const emailRef = useRef<HTMLInputElement>(null);
+  const passwordRef = useRef<HTMLInputElement>(null);
+  const confirmPasswordRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     setError("");
@@ -95,29 +99,40 @@ function AuthForm() {
 
   const submit = async (event: FormEvent) => {
     event.preventDefault();
+    if (submitting) return;
     setError("");
     setErrorField(null);
     setMessage("");
     if (!isValidEmail(email)) {
       setError("Enter a valid email address.");
       setErrorField("email");
+      window.requestAnimationFrame(() => emailRef.current?.focus());
       return;
     }
     if (mode === "signup") {
+      if (!password.trim()) {
+        setError("Enter a password.");
+        setErrorField("password");
+        window.requestAnimationFrame(() => passwordRef.current?.focus());
+        return;
+      }
       const validation = passwordError(password);
       if (validation) {
         setError(validation);
         setErrorField("password");
+        window.requestAnimationFrame(() => passwordRef.current?.focus());
         return;
       }
-    } else if (mode === "login" && !password) {
+    } else if (mode === "login" && !password.trim()) {
       setError("Enter your password.");
       setErrorField("password");
+      window.requestAnimationFrame(() => passwordRef.current?.focus());
       return;
     }
     if (mode === "signup" && password !== confirmPassword) {
       setError("Those passwords do not match yet.");
       setErrorField("confirmPassword");
+      window.requestAnimationFrame(() => confirmPasswordRef.current?.focus());
       return;
     }
 
@@ -199,6 +214,7 @@ function AuthForm() {
                   aria-hidden="true"
                 />
                 <input
+                  ref={emailRef}
                   id="email"
                   type="email"
                   autoComplete="email"
@@ -250,6 +266,7 @@ function AuthForm() {
                     aria-hidden="true"
                   />
                   <input
+                    ref={passwordRef}
                     id="password"
                     type={showPassword ? "text" : "password"}
                     autoComplete={
@@ -305,6 +322,7 @@ function AuthForm() {
                   Confirm password
                 </label>
                 <input
+                  ref={confirmPasswordRef}
                   id="confirm-password"
                   type={showPassword ? "text" : "password"}
                   autoComplete="new-password"

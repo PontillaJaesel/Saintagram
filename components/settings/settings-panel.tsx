@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useState } from "react";
+import { FormEvent, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   CalendarDays,
@@ -81,6 +81,12 @@ export function SettingsPanel() {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [passwordBusy, setPasswordBusy] = useState(false);
   const [passwordErrorMessage, setPasswordErrorMessage] = useState("");
+  const [passwordFieldErrors, setPasswordFieldErrors] = useState<
+    Partial<Record<"current" | "new" | "confirm", string>>
+  >({});
+  const currentPasswordRef = useRef<HTMLInputElement>(null);
+  const newPasswordRef = useRef<HTMLInputElement>(null);
+  const confirmPasswordRef = useRef<HTMLInputElement>(null);
   const [exportOpen, setExportOpen] = useState(false);
   const [exporting, setExporting] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
@@ -95,22 +101,44 @@ export function SettingsPanel() {
 
   const submitPassword = async (event: FormEvent) => {
     event.preventDefault();
+    if (passwordBusy) return;
     setPasswordErrorMessage("");
+    if (!currentPassword.trim()) {
+      setPasswordFieldErrors({ current: "Enter your current password." });
+      window.requestAnimationFrame(() => currentPasswordRef.current?.focus());
+      return;
+    }
+    if (!newPassword.trim()) {
+      setPasswordFieldErrors({ new: "Enter a new password." });
+      window.requestAnimationFrame(() => newPasswordRef.current?.focus());
+      return;
+    }
     const validation = passwordError(newPassword);
     if (validation) {
-      setPasswordErrorMessage(validation);
+      setPasswordFieldErrors({ new: validation });
+      window.requestAnimationFrame(() => newPasswordRef.current?.focus());
+      return;
+    }
+    if (!confirmPassword.trim()) {
+      setPasswordFieldErrors({ confirm: "Confirm your new password." });
+      window.requestAnimationFrame(() => confirmPasswordRef.current?.focus());
       return;
     }
     if (newPassword !== confirmPassword) {
-      setPasswordErrorMessage("The new passwords do not match.");
+      setPasswordFieldErrors({
+        confirm: "The new passwords do not match."
+      });
+      window.requestAnimationFrame(() => confirmPasswordRef.current?.focus());
       return;
     }
+    setPasswordFieldErrors({});
     setPasswordBusy(true);
     try {
       await changePassword(currentPassword, newPassword);
       setCurrentPassword("");
       setNewPassword("");
       setConfirmPassword("");
+      setPasswordFieldErrors({});
       notify("Your password was changed.");
     } catch (changeError) {
       setPasswordErrorMessage(
@@ -258,14 +286,41 @@ export function SettingsPanel() {
               Current password
             </label>
             <input
+              ref={currentPasswordRef}
               id="current-password"
               type="password"
               autoComplete="current-password"
-              className="field"
+              className={`field ${
+                passwordFieldErrors.current
+                  ? "border-clay-500 ring-2 ring-clay-100"
+                  : ""
+              }`}
               value={currentPassword}
-              onChange={(event) => setCurrentPassword(event.target.value)}
+              onChange={(event) => {
+                setCurrentPassword(event.target.value);
+                setPasswordErrorMessage("");
+                setPasswordFieldErrors((current) => ({
+                  ...current,
+                  current: undefined
+                }));
+              }}
               required
+              aria-invalid={Boolean(passwordFieldErrors.current)}
+              aria-describedby={
+                passwordFieldErrors.current
+                  ? "current-password-error"
+                  : undefined
+              }
             />
+            {passwordFieldErrors.current && (
+              <p
+                id="current-password-error"
+                className="mt-2 text-sm font-semibold text-clay-600"
+                role="alert"
+              >
+                {passwordFieldErrors.current}
+              </p>
+            )}
           </div>
           <div className="grid gap-4 sm:grid-cols-2">
             <div>
@@ -273,28 +328,80 @@ export function SettingsPanel() {
                 New password
               </label>
               <input
+                ref={newPasswordRef}
                 id="new-password"
                 type="password"
                 autoComplete="new-password"
-                className="field"
+                className={`field ${
+                  passwordFieldErrors.new
+                    ? "border-clay-500 ring-2 ring-clay-100"
+                    : ""
+                }`}
                 value={newPassword}
-                onChange={(event) => setNewPassword(event.target.value)}
+                onChange={(event) => {
+                  setNewPassword(event.target.value);
+                  setPasswordErrorMessage("");
+                  setPasswordFieldErrors((current) => ({
+                    ...current,
+                    new: undefined
+                  }));
+                }}
                 required
+                aria-invalid={Boolean(passwordFieldErrors.new)}
+                aria-describedby={
+                  passwordFieldErrors.new ? "new-password-error" : undefined
+                }
               />
+              {passwordFieldErrors.new && (
+                <p
+                  id="new-password-error"
+                  className="mt-2 text-sm font-semibold text-clay-600"
+                  role="alert"
+                >
+                  {passwordFieldErrors.new}
+                </p>
+              )}
             </div>
             <div>
               <label htmlFor="confirm-new-password" className="label">
                 Confirm new password
               </label>
               <input
+                ref={confirmPasswordRef}
                 id="confirm-new-password"
                 type="password"
                 autoComplete="new-password"
-                className="field"
+                className={`field ${
+                  passwordFieldErrors.confirm
+                    ? "border-clay-500 ring-2 ring-clay-100"
+                    : ""
+                }`}
                 value={confirmPassword}
-                onChange={(event) => setConfirmPassword(event.target.value)}
+                onChange={(event) => {
+                  setConfirmPassword(event.target.value);
+                  setPasswordErrorMessage("");
+                  setPasswordFieldErrors((current) => ({
+                    ...current,
+                    confirm: undefined
+                  }));
+                }}
                 required
+                aria-invalid={Boolean(passwordFieldErrors.confirm)}
+                aria-describedby={
+                  passwordFieldErrors.confirm
+                    ? "confirm-new-password-error"
+                    : undefined
+                }
               />
+              {passwordFieldErrors.confirm && (
+                <p
+                  id="confirm-new-password-error"
+                  className="mt-2 text-sm font-semibold text-clay-600"
+                  role="alert"
+                >
+                  {passwordFieldErrors.confirm}
+                </p>
+              )}
             </div>
           </div>
           {passwordErrorMessage && (
@@ -305,12 +412,7 @@ export function SettingsPanel() {
           <button
             type="submit"
             className="btn-secondary"
-            disabled={
-              passwordBusy ||
-              !currentPassword ||
-              !newPassword ||
-              !confirmPassword
-            }
+            disabled={passwordBusy}
           >
             {passwordBusy ? (
               <LoaderCircle

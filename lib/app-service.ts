@@ -1330,11 +1330,9 @@ export const appService = {
 
       try {
         await deleteAllSupabaseProfileImages(userId);
-      } catch (imageError) {
-        const detail =
-          imageError instanceof Error ? ` ${imageError.message}` : "";
+      } catch {
         throw new Error(
-          `Your uploaded images could not be removed, so cancellation stopped.${detail}`
+          "Your uploaded images could not be removed, so cancellation stopped. Please try again."
         );
       }
 
@@ -1413,13 +1411,9 @@ export const appService = {
       // Firestore records so the owner can retry without orphaning image data.
       try {
         await deleteAllSupabaseProfileImages(userId);
-      } catch (imageError) {
-        const detail =
-          imageError instanceof Error
-            ? ` ${imageError.message}`
-            : "";
+      } catch {
         throw new Error(
-          `Your profile images could not be removed, so account deletion stopped.${detail}`
+          "Your profile images could not be removed, so account deletion stopped. Please try again."
         );
       }
 

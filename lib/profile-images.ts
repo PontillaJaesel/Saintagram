@@ -39,20 +39,8 @@ let imageAccessProvisioning:
   | undefined;
 
 function profileImageError(action: string, error: unknown): Error {
-  const detail =
-    error instanceof Error
-      ? error.message
-      : typeof error === "object" &&
-          error &&
-          "message" in error &&
-          typeof error.message === "string"
-        ? error.message
-        : "";
-  return new Error(
-    detail
-      ? `The profile image could not be ${action}. ${detail}`
-      : `The profile image could not be ${action}.`
-  );
+  void error;
+  return new Error(`The profile image could not be ${action}. Please try again.`);
 }
 
 function assertSafeFirebaseUid(userId: string): void {

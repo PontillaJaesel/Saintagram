@@ -173,6 +173,31 @@ describe("ProfileWizard completion", () => {
     expect(mocks.replace).not.toHaveBeenCalled();
   });
 
+  it("blocks a whitespace-only required answer and focuses its inline error", async () => {
+    const user = userEvent.setup();
+    mocks.getDraft.mockResolvedValue(null);
+    render(<ProfileWizard />);
+
+    const name = await screen.findByLabelText(
+      /What would you like this profile to be called/
+    );
+    await user.type(name, "   ");
+    await user.click(screen.getByRole("button", { name: "Next" }));
+
+    expect(screen.getByRole("alert")).toHaveTextContent(
+      "Add a profile name before continuing."
+    );
+    await waitFor(() => expect(name).toHaveFocus());
+    expect(name).toHaveAttribute("aria-invalid", "true");
+    expect(
+      screen.getByRole("heading", { name: "Profile name" })
+    ).toBeInTheDocument();
+
+    await user.type(name, "Still Growing");
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+    expect(name).toHaveAttribute("aria-invalid", "false");
+  });
+
   it("keeps a restored image until its replacement draft is durable", async () => {
     const user = userEvent.setup();
     let resolveSave: (() => void) | undefined;

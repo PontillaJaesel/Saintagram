@@ -51,7 +51,7 @@ describe("AccessGate", () => {
     expect(code).toHaveAttribute("type", "password");
     expect(code).toHaveAttribute("aria-describedby", "access-note");
     expect(code).toHaveFocus();
-    expect(submit).toBeDisabled();
+    expect(submit).toBeEnabled();
 
     await user.click(
       screen.getByRole("button", { name: "Show access code" })
@@ -61,6 +61,24 @@ describe("AccessGate", () => {
     expect(
       screen.getByRole("button", { name: "Hide access code" })
     ).toHaveAttribute("aria-pressed", "true");
+  });
+
+  it("shows and focuses an accessible error for a whitespace-only code", async () => {
+    const user = userEvent.setup();
+    render(<AccessGate />);
+
+    const code = screen.getByLabelText("Access code");
+    await user.type(code, "   ");
+    await user.click(
+      screen.getByRole("button", { name: "Enter Saintagram" })
+    );
+
+    expect(screen.getByRole("alert")).toHaveTextContent(
+      "Enter your access code to continue."
+    );
+    await waitFor(() => expect(code).toHaveFocus());
+    expect(code).toHaveAttribute("aria-invalid", "true");
+    expect(mocks.fetch).not.toHaveBeenCalled();
   });
 
   it("submits by keyboard, reports a denial, and clears it when edited", async () => {
