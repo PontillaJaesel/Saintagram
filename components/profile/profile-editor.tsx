@@ -13,6 +13,7 @@ import {
   Image as ImageIcon,
   LoaderCircle,
   MessageCircleHeart,
+  Palette,
   Save,
   ShieldCheck,
   UserRound
@@ -279,6 +280,36 @@ export function ProfileEditor() {
           <p className="mt-2 text-right text-xs text-muted">
             {profile.profileName.length} / {LIMITS.profileName}
           </p>
+        </EditorSection>
+
+        <EditorSection
+          title="Cover background"
+          description="Choose any color for the cover at the top of your profile."
+          icon={Palette}
+        >
+          <div
+            className="mb-5 h-28 rounded-2xl border border-sage-100"
+            style={{ backgroundColor: profile.coverColor }}
+            aria-hidden="true"
+          />
+          <label htmlFor="edit-cover-color" className="label">
+            Cover color
+          </label>
+          <div className="flex items-center gap-4">
+            <input
+              id="edit-cover-color"
+              type="color"
+              value={profile.coverColor}
+              onChange={(event) => setField("coverColor", event.target.value)}
+              className="h-12 w-16 cursor-pointer rounded-xl border border-sage-200 bg-paper p-1"
+            />
+            <output
+              htmlFor="edit-cover-color"
+              className="font-secondary text-sm font-medium text-muted"
+            >
+              {profile.coverColor.toUpperCase()}
+            </output>
+          </div>
         </EditorSection>
 
         <EditorSection

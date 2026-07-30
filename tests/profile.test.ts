@@ -18,6 +18,7 @@ function makeProfile(): SpiritualProfile {
     id: "profile-1",
     userId: "user-1",
     profileName: "Beloved Child of God",
+    coverColor: "#DDD2F6",
     imagePath: "",
     selectedSymbol: "candle",
     spiritualBio: "Still growing in faith.",

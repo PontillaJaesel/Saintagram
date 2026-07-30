@@ -19,7 +19,6 @@ import {
   MessageCircleHeart,
   NotebookPen,
   Pencil,
-  Settings,
   ShieldCheck,
   UsersRound
 } from "lucide-react";
@@ -257,44 +256,39 @@ export function ProfileDashboard() {
           </div>
         </div>
         <section className="overflow-hidden border-b border-sage-100">
-          <div className="h-28 bg-gradient-to-r from-sage-200 via-gold-100 to-sage-100 sm:h-40" />
+          <div
+            className="h-36 sm:h-52"
+            style={{ backgroundColor: profile.coverColor }}
+            aria-hidden="true"
+          />
           <div className="px-5 pb-6 sm:px-8 sm:pb-8">
-            <div className="-mt-12 flex flex-col gap-4 sm:-mt-14 sm:flex-row sm:items-end sm:justify-between">
-              <div className="flex flex-col items-start gap-4 sm:flex-row sm:items-end">
+            <div className="-mt-12 flex items-end justify-between gap-4 sm:-mt-16">
+              <div className="shrink-0">
                 <ProfileAvatar
                   imagePath={profile.imagePath}
                   symbol={profile.selectedSymbol}
                   profileName={profile.profileName}
                 />
-                <div className="pb-1">
-                  <p className="eyebrow">Profile before God</p>
-                  <h1 className="mt-1 font-serif text-3xl font-bold tracking-tight sm:text-4xl">
-                    {profile.profileName}
-                  </h1>
-                  {profile.heavenlyHashtag && (
-                    <p className="mt-1 font-bold text-gold-700">
-                      {profile.heavenlyHashtag}
-                    </p>
-                  )}
-                </div>
               </div>
-              <div className="flex w-full gap-2 sm:w-auto">
-                <Link href="/profile/edit" className="btn-secondary flex-1">
+              <div className="pb-1">
+                <Link href="/profile/edit" className="btn-secondary">
                   <Pencil className="size-4" aria-hidden="true" />
                   Edit Profile
-                </Link>
-                <Link
-                  href="/settings"
-                  className="grid min-h-12 min-w-12 place-items-center rounded-full border border-sage-200 bg-white text-sage-700 hover:bg-sage-50"
-                  aria-label="Settings"
-                >
-                  <Settings className="size-5" aria-hidden="true" />
                 </Link>
               </div>
             </div>
 
-            <div className="mt-6 max-w-2xl">
-              <p className="text-xs font-bold uppercase tracking-widest text-sage-600">
+            <div className="mt-5 max-w-2xl">
+              <p className="eyebrow">Profile before God</p>
+              <h1 className="mt-1 font-serif text-3xl font-bold tracking-tight sm:text-4xl">
+                {profile.profileName}
+              </h1>
+              {profile.heavenlyHashtag && (
+                <p className="mt-1 font-bold text-gold-700">
+                  {profile.heavenlyHashtag}
+                </p>
+              )}
+              <p className="mt-5 text-xs font-bold uppercase tracking-widest text-sage-600">
                 Before God, I am someone who…
               </p>
               <p className="font-secondary mt-2 whitespace-pre-wrap text-base leading-7 text-ink">
@@ -303,6 +297,10 @@ export function ProfileDashboard() {
                     This reflection is still open.
                   </span>
                 )}
+              </p>
+              <p className="font-secondary mt-4 flex items-center gap-2 text-sm text-muted">
+                <CalendarDays className="size-4" aria-hidden="true" />
+                Joined {formatFriendlyDate(profile.createdAt)}
               </p>
             </div>
           </div>

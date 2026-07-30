@@ -40,6 +40,7 @@ import {
 } from "@/lib/profile";
 import {
   cleanText,
+  normalizeCoverColor,
   normalizeHashtag,
   normalizeList
 } from "@/lib/validation";
@@ -202,6 +203,7 @@ function storedPublicProfile(
     id: stringValue(data.id),
     userId: stringValue(data.userId),
     profileName: stringValue(data.profileName),
+    coverColor: normalizeCoverColor(stringValue(data.coverColor)),
     imagePath:
       expectedUserId &&
       storedImagePath &&
@@ -345,6 +347,7 @@ async function ensureLocalSeed(): Promise<void> {
     id: userId,
     userId,
     profileName: "Still Growing",
+    coverColor: "#DDD2F6",
     imagePath: "",
     selectedSymbol: "seed",
     spiritualBio:
@@ -921,6 +924,7 @@ export const appService = {
         id: userId,
         userId,
         profileName: data.profileName,
+        coverColor: "#DDD2F6",
         imagePath: data.imagePath,
         selectedSymbol: data.selectedSymbol,
         spiritualBio: data.spiritualBio,
@@ -980,6 +984,7 @@ export const appService = {
       id: userId,
       userId,
       profileName: data.profileName,
+      coverColor: "#DDD2F6",
       imagePath: data.imagePath,
       selectedSymbol: data.selectedSymbol,
       spiritualBio: data.spiritualBio,
@@ -1036,6 +1041,7 @@ export const appService = {
       id: userId,
       userId,
       profileName: cleanText(profile.profileName, LIMITS.profileName),
+      coverColor: normalizeCoverColor(profile.coverColor),
       imagePath: normalizeProfileImageReference(profile.imagePath),
       spiritualBio: cleanText(profile.spiritualBio, LIMITS.bio),
       followers: normalizeList(profile.followers),
