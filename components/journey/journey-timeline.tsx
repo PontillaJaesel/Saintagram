@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import Link from "next/link";
 import {
   BookHeart,
   CalendarDays,
@@ -131,11 +130,6 @@ export function JourneyTimeline() {
         icon={BookHeart}
         title="Your journey is just beginning"
         description="Profile updates and non-private reflections will form a gentle timeline here."
-        action={
-          <Link href="/reflect" className="btn-primary">
-            Add a reflection
-          </Link>
-        }
       />
     );
   }
@@ -199,9 +193,6 @@ export function JourneyTimeline() {
         <p className="mt-2 text-sm leading-6 text-muted">
           A journey grows through honest moments, not perfect consistency.
         </p>
-        <Link href="/reflect" className="btn-primary mt-5 w-full">
-          Add reflection
-        </Link>
       </aside>
     </div>
   );

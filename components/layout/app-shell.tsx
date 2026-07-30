@@ -96,10 +96,12 @@ export function AppShell({
                 );
               })}
             </nav>
-            <Link href="/reflect" className="btn-primary mt-6 w-full">
-              <NotebookPen className="size-5" aria-hidden="true" />
-              New reflection
-            </Link>
+            {pathname === "/reflect" && (
+              <a href="#reflection-editor" className="btn-primary mt-6 w-full">
+                <NotebookPen className="size-5" aria-hidden="true" />
+                New reflection
+              </a>
+            )}
             <div className="mt-auto">
               <ThemeToggle />
               <p className="font-secondary mt-4 text-xs leading-5 text-muted">

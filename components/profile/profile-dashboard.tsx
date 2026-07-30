@@ -357,7 +357,7 @@ export function ProfileDashboard() {
           >
             {tab === "posts" && (
               <div>
-                <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div className="mb-5">
                   <div>
                     <h2 className="font-serif text-2xl font-bold">
                       Posts God Sees
@@ -366,10 +366,6 @@ export function ProfileDashboard() {
                       Quiet moments, newest first. No likes or public totals.
                     </p>
                   </div>
-                  <Link href="/reflect" className="btn-secondary">
-                    <NotebookPen className="size-4" aria-hidden="true" />
-                    Add reflection
-                  </Link>
                 </div>
                 {posts.length ? (
                   <div className="space-y-3">
@@ -389,11 +385,6 @@ export function ProfileDashboard() {
                     icon={NotebookPen}
                     title="No quiet moments here yet"
                     description="When you are ready, name one small moment God saw—even if nobody else noticed."
-                    action={
-                      <Link href="/reflect" className="btn-primary">
-                        Write a reflection
-                      </Link>
-                    }
                   />
                 )}
               </div>
@@ -516,11 +507,6 @@ export function ProfileDashboard() {
                           icon={LockKeyhole}
                           title="No private journal entries"
                           description="You can mark a new reflection private whenever it needs a quieter place."
-                          action={
-                            <Link href="/reflect" className="btn-secondary">
-                              Write privately
-                            </Link>
-                          }
                         />
                       )}
                     </div>

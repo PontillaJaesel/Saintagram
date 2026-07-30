@@ -243,7 +243,12 @@ export function ReflectionManager() {
             What is a moment God saw today?
           </h2>
         </div>
-        <form onSubmit={submit} className="p-5 sm:p-7" noValidate>
+        <form
+          id="reflection-editor"
+          onSubmit={submit}
+          className="scroll-mt-6 p-5 sm:p-7"
+          noValidate
+        >
           {editing && (
             <div className="mb-4 flex items-center justify-between gap-3 rounded-2xl bg-sage-50 p-3">
               <span className="text-sm font-bold text-sage-700">
