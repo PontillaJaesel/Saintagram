@@ -200,7 +200,7 @@ export function ProfileDashboard() {
   if (error) {
     return (
       <div className="surface p-7 text-center" role="alert">
-        <p className="font-bold text-clay-600">{error}</p>
+        <p className="warning-indicator rounded-xl px-4 py-3">{error}</p>
         <button
           type="button"
           className="btn-secondary mt-5"
@@ -246,10 +246,18 @@ export function ProfileDashboard() {
   }
 
   return (
-    <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_22rem]">
-      <div className="min-w-0 space-y-6">
-        <section className="surface overflow-hidden">
-          <div className="h-28 bg-gradient-to-r from-sage-200 via-sage-100 to-gold-100 sm:h-36" />
+    <div className="grid min-h-screen xl:grid-cols-[minmax(0,42rem)_minmax(19rem,1fr)]">
+      <div className="min-w-0 border-r border-sage-100 bg-paper/55">
+        <div className="sticky top-0 z-20 flex min-h-16 items-center border-b border-sage-100 bg-paper/85 px-5 backdrop-blur-xl">
+          <div>
+            <p className="text-base font-bold text-ink">{profile.profileName}</p>
+            <p className="font-secondary text-xs text-muted">
+              {posts.length} {posts.length === 1 ? "reflection" : "reflections"}
+            </p>
+          </div>
+        </div>
+        <section className="overflow-hidden border-b border-sage-100">
+          <div className="h-28 bg-gradient-to-r from-sage-200 via-gold-100 to-sage-100 sm:h-40" />
           <div className="px-5 pb-6 sm:px-8 sm:pb-8">
             <div className="-mt-12 flex flex-col gap-4 sm:-mt-14 sm:flex-row sm:items-end sm:justify-between">
               <div className="flex flex-col items-start gap-4 sm:flex-row sm:items-end">
@@ -289,7 +297,7 @@ export function ProfileDashboard() {
               <p className="text-xs font-bold uppercase tracking-widest text-sage-600">
                 Before God, I am someone who…
               </p>
-              <p className="mt-2 whitespace-pre-wrap text-base leading-7 text-ink">
+              <p className="font-secondary mt-2 whitespace-pre-wrap text-base leading-7 text-ink">
                 {profile.spiritualBio || (
                   <span className="italic text-muted">
                     This reflection is still open.
@@ -300,7 +308,7 @@ export function ProfileDashboard() {
           </div>
         </section>
 
-        <section className="surface overflow-hidden">
+        <section className="overflow-hidden">
           <div
             className="relative grid grid-cols-3 border-b border-sage-100 p-1.5"
             role="tablist"
@@ -354,7 +362,7 @@ export function ProfileDashboard() {
                     <h2 className="font-serif text-2xl font-bold">
                       Posts God Sees
                     </h2>
-                    <p className="mt-1 text-sm text-muted">
+                    <p className="font-secondary mt-1 text-sm text-muted">
                       Quiet moments, newest first. No likes or public totals.
                     </p>
                   </div>
@@ -397,7 +405,7 @@ export function ProfileDashboard() {
                   <h2 className="font-serif text-2xl font-bold">
                     Spiritual Journey
                   </h2>
-                  <p className="mt-1 text-sm text-muted">
+                    <p className="font-secondary mt-1 text-sm text-muted">
                     A gentle timeline of growth—not a streak to maintain.
                   </p>
                 </div>
@@ -417,7 +425,7 @@ export function ProfileDashboard() {
                         >
                           {formatFriendlyDate(post.createdAt)}
                         </time>
-                        <p className="mt-2 text-sm leading-6 text-ink">
+                        <p className="font-secondary mt-2 text-sm leading-6 text-ink">
                           {post.content}
                         </p>
                       </li>
@@ -452,7 +460,7 @@ export function ProfileDashboard() {
                     <h2 className="mt-5 font-serif text-2xl font-bold">
                       A more private space
                     </h2>
-                    <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-muted">
+                    <p className="font-secondary mx-auto mt-2 max-w-md text-sm leading-6 text-muted">
                       Hidden Stories and private journal entries are not loaded
                       until you confirm that it is safe to view them.
                     </p>
@@ -476,7 +484,7 @@ export function ProfileDashboard() {
                         <h2 className="font-serif text-2xl font-bold">
                           Private Reflections
                         </h2>
-                        <p className="mt-1 text-sm text-muted">
+                        <p className="font-secondary mt-1 text-sm text-muted">
                           Visible only in this confirmed owner view.
                         </p>
                       </div>
@@ -524,7 +532,15 @@ export function ProfileDashboard() {
         </section>
       </div>
 
-      <aside className="space-y-4 xl:sticky xl:top-24 xl:self-start">
+      <aside className="hidden space-y-4 px-6 py-6 xl:block xl:sticky xl:top-0 xl:h-screen xl:overflow-y-auto xl:self-start">
+        <label className="relative block">
+          <span className="sr-only">Search your profile</span>
+          <input
+            type="search"
+            className="field rounded-full bg-paper/80"
+            placeholder="Search your reflections"
+          />
+        </label>
         <section className="surface p-5">
           <h2 className="flex items-center gap-2 font-serif text-xl font-bold">
             <MessageCircleHeart
@@ -534,7 +550,7 @@ export function ProfileDashboard() {
             God’s Comment
           </h2>
           <div className="mt-4 rounded-2xl bg-gold-50 p-4">
-            <p className="whitespace-pre-wrap text-sm leading-7 text-ink">
+            <p className="font-secondary whitespace-pre-wrap text-sm leading-7 text-ink">
               {profile.godsComment || (
                 <span className="italic text-muted">
                   This space is open for a word of grace.

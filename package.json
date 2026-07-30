@@ -17,6 +17,8 @@
     "test:rules": "npx firebase-tools emulators:exec --only firestore \"vitest run --config vitest.rules.config.ts\""
   },
   "dependencies": {
+    "@fontsource/montserrat": "^5.3.0",
+    "@fontsource/roboto": "^5.3.0",
     "@supabase/supabase-js": "^2.111.0",
     "@types/pdfmake": "^0.2.11",
     "firebase": "^11.4.0",

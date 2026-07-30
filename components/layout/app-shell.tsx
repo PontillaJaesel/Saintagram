@@ -33,6 +33,7 @@ export function AppShell({
   action?: React.ReactNode;
 }) {
   const pathname = usePathname();
+  const isProfile = pathname === "/profile";
   const activeNavIndex = Math.max(
     0,
     NAV_ITEMS.findIndex(
@@ -61,7 +62,11 @@ export function AppShell({
       >
         Skip to main content
       </a>
-      <header className="sticky top-0 z-40 border-b border-sage-100/70 bg-canvas/80 backdrop-blur-2xl">
+      <header
+        className={`sticky top-0 z-40 border-b border-sage-100/70 bg-canvas/80 backdrop-blur-2xl ${
+          isProfile ? "lg:hidden" : ""
+        }`}
+      >
         <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6">
           <Logo href="/profile" />
           <nav
@@ -101,11 +106,59 @@ export function AppShell({
         </div>
       </header>
 
-      <main
-        key={pathname}
-        id="main-content"
-        className="app-page-enter mx-auto w-full max-w-6xl px-4 py-7 sm:px-6 sm:py-12"
+      <div
+        className={
+          isProfile
+            ? "mx-auto w-full max-w-[92rem] lg:grid lg:grid-cols-[17rem_minmax(0,1fr)]"
+            : ""
+        }
       >
+        {isProfile && (
+          <aside className="sticky top-0 hidden h-screen border-r border-sage-100 bg-paper/55 px-5 py-7 backdrop-blur-xl lg:flex lg:flex-col">
+            <Logo href="/profile" />
+            <nav className="mt-10 space-y-2" aria-label="Primary navigation">
+              {NAV_ITEMS.map(({ href, label, icon: Icon }) => {
+                const active = href === "/profile";
+                return (
+                  <Link
+                    key={href}
+                    href={href}
+                    className={`flex min-h-14 items-center gap-4 rounded-2xl px-4 text-base font-semibold transition ${
+                      active
+                        ? "bg-sage-100 text-sage-800"
+                        : "text-ink hover:bg-sage-50"
+                    }`}
+                    aria-current={active ? "page" : undefined}
+                  >
+                    <Icon className="size-6" aria-hidden="true" />
+                    {label}
+                  </Link>
+                );
+              })}
+            </nav>
+            <Link href="/reflect" className="btn-primary mt-6 w-full">
+              <NotebookPen className="size-5" aria-hidden="true" />
+              New reflection
+            </Link>
+            <div className="mt-auto">
+              <ThemeToggle />
+              <p className="font-secondary mt-4 text-xs leading-5 text-muted">
+                A private space for the parts of your story that matter beyond
+                numbers.
+              </p>
+            </div>
+          </aside>
+        )}
+
+        <main
+          key={pathname}
+          id="main-content"
+          className={`app-page-enter w-full ${
+            isProfile
+              ? "min-w-0 px-0 py-0"
+              : "mx-auto max-w-6xl px-4 py-7 sm:px-6 sm:py-12"
+          }`}
+        >
         {(title || description || action) && (
           <div className="mb-7 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
             <div>
@@ -123,8 +176,9 @@ export function AppShell({
             {action}
           </div>
         )}
-        {children}
-      </main>
+          {children}
+        </main>
+      </div>
 
       <nav
         className="fixed inset-x-3 bottom-3 z-50 rounded-[1.6rem] border border-sage-100/80 bg-paper/85 px-2 pb-[max(.5rem,env(safe-area-inset-bottom))] pt-2 shadow-lift backdrop-blur-2xl lg:hidden"

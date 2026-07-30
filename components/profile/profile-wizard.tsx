@@ -1092,7 +1092,7 @@ export function ProfileWizard() {
                 {error && (
                   <div
                     id="wizard-error"
-                    className="mb-5 rounded-2xl border border-clay-200 bg-clay-50 px-4 py-3 text-sm font-semibold text-clay-600"
+                    className="warning-indicator mb-5 rounded-2xl px-4 py-3 text-sm"
                     role="alert"
                   >
                     {error}
@@ -1114,7 +1114,7 @@ export function ProfileWizard() {
                 {stepError && (
                   <div
                     id="wizard-step-error"
-                    className="mt-4 flex items-start gap-2 rounded-2xl border border-clay-300 bg-clay-50 px-4 py-3 text-sm font-semibold text-clay-700"
+                    className="warning-indicator mt-4 flex items-start gap-2 rounded-2xl px-4 py-3 text-sm"
                     role="alert"
                   >
                     <CircleAlert
