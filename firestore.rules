@@ -113,7 +113,6 @@ service cloud.firestore {
           'id',
           'userId',
           'profileName',
-          'coverColor',
           'imagePath',
           'selectedSymbol',
           'spiritualBio',
@@ -144,13 +143,6 @@ service cloud.firestore {
         && data.userId is string
         && isShortString(data.profileName, 60)
         && data.profileName.size() > 0
-        && (
-          !('coverColor' in data)
-          || (
-            data.coverColor is string
-            && data.coverColor.matches('^#[0-9A-Fa-f]{6}$')
-          )
-        )
         && hasValidProfileImagePath(data.imagePath, data.userId)
         && data.selectedSymbol in [
           '',

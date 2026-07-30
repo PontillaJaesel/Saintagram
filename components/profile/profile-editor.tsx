@@ -289,7 +289,7 @@ export function ProfileEditor() {
         >
           <div
             className="mb-5 h-28 rounded-2xl border border-sage-100"
-            style={{ backgroundColor: profile.coverColor }}
+            style={{ backgroundColor: profile.coverColor ?? "#DDD2F6" }}
             aria-hidden="true"
           />
           <label htmlFor="edit-cover-color" className="label">
@@ -299,7 +299,7 @@ export function ProfileEditor() {
             <input
               id="edit-cover-color"
               type="color"
-              value={profile.coverColor}
+              value={profile.coverColor ?? "#DDD2F6"}
               onChange={(event) => setField("coverColor", event.target.value)}
               className="h-12 w-16 cursor-pointer rounded-xl border border-sage-200 bg-paper p-1"
             />
@@ -307,7 +307,7 @@ export function ProfileEditor() {
               htmlFor="edit-cover-color"
               className="font-secondary text-sm font-medium text-muted"
             >
-              {profile.coverColor.toUpperCase()}
+              {(profile.coverColor ?? "#DDD2F6").toUpperCase()}
             </output>
           </div>
         </EditorSection>

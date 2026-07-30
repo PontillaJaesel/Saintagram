@@ -258,7 +258,7 @@ export function ProfileDashboard() {
         <section className="overflow-hidden border-b border-sage-100">
           <div
             className="h-36 sm:h-52"
-            style={{ backgroundColor: profile.coverColor }}
+            style={{ backgroundColor: profile.coverColor ?? "#DDD2F6" }}
             aria-hidden="true"
           />
           <div className="px-5 pb-6 sm:px-8 sm:pb-8">

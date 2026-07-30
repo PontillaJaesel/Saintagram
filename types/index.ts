@@ -27,7 +27,7 @@ export interface PublicSpiritualProfile {
   id: string;
   userId: string;
   profileName: string;
-  coverColor: string;
+  coverColor?: string;
   imagePath: string;
   selectedSymbol: SpiritualSymbol;
   spiritualBio: string;

@@ -62,6 +62,7 @@ const LOCAL_KEYS = {
   accounts: `${STORAGE_PREFIX}:accounts`,
   session: `${STORAGE_PREFIX}:session`,
   profiles: `${STORAGE_PREFIX}:profiles`,
+  coverColors: `${STORAGE_PREFIX}:coverColors`,
   privateProfiles: `${STORAGE_PREFIX}:privateProfiles`,
   drafts: `${STORAGE_PREFIX}:drafts`,
   reflections: `${STORAGE_PREFIX}:reflectionPosts`
@@ -203,7 +204,11 @@ function storedPublicProfile(
     id: stringValue(data.id),
     userId: stringValue(data.userId),
     profileName: stringValue(data.profileName),
-    coverColor: normalizeCoverColor(stringValue(data.coverColor)),
+    coverColor: expectedUserId
+      ? normalizeCoverColor(
+          readJson<JsonMap<string>>(LOCAL_KEYS.coverColors, {})[expectedUserId]
+        )
+      : "#DDD2F6",
     imagePath:
       expectedUserId &&
       storedImagePath &&
@@ -1041,7 +1046,7 @@ export const appService = {
       id: userId,
       userId,
       profileName: cleanText(profile.profileName, LIMITS.profileName),
-      coverColor: normalizeCoverColor(profile.coverColor),
+      coverColor: normalizeCoverColor(profile.coverColor ?? ""),
       imagePath: normalizeProfileImageReference(profile.imagePath),
       spiritualBio: cleanText(profile.spiritualBio, LIMITS.bio),
       followers: normalizeList(profile.followers),
@@ -1053,6 +1058,9 @@ export const appService = {
       updatedAt: now
     };
     if (!updated.profileName) throw new Error("Profile name is required.");
+    const coverColors = readJson<JsonMap<string>>(LOCAL_KEYS.coverColors, {});
+    coverColors[userId] = updated.coverColor ?? "#DDD2F6";
+    writeJson(LOCAL_KEYS.coverColors, coverColors);
 
     if (isFirebaseConfigured) {
       assertFirebaseOwner(userId);
