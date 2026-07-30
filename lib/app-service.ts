@@ -1138,6 +1138,86 @@ export const appService = {
     };
   },
 
+  async cancelAccountCreation(userId: string): Promise<void> {
+    if (isFirebaseConfigured) {
+      assertFirebaseOwner(userId);
+      const services = getFirebaseServices();
+      if (!services) throw new Error("Firebase is not available.");
+      const firebaseUser = services.auth.currentUser;
+      if (!firebaseUser || firebaseUser.uid !== userId) {
+        throw new Error("Please log in again.");
+      }
+
+      const userRecord = await this.refreshUser(userId);
+      if (userRecord.profileCompleted) {
+        throw new Error(
+          "A completed account must be deleted from Settings."
+        );
+      }
+
+      try {
+        await deleteAllSupabaseProfileImages(userId);
+      } catch (imageError) {
+        const detail =
+          imageError instanceof Error ? ` ${imageError.message}` : "";
+        throw new Error(
+          `Your uploaded images could not be removed, so cancellation stopped.${detail}`
+        );
+      }
+
+      const idToken = await firebaseUser.getIdToken();
+      const cancellationResponse = await fetch("/api/cancel-account", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${idToken}` },
+        cache: "no-store",
+        credentials: "same-origin"
+      });
+      if (!cancellationResponse.ok) {
+        let message = "";
+        try {
+          const body = (await cancellationResponse.json()) as {
+            error?: unknown;
+          };
+          if (typeof body.error === "string") message = body.error;
+        } catch {
+          // Use the safe fallback below.
+        }
+        throw new Error(
+          message || "The account and email could not be removed."
+        );
+      }
+      if (storageAvailable()) {
+        window.localStorage.removeItem(firebaseDraftCacheKey(userId));
+      }
+      return;
+    }
+
+    assertLocalOwner(userId);
+    const account = localAccounts().find((item) => item.user.id === userId);
+    if (!account) throw new Error("That account could not be found.");
+    if (account.user.profileCompleted) {
+      throw new Error("A completed account must be deleted from Settings.");
+    }
+
+    saveLocalAccounts(
+      localAccounts().filter((item) => item.user.id !== userId)
+    );
+    const removeUserEntry = <T extends { userId: string }>(
+      key: string
+    ): void => {
+      const values = readJson<JsonMap<T>>(key, {});
+      Object.entries(values).forEach(([id, value]) => {
+        if (value.userId === userId) delete values[id];
+      });
+      writeJson(key, values);
+    };
+    removeUserEntry<PublicSpiritualProfile>(LOCAL_KEYS.profiles);
+    removeUserEntry<PrivateProfileRecord>(LOCAL_KEYS.privateProfiles);
+    removeUserEntry<ProfileDraft>(LOCAL_KEYS.drafts);
+    removeUserEntry<ReflectionPost>(LOCAL_KEYS.reflections);
+    writeJson(LOCAL_KEYS.session, null);
+  },
+
   async deleteAllUserData(
     userId: string,
     currentPassword: string

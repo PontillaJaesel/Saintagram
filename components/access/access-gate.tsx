@@ -12,6 +12,7 @@ import {
   Sparkles
 } from "lucide-react";
 import { Logo } from "@/components/brand/logo";
+import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { getSafeAccessDestination } from "@/lib/access-path";
 
 interface AccessResponse {
@@ -74,9 +75,12 @@ export function AccessGate() {
       <section className="flex min-h-screen flex-col px-5 py-5 sm:px-8 lg:px-12">
         <header className="mx-auto flex w-full max-w-2xl items-center justify-between">
           <Logo />
-          <div className="hidden items-center gap-2 rounded-full border border-sage-200 bg-paper/80 px-4 py-2 text-xs font-bold text-sage-700 sm:flex">
-            <LockKeyhole className="size-4" aria-hidden="true" />
-            Invitation only
+          <div className="flex items-center gap-2">
+            <ThemeToggle />
+            <div className="hidden items-center gap-2 rounded-full border border-sage-200 bg-paper/80 px-4 py-2 text-xs font-bold text-sage-700 sm:flex">
+              <LockKeyhole className="size-4" aria-hidden="true" />
+              Invitation only
+            </div>
           </div>
         </header>
 

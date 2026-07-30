@@ -11,6 +11,7 @@ import {
   ShieldCheck
 } from "lucide-react";
 import { Logo } from "@/components/brand/logo";
+import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { RouteGuard } from "@/components/auth/route-guard";
 import { useAuth } from "@/components/providers/auth-provider";
 
@@ -68,6 +69,7 @@ function PrivacyContent() {
       <header className="mx-auto flex max-w-5xl items-center justify-between">
         <Logo />
         <div className="flex items-center gap-2">
+          <ThemeToggle />
           <Link href="/settings" className="btn-quiet">
             Account
           </Link>
@@ -121,7 +123,7 @@ function PrivacyContent() {
             <ul className="mt-3 space-y-2 text-sm leading-6 text-ink">
               {[
                 "You may leave optional prompts blank.",
-                "Choose “Prefer not to answer” whenever you need it.",
+                "You can clear an optional response whenever you need to.",
                 "Private content must never appear in a public or shareable view.",
                 "You can export or delete your personal data in Settings."
               ].map((item) => (

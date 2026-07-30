@@ -29,6 +29,7 @@ interface AuthContextValue {
     patch: Partial<Omit<AppUser, "id" | "email" | "createdAt">>
   ) => Promise<AppUser>;
   deleteAccount: (currentPassword: string) => Promise<void>;
+  cancelAccountCreation: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -100,6 +101,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(null);
   }, [user]);
 
+  const cancelAccountCreation = useCallback(async () => {
+    if (!user) throw new Error("Please log in to continue.");
+    await appService.cancelAccountCreation(user.id);
+    setUser(null);
+  }, [user]);
+
   const value = useMemo<AuthContextValue>(
     () => ({
       user,
@@ -112,7 +119,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       changePassword,
       refreshUser,
       updateUser,
-      deleteAccount
+      deleteAccount,
+      cancelAccountCreation
     }),
     [
       user,
@@ -124,7 +132,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       changePassword,
       refreshUser,
       updateUser,
-      deleteAccount
+      deleteAccount,
+      cancelAccountCreation
     ]
   );
 

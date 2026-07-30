@@ -9,6 +9,7 @@ import {
   Settings as SettingsIcon
 } from "lucide-react";
 import { Logo } from "@/components/brand/logo";
+import { ThemeToggle } from "@/components/ui/theme-toggle";
 
 const NAV_ITEMS = [
   { href: "/profile", label: "Profile", icon: Home },
@@ -66,7 +67,7 @@ export function AppShell({
               );
             })}
           </nav>
-          <span className="hidden sm:block" aria-hidden="true" />
+          <ThemeToggle />
         </div>
       </header>
 

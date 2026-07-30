@@ -141,10 +141,7 @@ body {
   }
 
   .theme-toggle {
-    position: absolute;
-    top: max(0.75rem, env(safe-area-inset-top));
-    right: max(1rem, env(safe-area-inset-right));
-    @apply z-[90] inline-flex min-h-9 items-center gap-1.5 rounded-full border border-sage-200 bg-paper/95 p-1 text-ink shadow-soft backdrop-blur-xl transition hover:border-sage-400;
+    @apply relative z-10 inline-flex min-h-9 shrink-0 items-center gap-1.5 rounded-full border border-sage-200 bg-paper/95 p-1 text-ink shadow-soft backdrop-blur-xl transition hover:border-sage-400;
   }
 
   .theme-toggle-track {
@@ -165,40 +162,6 @@ body {
 
   .theme-toggle-label {
     @apply hidden pr-1 text-xs font-bold xl:inline;
-  }
-}
-
-/* Keep global header actions clear of the floating control on narrow screens. */
-@media (max-width: 1279px) {
-  header {
-    padding-right: max(3.75rem, calc(3.25rem + env(safe-area-inset-right))) !important;
-  }
-}
-
-@media (min-width: 640px) {
-  .theme-toggle {
-    top: max(0.75rem, env(safe-area-inset-top));
-    right: max(1.5rem, env(safe-area-inset-right));
-  }
-}
-
-@media (min-width: 1280px) {
-  .theme-toggle {
-    top: max(1rem, env(safe-area-inset-top));
-    right: max(
-      1.5rem,
-      env(safe-area-inset-right),
-      calc((100vw - 80rem) / 2 + 1.5rem)
-    );
-  }
-}
-
-@media (max-height: 420px) and (orientation: landscape) {
-  .theme-toggle {
-    top: max(0.25rem, env(safe-area-inset-top));
-    right: max(0.25rem, env(safe-area-inset-right));
-    transform: scale(0.9);
-    transform-origin: top right;
   }
 }
 
