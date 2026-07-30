@@ -26,8 +26,8 @@ export function normalizeHashtag(value: string): string {
   return `#${cleaned}`;
 }
 
-export function normalizeCoverColor(value: string): string {
-  const color = value.trim();
+export function normalizeCoverColor(value: unknown): string {
+  const color = typeof value === "string" ? value.trim() : "";
   return /^#[0-9a-f]{6}$/i.test(color) ? color.toUpperCase() : "#DDD2F6";
 }
 
