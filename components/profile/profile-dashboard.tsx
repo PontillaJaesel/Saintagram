@@ -293,10 +293,18 @@ export function ProfileDashboard() {
 
         <section className="surface overflow-hidden">
           <div
-            className="grid grid-cols-3 border-b border-sage-100 p-1.5"
+            className="relative grid grid-cols-3 border-b border-sage-100 p-1.5"
             role="tablist"
             aria-label="Profile sections"
           >
+            <span
+              className="profile-tab-indicator pointer-events-none absolute bottom-1.5 left-1.5 top-1.5 rounded-xl"
+              style={{
+                width: "calc((100% - 0.75rem) / 3)",
+                transform: `translateX(${TABS.findIndex(({ id }) => id === tab) * 100}%)`
+              }}
+              aria-hidden="true"
+            />
             {TABS.map(({ id, label, icon: Icon }, index) => (
               <button
                 key={id}
@@ -309,9 +317,9 @@ export function ProfileDashboard() {
                 tabIndex={tab === id ? 0 : -1}
                 aria-selected={tab === id}
                 aria-controls={`panel-${id}`}
-                className={`flex min-h-14 flex-col items-center justify-center gap-1 rounded-2xl px-2 text-center text-[11px] font-bold transition sm:flex-row sm:text-sm ${
+                className={`relative z-10 flex min-h-14 flex-col items-center justify-center gap-1 rounded-xl px-2 text-center text-[11px] font-bold transition-colors duration-300 sm:flex-row sm:text-sm ${
                   tab === id
-                    ? "bg-sage-700 text-white"
+                    ? "profile-tab-selected"
                     : "text-muted hover:bg-sage-50 hover:text-ink"
                 }`}
                 onClick={() => chooseTab(id)}
