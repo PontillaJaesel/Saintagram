@@ -530,23 +530,23 @@ export function ProfileDashboard() {
         <section className="surface p-5">
           <h2 className="flex items-center gap-2 text-sm font-bold">
             <UsersRound className="size-4 text-sage-600" aria-hidden="true" />
-            Faith guides
+            Followers
           </h2>
           <div className="mt-3">
             <ValueList
               values={profile.followers}
-              emptyText="No guides named yet."
+              emptyText="No followers named yet."
             />
           </div>
           <div className="my-5 h-px bg-sage-100" />
           <h2 className="flex items-center gap-2 text-sm font-bold">
             <Footprints className="size-4 text-sage-600" aria-hidden="true" />
-            Current influences
+            Following
           </h2>
           <div className="mt-3">
             <ValueList
               values={profile.following}
-              emptyText="No influences named yet."
+              emptyText="Nothing followed yet."
             />
           </div>
         </section>
@@ -554,10 +554,10 @@ export function ProfileDashboard() {
         <section className="surface p-5">
           <h2 className="flex items-center gap-2 text-sm font-bold">
             <Heart className="size-4 text-clay-600" aria-hidden="true" />
-            What my heart seeks
+            Likes
           </h2>
           <p className="mt-1 text-xs leading-5 text-muted">
-            Awareness, not a like total.
+            What my heart usually seeks.
           </p>
           <div className="mt-3">
             <ValueList

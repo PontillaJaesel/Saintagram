@@ -58,10 +58,10 @@ const STEPS = [
   { title: "Profile name", short: "Name", icon: UserRound },
   { title: "Picture or symbol", short: "Image", icon: ImageIcon },
   { title: "Spiritual bio", short: "Bio", icon: FileText },
-  { title: "Faith guides", short: "Guides", icon: UsersRound },
-  { title: "Current influences", short: "Following", icon: ChevronRight },
+  { title: "Followers", short: "Followers", icon: UsersRound },
+  { title: "Following", short: "Following", icon: ChevronRight },
   { title: "Posts God sees", short: "Moments", icon: Sparkles },
-  { title: "What your heart seeks", short: "Heart", icon: Heart },
+  { title: "Likes", short: "Likes", icon: Heart },
   { title: "Hidden Story", short: "Private", icon: EyeOff },
   { title: "God’s Comment", short: "Comment", icon: MessageCircleHeart },
   { title: "Heavenly hashtag", short: "Hashtag", icon: Cloud },
@@ -828,13 +828,13 @@ export function ProfileWizard() {
               <ReviewSection title="Spiritual bio" step={2} onEdit={setStep}>
                 {data.spiritualBio || <em>Not answered</em>}
               </ReviewSection>
-              <ReviewSection title="Faith guides" step={3} onEdit={setStep}>
+              <ReviewSection title="Followers" step={3} onEdit={setStep}>
                 {data.followers.length ? data.followers.join(" · ") : <em>Not answered</em>}
               </ReviewSection>
-              <ReviewSection title="Current influences" step={4} onEdit={setStep}>
+              <ReviewSection title="Following" step={4} onEdit={setStep}>
                 {data.following.length ? data.following.join(" · ") : <em>Not answered</em>}
               </ReviewSection>
-              <ReviewSection title="Heart seeks" step={6} onEdit={setStep}>
+              <ReviewSection title="Likes" step={6} onEdit={setStep}>
                 {data.heartSeeks.length ? data.heartSeeks.join(" · ") : <em>Not answered</em>}
               </ReviewSection>
               <ReviewSection title="Posts God Sees" step={5} onEdit={setStep}>

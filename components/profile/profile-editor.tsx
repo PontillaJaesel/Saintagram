@@ -7,7 +7,10 @@ import {
   ArrowLeft,
   Check,
   CheckCircle2,
+  CircleAlert,
+  Cloud,
   Heart,
+  Image as ImageIcon,
   LoaderCircle,
   MessageCircleHeart,
   Save,
@@ -84,6 +87,7 @@ export function ProfileEditor() {
   const [clearHiddenOpen, setClearHiddenOpen] = useState(false);
   const [privacyConfirmed, setPrivacyConfirmed] = useState(false);
   const nameRef = useRef<HTMLInputElement>(null);
+  const errorRef = useRef<HTMLDivElement>(null);
   const committedImagePathRef = useRef("");
   const latestImagePathRef = useRef("");
 
@@ -147,7 +151,7 @@ export function ProfileEditor() {
     event.preventDefault();
     if (!user || !profile) return;
     if (!profile.profileName.trim()) {
-      setError("Profile name is required.");
+      setError("Enter a profile name before saving your changes.");
       nameRef.current?.focus();
       return;
     }
@@ -163,9 +167,9 @@ export function ProfileEditor() {
       setError(
         saveError instanceof Error
           ? saveError.message
-          : "Your profile changes could not be saved."
+          : "We couldn’t save your profile changes. Please try again."
       );
-      window.scrollTo({ top: 0, behavior: "smooth" });
+      window.requestAnimationFrame(() => errorRef.current?.focus());
     } finally {
       setSaving(false);
     }
@@ -201,6 +205,16 @@ export function ProfileEditor() {
         <p className="font-bold text-clay-600">
           {error || "Your profile could not be found."}
         </p>
+        <p className="mt-2 text-sm text-muted">
+          Check your connection, then try opening the editor again.
+        </p>
+        <button
+          type="button"
+          className="btn-primary mt-5"
+          onClick={() => window.location.reload()}
+        >
+          Try again
+        </button>
         <Link href="/profile" className="btn-secondary mt-5">
           Back to profile
         </Link>
@@ -212,17 +226,29 @@ export function ProfileEditor() {
     <form onSubmit={submit} noValidate>
       {error && (
         <div
+          ref={errorRef}
+          tabIndex={-1}
           className="mb-5 rounded-2xl border border-clay-200 bg-clay-50 p-4 text-sm font-semibold text-clay-600"
           role="alert"
         >
-          {error}
+          <div className="flex items-start gap-3">
+            <CircleAlert className="mt-0.5 size-5 shrink-0" aria-hidden="true" />
+            <div>
+              <p>Please review your profile.</p>
+              <p className="mt-1 font-normal leading-6">{error}</p>
+              <p className="mt-1 font-normal leading-6">
+                Your entries are still here. Review the highlighted field or
+                try saving again.
+              </p>
+            </div>
+          </div>
         </div>
       )}
 
       <div className="space-y-5">
         <EditorSection
-          title="Identity"
-          description="Update the name, image, or symbol at the top of your profile."
+          title="Profile Name"
+          description="Choose the name shown at the top of your profile."
           icon={UserRound}
         >
           <label htmlFor="edit-profile-name" className="label">
@@ -236,20 +262,43 @@ export function ProfileEditor() {
             onChange={(event) => setField("profileName", event.target.value)}
             maxLength={LIMITS.profileName}
             required
+            aria-invalid={!profile.profileName.trim() && Boolean(error)}
+            aria-describedby={
+              !profile.profileName.trim() && error
+                ? "edit-profile-name-error"
+                : undefined
+            }
           />
-          <div className="mt-6">
-            <ImageSymbolPicker
-              imagePath={profile.imagePath}
-              committedImagePath={committedImagePathRef.current}
-              selectedSymbol={profile.selectedSymbol}
-              profileName={profile.profileName}
-              onChange={(value) =>
-                setProfile((current) =>
-                  current ? { ...current, ...value } : current
-                )
-              }
-            />
-          </div>
+          {!profile.profileName.trim() && error && (
+            <p
+              id="edit-profile-name-error"
+              className="mt-2 text-sm font-semibold text-clay-600"
+            >
+              A profile name is required.
+            </p>
+          )}
+          <p className="mt-2 text-right text-xs text-muted">
+            {profile.profileName.length} / {LIMITS.profileName}
+          </p>
+        </EditorSection>
+
+        <EditorSection
+          title="Picture / Spiritual Symbol"
+          description="Choose a photo or spiritual symbol for your profile."
+          icon={ImageIcon}
+        >
+          <ImageSymbolPicker
+            imagePath={profile.imagePath}
+            committedImagePath={committedImagePathRef.current}
+            selectedSymbol={profile.selectedSymbol}
+            profileName={profile.profileName}
+            onChange={(value) => {
+              setProfile((current) =>
+                current ? { ...current, ...value } : current
+              );
+              setError("");
+            }}
+          />
         </EditorSection>
 
         <EditorSection
@@ -273,15 +322,15 @@ export function ProfileEditor() {
         </EditorSection>
 
         <EditorSection
-          title="Guides and influences"
-          description="Names are supportive reflection labels, never public follower or following counts."
+          title="Followers and Following"
+          description="Reflect on who supports your faith and who or what you currently follow."
           icon={CheckCircle2}
         >
           <TagEditor
             label="Who helps lead me closer to God?"
             values={profile.followers}
             onChange={(values) => setField("followers", values)}
-            placeholder="Add a faith guide"
+            placeholder="Add a follower"
           />
           <div className="my-7 h-px bg-sage-100" />
           <TagEditor
@@ -294,12 +343,12 @@ export function ProfileEditor() {
         </EditorSection>
 
         <EditorSection
-          title="What my heart seeks"
-          description="A reflective alternative to “likes”—with no totals, reactions, or scoring."
+          title="Likes"
+          description="What does my heart usually seek?"
           icon={Heart}
         >
           <TagEditor
-            label="What does your heart usually seek?"
+            label="What does my heart usually seek?"
             values={profile.heartSeeks}
             onChange={(values) => setField("heartSeeks", values)}
             suggestions={HEART_SEEKS_IDEAS}
@@ -308,7 +357,7 @@ export function ProfileEditor() {
         </EditorSection>
 
         <EditorSection
-          title="A comment of grace"
+          title="Comments of Grace"
           description="Revisit what you believe God would want you to hear today."
           icon={MessageCircleHeart}
         >
@@ -325,8 +374,14 @@ export function ProfileEditor() {
           <p className="mt-2 text-right text-xs text-muted">
             {profile.godsComment.length} / {LIMITS.godsComment}
           </p>
+        </EditorSection>
 
-          <fieldset className="mt-7">
+        <EditorSection
+          title="Heavenly Hashtag"
+          description="Choose a grace, invitation, or truth you want to carry."
+          icon={Cloud}
+        >
+          <fieldset>
             <legend className="label">Heavenly Hashtag</legend>
             <div className="flex flex-wrap gap-2">
               {HASHTAG_IDEAS.map((hashtag) => (
