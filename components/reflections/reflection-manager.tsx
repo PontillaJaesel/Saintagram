@@ -56,28 +56,38 @@ export function ReflectionManager() {
 
   useEffect(() => {
     if (!user) return;
-    let active = true;
-    appService
-      .getPublicReflections(user.id)
-      .then((posts) => {
-        if (active) setPublicPosts(posts);
-      })
-      .catch((loadError) => {
-        if (active) {
-          setError(
-            loadError instanceof Error
-              ? loadError.message
-              : "Your reflections could not be loaded."
-          );
-        }
-      })
-      .finally(() => {
-        if (active) setLoading(false);
-      });
-    return () => {
-      active = false;
-    };
+    setLoading(true);
+    return appService.subscribeReflections(
+      user.id,
+      "public",
+      (posts) => {
+        setPublicPosts(posts);
+        setError("");
+        setLoading(false);
+      },
+      (message) => {
+        setError(message);
+        setLoading(false);
+      }
+    );
   }, [user]);
+
+  useEffect(() => {
+    if (!user || !privateUnlocked) return;
+    setPrivateLoading(true);
+    return appService.subscribeReflections(
+      user.id,
+      "private",
+      (posts) => {
+        setPrivatePosts(posts);
+        setPrivateLoading(false);
+      },
+      (message) => {
+        notify(message, "error");
+        setPrivateLoading(false);
+      }
+    );
+  }, [notify, privateUnlocked, user]);
 
   const visiblePosts = useMemo(
     () =>
@@ -195,20 +205,7 @@ export function ReflectionManager() {
     if (!user) return;
     setPrivacyDialog(false);
     setPrivateLoading(true);
-    try {
-      const posts = await appService.getPrivateReflections(user.id);
-      setPrivatePosts(posts);
-      setPrivateUnlocked(true);
-    } catch (unlockError) {
-      notify(
-        unlockError instanceof Error
-          ? unlockError.message
-          : "Private reflections could not be opened.",
-        "error"
-      );
-    } finally {
-      setPrivateLoading(false);
-    }
+    setPrivateUnlocked(true);
   };
 
   const lockPrivate = () => {

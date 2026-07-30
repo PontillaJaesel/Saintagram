@@ -17,7 +17,9 @@ import {
   getDoc,
   getDocs,
   limit as firestoreLimit,
+  onSnapshot,
   query,
+  serverTimestamp,
   setDoc,
   updateDoc,
   where,
@@ -168,6 +170,19 @@ function stringValue(value: unknown): string {
   return typeof value === "string" ? value : "";
 }
 
+function dateValue(value: unknown): string {
+  if (typeof value === "string") return value;
+  if (
+    typeof value === "object" &&
+    value &&
+    "toDate" in value &&
+    typeof value.toDate === "function"
+  ) {
+    return value.toDate().toISOString();
+  }
+  return "";
+}
+
 function stringList(value: unknown): string[] {
   return Array.isArray(value)
     ? value.filter((item): item is string => typeof item === "string")
@@ -200,8 +215,8 @@ function storedPublicProfile(
     heartSeeks: stringList(data.heartSeeks),
     godsComment: stringValue(data.godsComment),
     heavenlyHashtag: stringValue(data.heavenlyHashtag),
-    createdAt: stringValue(data.createdAt),
-    updatedAt: stringValue(data.updatedAt)
+    createdAt: dateValue(data.createdAt),
+    updatedAt: dateValue(data.updatedAt)
   };
 }
 
@@ -241,8 +256,45 @@ function storedProfileDraft(
     currentStep:
       typeof data.currentStep === "number" ? data.currentStep : 0,
     draftData,
-    updatedAt: stringValue(data.updatedAt)
+    updatedAt: dateValue(data.updatedAt)
   };
+}
+
+function storedReflection(
+  id: string,
+  value: unknown,
+  expectedUserId: string
+): ReflectionPost | null {
+  if (typeof value !== "object" || !value) return null;
+  const data = value as Record<string, unknown>;
+  const userId = stringValue(data.userId);
+  const content = stringValue(data.content).trim();
+  const createdAt = dateValue(data.createdAt);
+  const updatedAt = dateValue(data.updatedAt);
+  if (
+    userId !== expectedUserId ||
+    !content ||
+    typeof data.isPrivate !== "boolean" ||
+    Number.isNaN(Date.parse(createdAt)) ||
+    Number.isNaN(Date.parse(updatedAt))
+  ) {
+    return null;
+  }
+  return {
+    id,
+    userId,
+    content,
+    isPrivate: data.isPrivate,
+    createdAt,
+    updatedAt
+  };
+}
+
+function newestFirst(posts: ReflectionPost[]): ReflectionPost[] {
+  return posts.sort(
+    (a, b) =>
+      new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+  );
 }
 
 function assertStoredProfileImagePath(userId: string, imagePath: string): void {
@@ -374,7 +426,6 @@ function friendlyAuthError(error: unknown): Error {
     "auth/weak-password": "Choose a stronger password with at least 8 characters."
   };
   if (messages[code]) return new Error(messages[code]);
-  if (error instanceof Error) return error;
   return new Error("Something went wrong. Please try again.");
 }
 
@@ -530,19 +581,84 @@ export const appService = {
       if (isFirebaseConfigured) {
         const services = getFirebaseServices();
         if (!services) throw new Error("Firebase is not available.");
-        await sendPasswordResetEmail(services.auth, email.trim());
+        await sendPasswordResetEmail(services.auth, email.trim(), {
+          url: `${window.location.origin}/auth?mode=login&reset=sent`,
+          handleCodeInApp: false
+        });
         return;
       }
       await ensureLocalSeed();
       const exists = localAccounts().some(
         (account) => account.user.email === email.trim().toLocaleLowerCase()
       );
-      if (!exists) {
-        throw Object.assign(new Error(), { code: "auth/user-not-found" });
-      }
+      // Return the same result whether or not the demo account exists.
+      void exists;
     } catch (error) {
+      const code =
+        typeof error === "object" && error && "code" in error
+          ? String(error.code)
+          : "";
+      if (code === "auth/user-not-found") return;
       throw friendlyAuthError(error);
     }
+  },
+
+  subscribeReflections(
+    userId: string,
+    visibility: "public" | "private" | "all",
+    callback: (posts: ReflectionPost[]) => void,
+    onError: (message: string) => void
+  ): Unsubscribe {
+    if (isFirebaseConfigured) {
+      assertFirebaseOwner(userId);
+      const services = getFirebaseServices();
+      if (!services) {
+        onError("Firebase is not available.");
+        return () => undefined;
+      }
+      const constraints =
+        visibility === "all"
+          ? [where("userId", "==", userId)]
+          : [
+              where("userId", "==", userId),
+              where("isPrivate", "==", visibility === "private")
+            ];
+      return onSnapshot(
+        query(collection(services.db, "reflectionPosts"), ...constraints),
+        (snapshot) => {
+          const posts = snapshot.docs
+            .map((item) => storedReflection(item.id, item.data(), userId))
+            .filter((post): post is ReflectionPost => Boolean(post));
+          callback(newestFirst(posts));
+        },
+        (error) => {
+          onError(
+            error.code === "permission-denied"
+              ? "You do not have permission to read these reflections."
+              : "Live reflection updates were interrupted. Check your connection."
+          );
+        }
+      );
+    }
+
+    assertLocalOwner(userId);
+    const read = () => {
+      const posts = Object.values(
+        readJson<JsonMap<ReflectionPost>>(LOCAL_KEYS.reflections, {})
+      ).filter(
+        (post) =>
+          post.userId === userId &&
+          (visibility === "all" ||
+            post.isPrivate === (visibility === "private"))
+      );
+      callback(newestFirst(posts));
+    };
+    read();
+    const listener = (event: StorageEvent) => {
+      if (event.key === LOCAL_KEYS.reflections) read();
+    };
+    window.addEventListener("storage", listener);
+    return () => window.removeEventListener("storage", listener);
   },
 
   async changePassword(
@@ -639,6 +755,53 @@ export const appService = {
       {}
     )[userId];
     return profile ? storedPublicProfile(profile) : null;
+  },
+
+  subscribeProfile(
+    userId: string,
+    callback: (profile: PublicSpiritualProfile | null) => void,
+    onError: (message: string) => void
+  ): Unsubscribe {
+    if (isFirebaseConfigured) {
+      assertFirebaseOwner(userId);
+      const services = getFirebaseServices();
+      if (!services) {
+        onError("Firebase is not available.");
+        return () => undefined;
+      }
+      return onSnapshot(
+        doc(services.db, "profiles", userId),
+        (snapshot) => {
+          callback(
+            snapshot.exists()
+              ? storedPublicProfile(snapshot.data(), userId)
+              : null
+          );
+        },
+        (error) => {
+          onError(
+            error.code === "permission-denied"
+              ? "You do not have permission to read this profile."
+              : "Live profile updates were interrupted. Check your connection."
+          );
+        }
+      );
+    }
+
+    assertLocalOwner(userId);
+    const read = () => {
+      const profile = readJson<JsonMap<PublicSpiritualProfile>>(
+        LOCAL_KEYS.profiles,
+        {}
+      )[userId];
+      callback(profile ? storedPublicProfile(profile, userId) : null);
+    };
+    read();
+    const listener = (event: StorageEvent) => {
+      if (event.key === LOCAL_KEYS.profiles) read();
+    };
+    window.addEventListener("storage", listener);
+    return () => window.removeEventListener("storage", listener);
   },
 
   async getPrivateStory(userId: string): Promise<string> {
@@ -792,7 +955,11 @@ export const appService = {
           createdAt: now,
           updatedAt: now
         };
-        batch.set(postRef, post);
+        batch.set(postRef, {
+          ...post,
+          createdAt: serverTimestamp(),
+          updatedAt: serverTimestamp()
+        });
       });
       await batch.commit();
       await cleanupReplacedProfileImage(
@@ -1051,12 +1218,14 @@ export const appService = {
         ? doc(services.db, "reflectionPosts", input.id)
         : doc(collection(services.db, "reflectionPosts"));
       let createdAt = input.createdAt ?? now;
+      let storedCreatedAt: unknown = createdAt;
       if (input.id) {
         const existing = await getDoc(postRef);
         if (!existing.exists() || existing.data().userId !== userId) {
           throw new Error("That reflection could not be found.");
         }
-        createdAt = String(existing.data().createdAt ?? createdAt);
+        storedCreatedAt = existing.data().createdAt ?? createdAt;
+        createdAt = dateValue(storedCreatedAt) || createdAt;
       }
       const post: ReflectionPost = {
         id: postRef.id,
@@ -1066,7 +1235,11 @@ export const appService = {
         createdAt,
         updatedAt: now
       };
-      await setDoc(postRef, post);
+      await setDoc(postRef, {
+        ...post,
+        createdAt: input.id ? storedCreatedAt : serverTimestamp(),
+        updatedAt: serverTimestamp()
+      });
       return post;
     }
 

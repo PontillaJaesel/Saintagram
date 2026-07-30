@@ -93,30 +93,39 @@ export function ProfileDashboard() {
 
   useEffect(() => {
     if (!user) return;
-    let active = true;
     setLoading(true);
-    Promise.all([
-      appService.getProfileView(user.id),
-      appService.getPublicReflections(user.id)
-    ])
-      .then(([nextProfile, nextPosts]) => {
-        if (!active) return;
+    let profileReady = false;
+    let postsReady = false;
+    const ready = () => {
+      if (profileReady && postsReady) setLoading(false);
+    };
+    const fail = (message: string) => {
+      setError(message);
+      setLoading(false);
+    };
+    const unsubscribeProfile = appService.subscribeProfile(
+      user.id,
+      (nextProfile) => {
         setProfile(nextProfile);
+        setError("");
+        profileReady = true;
+        ready();
+      },
+      fail
+    );
+    const unsubscribePosts = appService.subscribeReflections(
+      user.id,
+      "public",
+      (nextPosts) => {
         setPosts(nextPosts);
-      })
-      .catch((loadError) => {
-        if (!active) return;
-        setError(
-          loadError instanceof Error
-            ? loadError.message
-            : "Your profile could not be opened."
-        );
-      })
-      .finally(() => {
-        if (active) setLoading(false);
-      });
+        postsReady = true;
+        ready();
+      },
+      fail
+    );
     return () => {
-      active = false;
+      unsubscribeProfile();
+      unsubscribePosts();
     };
   }, [user]);
 

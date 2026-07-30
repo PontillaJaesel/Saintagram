@@ -472,7 +472,9 @@ export function ProfileWizard() {
             <input
               ref={nameRef}
               id="profile-name"
-              className="field text-lg font-semibold"
+              className={`field text-lg font-semibold ${
+                error ? "border-clay-500 ring-2 ring-clay-100" : ""
+              }`}
               value={data.profileName}
               onChange={(event) =>
                 updateData("profileName", event.target.value)
@@ -481,8 +483,21 @@ export function ProfileWizard() {
               placeholder="For example, Still Growing"
               required
               aria-invalid={Boolean(error)}
-              aria-describedby={error ? "wizard-error" : "profile-name-count"}
+              aria-describedby={
+                error
+                  ? "profile-name-error profile-name-count"
+                  : "profile-name-count"
+              }
             />
+            {error && (
+              <p
+                id="profile-name-error"
+                className="mt-2 text-sm font-semibold text-clay-600"
+                role="alert"
+              >
+                {error}
+              </p>
+            )}
             <CharacterCount
               id="profile-name-count"
               value={data.profileName}
@@ -1025,7 +1040,7 @@ export function ProfileWizard() {
                 </h1>
               </div>
               <div className="p-5 sm:p-8">
-                {error && (
+                {error && step !== 0 && (
                   <div
                     id="wizard-error"
                     className="mb-5 rounded-2xl border border-clay-200 bg-clay-50 px-4 py-3 text-sm font-semibold text-clay-600"

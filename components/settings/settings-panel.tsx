@@ -20,6 +20,7 @@ import { useAuth } from "@/components/providers/auth-provider";
 import { useToast } from "@/components/providers/toast-provider";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { appService } from "@/lib/app-service";
+import { createPersonalDataPdf } from "@/lib/personal-data-pdf";
 import { isSupabaseConfigured } from "@/lib/supabase";
 import { formatFriendlyDate, passwordError } from "@/lib/validation";
 
@@ -145,15 +146,13 @@ export function SettingsPanel() {
     setExporting(true);
     try {
       const archive = await appService.exportPersonalData(user.id);
-      const blob = new Blob([JSON.stringify(archive, null, 2)], {
-        type: "application/json"
-      });
+      const blob = await createPersonalDataPdf(archive);
       const url = URL.createObjectURL(blob);
       const anchor = document.createElement("a");
       anchor.href = url;
-      anchor.download = `saintagram-personal-archive-${new Date()
+      anchor.download = `saintagram-personal-data-${new Date()
         .toISOString()
-        .slice(0, 10)}.json`;
+        .slice(0, 10)}.pdf`;
       document.body.appendChild(anchor);
       anchor.click();
       anchor.remove();
@@ -423,8 +422,8 @@ export function SettingsPanel() {
       <ConfirmDialog
         open={exportOpen}
         title="Download your private archive?"
-        description="The JSON file can contain your Hidden Story, private entries, and unfinished draft. Store it somewhere only you can access."
-        confirmLabel="Download archive"
+        description="The PDF contains all of your public and private reflections. Store it somewhere only you can access."
+        confirmLabel="Download PDF"
         busy={exporting}
         onClose={() => setExportOpen(false)}
         onConfirm={() => void exportData()}

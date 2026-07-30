@@ -16,6 +16,8 @@ const mocks = vi.hoisted(() => ({
   replace: vi.fn(),
   notify: vi.fn(),
   updateUser: vi.fn(),
+  subscribeProfile: vi.fn(),
+  subscribeReflections: vi.fn(),
   getProfileView: vi.fn(),
   getPublicReflections: vi.fn(),
   getPrivateStory: vi.fn(),
@@ -40,6 +42,8 @@ vi.mock("@/components/providers/toast-provider", () => ({
 
 vi.mock("@/lib/app-service", () => ({
   appService: {
+    subscribeProfile: mocks.subscribeProfile,
+    subscribeReflections: mocks.subscribeReflections,
     getProfileView: mocks.getProfileView,
     getPublicReflections: mocks.getPublicReflections,
     getPrivateStory: mocks.getPrivateStory,
@@ -97,6 +101,18 @@ describe("ProfileDashboard private content", () => {
     mocks.getPublicReflections.mockResolvedValue([]);
     mocks.getPrivateStory.mockResolvedValue(PRIVATE_STORY);
     mocks.getPrivateReflections.mockResolvedValue([PRIVATE_REFLECTION]);
+    mocks.subscribeProfile.mockImplementation(
+      (_userId, callback) => {
+        callback({ ...PROFILE, hiddenStory: PUBLIC_VIEW_SECRET });
+        return () => undefined;
+      }
+    );
+    mocks.subscribeReflections.mockImplementation(
+      (_userId, _visibility, callback) => {
+        callback([]);
+        return () => undefined;
+      }
+    );
   });
 
   it("never renders a leaked Hidden Story in the normal view and loads private content only after confirmation", async () => {

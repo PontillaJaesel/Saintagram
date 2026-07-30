@@ -126,9 +126,7 @@ function AuthForm() {
       if (mode === "reset") {
         await auth.requestPasswordReset(email);
         setMessage(
-          auth.mode === "local"
-            ? "Demo account found. Email delivery is simulated in local mode."
-            : "Check your inbox for a password-reset link."
+          "If an account uses that email, password-reset instructions will arrive shortly."
         );
       } else if (mode === "signup") {
         const nextUser = await auth.register(email, password);

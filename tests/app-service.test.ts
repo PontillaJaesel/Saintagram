@@ -75,4 +75,39 @@ describe("local profile persistence", () => {
       /email and password do not match/i
     );
   });
+
+  it("returns a neutral password-reset result for an unknown email", async () => {
+    await expect(
+      appService.requestPasswordReset("unknown@example.test")
+    ).resolves.toBeUndefined();
+  });
+
+  it("publishes an initial owner-only reflection snapshot", async () => {
+    const user = await appService.register(
+      "listener@example.test",
+      "Faithful123"
+    );
+    await appService.saveReflection(user.id, {
+      content: "A synchronized reflection.",
+      isPrivate: false
+    });
+
+    const posts = await new Promise<Awaited<
+      ReturnType<typeof appService.getReflections>
+    >>((resolve, reject) => {
+      let unsubscribe: () => void = () => undefined;
+      unsubscribe = appService.subscribeReflections(
+        user.id,
+        "public",
+        (nextPosts) => {
+          unsubscribe();
+          resolve(nextPosts);
+        },
+        reject
+      );
+    });
+
+    expect(posts).toHaveLength(1);
+    expect(posts[0].content).toBe("A synchronized reflection.");
+  });
 });
