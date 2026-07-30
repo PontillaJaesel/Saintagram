@@ -37,7 +37,6 @@ import { useAuth } from "@/components/providers/auth-provider";
 import { useToast } from "@/components/providers/toast-provider";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { LoadingState } from "@/components/ui/loading-state";
-import { ModeBadge } from "@/components/ui/mode-badge";
 import { ProfileAvatar } from "@/components/ui/profile-avatar";
 import { appService } from "@/lib/app-service";
 import {
@@ -881,9 +880,6 @@ export function ProfileWizard() {
         <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6">
           <Logo />
           <div className="flex items-center gap-2 sm:gap-3">
-            <div className="hidden sm:block">
-              <ModeBadge />
-            </div>
             <button
               type="button"
               className="btn-quiet px-2 text-xs"

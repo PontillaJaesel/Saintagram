@@ -9,7 +9,6 @@ import {
   Settings as SettingsIcon
 } from "lucide-react";
 import { Logo } from "@/components/brand/logo";
-import { ModeBadge } from "@/components/ui/mode-badge";
 
 const NAV_ITEMS = [
   { href: "/profile", label: "Profile", icon: Home },
@@ -67,9 +66,7 @@ export function AppShell({
               );
             })}
           </nav>
-          <div className="hidden sm:block">
-            <ModeBadge />
-          </div>
+          <span className="hidden sm:block" aria-hidden="true" />
         </div>
       </header>
 

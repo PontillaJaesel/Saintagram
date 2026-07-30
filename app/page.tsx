@@ -10,7 +10,6 @@ import {
 } from "lucide-react";
 import { Logo } from "@/components/brand/logo";
 import { useAuth } from "@/components/providers/auth-provider";
-import { ModeBadge } from "@/components/ui/mode-badge";
 import { APP_TAGLINE } from "@/lib/constants";
 import { resolvePostAuthRoute } from "@/lib/routes";
 
@@ -28,9 +27,6 @@ export default function WelcomePage() {
       <header className="mx-auto flex max-w-7xl items-center justify-between px-5 py-5 sm:px-8">
         <Logo />
         <div className="flex items-center gap-3">
-          <div className="hidden sm:block">
-            <ModeBadge />
-          </div>
           {!user && !loading && (
             <Link href="/auth?mode=login" className="btn-quiet">
               Log in

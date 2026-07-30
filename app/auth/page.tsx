@@ -21,7 +21,6 @@ import {
 } from "lucide-react";
 import { Logo } from "@/components/brand/logo";
 import { useAuth } from "@/components/providers/auth-provider";
-import { ModeBadge } from "@/components/ui/mode-badge";
 import { DEMO_EMAIL, DEMO_PASSWORD } from "@/lib/constants";
 import { resolvePostAuthRoute } from "@/lib/routes";
 import { isValidEmail, passwordError } from "@/lib/validation";
@@ -166,7 +165,6 @@ function AuthForm() {
       <section className="flex flex-col px-5 py-5 sm:px-10 lg:px-14 lg:py-8">
         <div className="flex items-center justify-between">
           <Logo />
-          <ModeBadge />
         </div>
         <div className="mx-auto flex w-full max-w-md flex-1 flex-col justify-center py-10">
           <Link

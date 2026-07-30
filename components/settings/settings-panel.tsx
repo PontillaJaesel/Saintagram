@@ -19,7 +19,6 @@ import {
 import { useAuth } from "@/components/providers/auth-provider";
 import { useToast } from "@/components/providers/toast-provider";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
-import { ModeBadge } from "@/components/ui/mode-badge";
 import { appService } from "@/lib/app-service";
 import { isSupabaseConfigured } from "@/lib/supabase";
 import { formatFriendlyDate, passwordError } from "@/lib/validation";
@@ -235,7 +234,7 @@ export function SettingsPanel() {
             </dd>
           </div>
         </dl>
-        <div className="mt-4 flex flex-col gap-3 rounded-2xl border border-sage-100 p-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="mt-4 rounded-2xl border border-sage-100 p-4">
           <div>
             <p className="text-sm font-bold text-ink">Storage connection</p>
             <p className="mt-1 text-xs leading-5 text-muted">
@@ -246,7 +245,6 @@ export function SettingsPanel() {
                   : "Firebase is connected, but Supabase profile-image storage still needs its project URL and publishable key."}
             </p>
           </div>
-          <ModeBadge expanded />
         </div>
       </SettingsSection>
 

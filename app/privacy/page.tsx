@@ -13,7 +13,6 @@ import {
 import { Logo } from "@/components/brand/logo";
 import { RouteGuard } from "@/components/auth/route-guard";
 import { useAuth } from "@/components/providers/auth-provider";
-import { ModeBadge } from "@/components/ui/mode-badge";
 
 function PrivacyContent() {
   const { mode, updateUser } = useAuth();
@@ -69,9 +68,6 @@ function PrivacyContent() {
       <header className="mx-auto flex max-w-5xl items-center justify-between">
         <Logo />
         <div className="flex items-center gap-2">
-          <div className="hidden sm:block">
-            <ModeBadge />
-          </div>
           <Link href="/settings" className="btn-quiet">
             Account
           </Link>
