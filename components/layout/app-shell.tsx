@@ -63,62 +63,22 @@ export function AppShell({
         Skip to main content
       </a>
       <header
-        className={`sticky top-0 z-40 border-b border-sage-100/70 bg-canvas/80 backdrop-blur-2xl ${
-          isProfile ? "lg:hidden" : ""
-        }`}
+        className="sticky top-0 z-40 border-b border-sage-100/70 bg-canvas/80 backdrop-blur-2xl lg:hidden"
       >
         <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6">
           <Logo href="/profile" />
-          <nav
-            className="relative hidden w-[30rem] grid-cols-4 rounded-full p-1 lg:grid"
-            aria-label="Primary navigation"
-          >
-            <span
-              className="primary-nav-indicator pointer-events-none absolute bottom-1 left-1 top-1 rounded-full"
-              style={{
-                width: "calc((100% - 0.5rem) / 4)",
-                transform: `translateX(${indicatorIndex * 100}%)`
-              }}
-              aria-hidden="true"
-            />
-            {NAV_ITEMS.map(({ href, label, icon: Icon }) => {
-              const active =
-                pathname === href ||
-                (href === "/profile" && pathname.startsWith("/profile/"));
-              return (
-                <Link
-                  key={href}
-                  href={href}
-                  className={`relative z-10 inline-flex min-h-11 items-center justify-center gap-2 rounded-full px-3 text-sm font-bold transition-colors duration-300 ${
-                    active
-                      ? "app-nav-active"
-                      : "text-muted hover:bg-sage-100 hover:text-ink"
-                  }`}
-                  aria-current={active ? "page" : undefined}
-                >
-                  <Icon className="size-4" aria-hidden="true" />
-                  {label}
-                </Link>
-              );
-            })}
-          </nav>
           <ThemeToggle />
         </div>
       </header>
 
-      <div
-        className={
-          isProfile
-            ? "mx-auto w-full max-w-[92rem] lg:grid lg:grid-cols-[17rem_minmax(0,1fr)]"
-            : ""
-        }
-      >
-        {isProfile && (
+      <div className="mx-auto w-full max-w-[92rem] lg:grid lg:grid-cols-[17rem_minmax(0,1fr)]">
           <aside className="sticky top-0 hidden h-screen border-r border-sage-100 bg-paper/55 px-5 py-7 backdrop-blur-xl lg:flex lg:flex-col">
             <Logo href="/profile" />
             <nav className="mt-10 space-y-2" aria-label="Primary navigation">
               {NAV_ITEMS.map(({ href, label, icon: Icon }) => {
-                const active = href === "/profile";
+                const active =
+                  pathname === href ||
+                  (href === "/profile" && pathname.startsWith("/profile/"));
                 return (
                   <Link
                     key={href}
@@ -148,7 +108,6 @@ export function AppShell({
               </p>
             </div>
           </aside>
-        )}
 
         <main
           key={pathname}
@@ -156,7 +115,7 @@ export function AppShell({
           className={`app-page-enter w-full ${
             isProfile
               ? "min-w-0 px-0 py-0"
-              : "mx-auto max-w-6xl px-4 py-7 sm:px-6 sm:py-12"
+              : "mx-auto min-w-0 max-w-6xl px-4 py-7 sm:px-8 sm:py-12"
           }`}
         >
         {(title || description || action) && (
