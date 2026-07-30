@@ -20,8 +20,8 @@ import {
   Mail
 } from "lucide-react";
 import { Logo } from "@/components/brand/logo";
+import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { useAuth } from "@/components/providers/auth-provider";
-import { ModeBadge } from "@/components/ui/mode-badge";
 import { DEMO_EMAIL, DEMO_PASSWORD } from "@/lib/constants";
 import { resolvePostAuthRoute } from "@/lib/routes";
 import { isValidEmail, passwordError } from "@/lib/validation";
@@ -161,12 +161,18 @@ function AuthForm() {
     setError("");
   };
 
+  const formOnRight = mode !== "signup";
+
   return (
-    <main className="grid min-h-screen lg:grid-cols-[.9fr_1.1fr]">
-      <section className="flex flex-col px-5 py-5 sm:px-10 lg:px-14 lg:py-8">
+    <main className="auth-screen-enter relative min-h-screen overflow-hidden">
+      <section
+        className={`flex min-h-screen flex-col px-5 py-5 transition-transform duration-700 ease-[cubic-bezier(.22,1,.36,1)] sm:px-10 lg:absolute lg:inset-y-0 lg:left-0 lg:w-1/2 lg:overflow-y-auto lg:px-14 lg:py-8 ${
+          formOnRight ? "lg:translate-x-full" : "lg:translate-x-0"
+        }`}
+      >
         <div className="flex items-center justify-between">
           <Logo />
-          <ModeBadge />
+          <ThemeToggle />
         </div>
         <div className="mx-auto flex w-full max-w-md flex-1 flex-col justify-center py-10">
           <Link
@@ -419,7 +425,11 @@ function AuthForm() {
         </div>
       </section>
 
-      <aside className="relative hidden overflow-hidden bg-sage-800 p-14 text-white lg:flex lg:flex-col lg:justify-between">
+      <aside
+        className={`absolute inset-y-0 left-0 hidden w-1/2 overflow-hidden bg-sage-800 p-14 text-white shadow-lift transition-transform duration-700 ease-[cubic-bezier(.22,1,.36,1)] lg:flex lg:flex-col lg:justify-between ${
+          formOnRight ? "translate-x-0" : "translate-x-full"
+        }`}
+      >
         <div
           className="absolute -right-28 -top-28 size-96 rounded-full border border-sage-600"
           aria-hidden="true"

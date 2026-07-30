@@ -8,6 +8,7 @@ const mocks = vi.hoisted(() => ({
   replace: vi.fn(),
   push: vi.fn(),
   refreshUser: vi.fn(),
+  cancelAccountCreation: vi.fn(),
   notify: vi.fn(),
   getDraft: vi.fn(),
   saveDraft: vi.fn(),
@@ -27,7 +28,8 @@ vi.mock("next/navigation", () => ({
 vi.mock("@/components/providers/auth-provider", () => ({
   useAuth: () => ({
     user: TEST_USER,
-    refreshUser: mocks.refreshUser
+    refreshUser: mocks.refreshUser,
+    cancelAccountCreation: mocks.cancelAccountCreation
   })
 }));
 
@@ -98,6 +100,7 @@ describe("ProfileWizard completion", () => {
       ...TEST_USER,
       profileCompleted: true
     });
+    mocks.cancelAccountCreation.mockResolvedValue(undefined);
   });
 
   it("saves the reviewed profile and immediately navigates to it", async () => {
@@ -121,6 +124,31 @@ describe("ProfileWizard completion", () => {
       .toBeLessThan(mocks.refreshUser.mock.invocationCallOrder[0]);
     expect(mocks.refreshUser.mock.invocationCallOrder[0])
       .toBeLessThan(mocks.replace.mock.invocationCallOrder[0]);
+  });
+
+  it("cancels signup by deleting the unfinished account and its email", async () => {
+    const user = userEvent.setup();
+    render(<ProfileWizard />);
+
+    await user.click(
+      await screen.findByRole("button", {
+        name: "Cancel account creation"
+      })
+    );
+    expect(
+      screen.getByRole("alertdialog", { name: "Cancel account creation?" })
+    ).toHaveTextContent(
+      "The account and email address you used to sign up will not be saved."
+    );
+
+    await user.click(
+      screen.getByRole("button", { name: "Cancel and delete account" })
+    );
+
+    await waitFor(() => {
+      expect(mocks.cancelAccountCreation).toHaveBeenCalledTimes(1);
+      expect(mocks.replace).toHaveBeenCalledWith("/");
+    });
   });
 
   it("shows the save error and does not navigate when completion fails", async () => {

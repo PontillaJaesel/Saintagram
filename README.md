@@ -26,15 +26,9 @@ controls.
 - Owner reflection create, edit, delete, privacy, and creation-date controls
 - Profile editing, privacy preferences, private personal export, and
   destructive-action confirmations
-<<<<<<< HEAD
-- Firebase Authentication and Realtime Database adapters
-- A fully functional browser-local demonstration mode when Firebase is absent
-- Strict Realtime Database ownership rules
-=======
 - Firebase Authentication and Firestore, with private Supabase image storage
 - A fully functional browser-local demonstration mode when Firebase is absent
 - Strict Firestore ownership rules and Supabase row-level storage policies
->>>>>>> origin/feature/Access-Code
 - Vitest coverage for route guards, redirects, profile saving, validation, and
   private-field projection
 
@@ -57,6 +51,19 @@ npm run dev
 
 Open [http://localhost:3000](http://localhost:3000).
 
+Before starting, copy `.env.example` to `.env.local` and configure the private
+entrance:
+
+```dotenv
+SITE_ACCESS_CODE=use-a-private-code-with-12-or-more-characters
+SITE_ACCESS_SESSION_SECRET=use-a-separate-random-secret-with-32-or-more-characters
+```
+
+The access code is checked only on the server. A successful visitor receives a
+signed, HttpOnly cookie that expires after seven days; the code itself is never
+stored in browser storage or shipped in client JavaScript. Rotate both values
+to change the code and invalidate all existing access sessions.
+
 Without Firebase variables, Saintagram automatically enters **Private demo**
 mode. Data stays in that browser's local storage. This fallback is convenient
 for demonstrations but is not production-grade storage on a shared device.
@@ -74,20 +81,13 @@ New accounts and the entire onboarding journey also work in demo mode.
 
 1. Create a Firebase project.
 2. Enable **Authentication → Email/Password**.
-<<<<<<< HEAD
-3. Create a Realtime Database.
-5. Copy `.env.example` to `.env.local`.
-6. Fill in the Firebase web configuration:
-=======
 3. Create a Firestore database.
 4. Copy `.env.example` to `.env.local`.
 5. Fill in the Firebase web configuration:
->>>>>>> origin/feature/Access-Code
 
 ```dotenv
 NEXT_PUBLIC_FIREBASE_API_KEY=
 NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=
-NEXT_PUBLIC_FIREBASE_DATABASE_URL=
 NEXT_PUBLIC_FIREBASE_PROJECT_ID=
 NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=
 NEXT_PUBLIC_FIREBASE_APP_ID=
@@ -102,11 +102,7 @@ Deploy the supplied rules and indexes after selecting the project:
 ```bash
 npx firebase login
 npx firebase use --add
-<<<<<<< HEAD
-npx firebase deploy --only database
-=======
 npx firebase deploy --only firestore:rules,firestore:indexes
->>>>>>> origin/feature/Access-Code
 ```
 
 The application uses these collections:
@@ -190,15 +186,10 @@ retiring that bucket.
 
 ## Security model
 
-<<<<<<< HEAD
-- Realtime Database requires an authenticated UID that matches the resource
-  owner.
-=======
 - Every page is behind the server-side invitation gate except the code-entry
   route and its verification endpoint.
 - Firestore and the private Supabase bucket require an authenticated Firebase
   UID that matches the document or object owner.
->>>>>>> origin/feature/Access-Code
 - Standard profile reads query only `profiles/{uid}`. Hidden Story content is
   stored separately and is not fetched until the user passes an additional
   privacy check.
@@ -208,11 +199,6 @@ retiring that bucket.
   as text; uploaded images are restricted to JPG, PNG, or WebP and 2 MiB.
 - Personal export is explicitly an owner-requested private archive, never a
   public profile export.
-<<<<<<< HEAD
-- Account deletion reauthenticates, removes all owner data from Realtime
-  Database and the device-local profile image, then deletes the Authentication
-  user.
-=======
 - Account deletion reauthenticates, removes all images beneath the user's
   Supabase prefix in bounded pages, deletes Firestore content in bounded
   batches, and then deletes the Authentication user. Cleanup failures stop the
@@ -221,7 +207,6 @@ retiring that bucket.
 The shared entrance code proves possession of an invitation, not a person's
 identity, and can be forwarded. Firebase Authentication and owner-only rules
 remain the authorization boundary for personal data.
->>>>>>> origin/feature/Access-Code
 
 The browser confirmation before showing private content is a visual privacy
 check, not the authorization boundary. Firebase ownership rules remain the
@@ -236,10 +221,10 @@ npm run typecheck  # strict TypeScript check
 npm test           # unit and component tests
 npm run build      # optimized production build
 npm start          # serve the generated production build
-npm run test:rules # Realtime Database ownership tests using the emulator
+npm run test:rules # Firestore ownership tests using the emulator
 ```
 
-Realtime Database emulator tests require Java 11 or newer.
+Firestore emulator tests require Java 11 or newer.
 
 ## Project map
 
@@ -254,29 +239,18 @@ lib/profile.ts       Private-safe profile projections and normalization
 types/               Application data models
 tests/               Guard, redirect, storage, and privacy tests
 scripts/             Production-host package preparation
-<<<<<<< HEAD
-docs/data-model.md   Realtime Database contract
-database.rules.json  Owner-only database rules
-=======
 supabase/migrations/ Private bucket and row-level storage policies
 docs/data-model.md   Firestore and Supabase Storage contract
 firestore.rules      Owner-only database rules
->>>>>>> origin/feature/Access-Code
 data/demo-seed.json  Fictional demonstration data
 ```
 
 ## Production notes
 
 The local fallback is intentionally scoped to demonstration. A production
-<<<<<<< HEAD
-launch should also add server-side retryable account cleanup, Firebase App
-Check, abuse monitoring, and an
-approved pastoral/privacy review of prompts and copy.
-=======
 launch should also add server-side retryable account cleanup (including a
 second Supabase cleanup after old Firebase ID tokens expire), Firebase App
 Check, abuse monitoring, and an approved pastoral/privacy review of prompts and
 copy. Deleting a Firebase user prevents token refresh but an already-issued ID
 token can remain valid until it expires, so high-assurance deletion needs that
 delayed privileged cleanup.
->>>>>>> origin/feature/Access-Code

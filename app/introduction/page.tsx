@@ -7,6 +7,7 @@ import { ArrowRight, Heart, Sparkles } from "lucide-react";
 import { RouteGuard } from "@/components/auth/route-guard";
 import { Logo } from "@/components/brand/logo";
 import { useAuth } from "@/components/providers/auth-provider";
+import { ThemeToggle } from "@/components/ui/theme-toggle";
 
 function IntroductionContent() {
   const { updateUser } = useAuth();
@@ -39,9 +40,12 @@ function IntroductionContent() {
       />
       <header className="relative mx-auto flex max-w-5xl items-center justify-between">
         <Logo />
-        <Link href="/settings" className="btn-quiet">
-          Account
-        </Link>
+        <div className="flex items-center gap-2">
+          <ThemeToggle />
+          <Link href="/settings" className="btn-quiet">
+            Account
+          </Link>
+        </div>
       </header>
       <section className="relative mx-auto flex min-h-[calc(100vh-5rem)] max-w-4xl flex-col items-center justify-center py-12 text-center">
         <div className="grid size-14 place-items-center rounded-2xl bg-sage-700 text-gold-200 shadow-lift">

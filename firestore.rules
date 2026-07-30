@@ -285,8 +285,7 @@ service cloud.firestore {
       allow create: if isCurrentUser(userId)
         && request.resource.data.id == userId
         && (
-          !('email' in request.auth.token)
-          || request.auth.token.email == null
+          request.auth.token.email == null
           || request.resource.data.email == request.auth.token.email
         )
         && hasValidUserShape(request.resource.data);

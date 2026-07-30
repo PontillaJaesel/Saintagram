@@ -37,8 +37,8 @@ import { useAuth } from "@/components/providers/auth-provider";
 import { useToast } from "@/components/providers/toast-provider";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { LoadingState } from "@/components/ui/loading-state";
-import { ModeBadge } from "@/components/ui/mode-badge";
 import { ProfileAvatar } from "@/components/ui/profile-avatar";
+import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { appService } from "@/lib/app-service";
 import {
   FOLLOWING_IDEAS,
@@ -100,14 +100,6 @@ function CharacterCount({
   );
 }
 
-function PreferNotButton({ onClick }: { onClick: () => void }) {
-  return (
-    <button type="button" className="btn-quiet mt-3" onClick={onClick}>
-      Prefer not to answer
-    </button>
-  );
-}
-
 function ReviewSection({
   title,
   step,
@@ -155,7 +147,7 @@ function ReviewSection({
 }
 
 export function ProfileWizard() {
-  const { user, refreshUser } = useAuth();
+  const { user, refreshUser, cancelAccountCreation } = useAuth();
   const { notify } = useToast();
   const router = useRouter();
   const [data, setData] = useState<ProfileDraftData>(cloneEmptyDraft);
@@ -402,24 +394,20 @@ export function ProfileWizard() {
     finishingRef.current = true;
     try {
       await waitForPendingSave();
-      await cleanupKnownImages("", true);
-      await appService.deleteDraft(user.id);
+      await cancelAccountCreation();
       skipNextAutosaveRef.current = true;
       persistedImagePathRef.current = "";
       latestImagePathRef.current = "";
       knownImagePathsRef.current.clear();
       setPersistedImagePath("");
-      setData(cloneEmptyDraft());
-      setStep(0);
-      setRestoredAt("");
-      setSaveStatus("idle");
       setDiscardOpen(false);
-      notify("The unfinished draft was discarded.");
+      notify("Account creation was cancelled. Your email was not saved.");
+      router.replace("/");
     } catch (discardError) {
       notify(
         discardError instanceof Error
           ? discardError.message
-          : "The draft could not be discarded.",
+          : "Account creation could not be cancelled.",
         "error"
       );
     } finally {
@@ -561,7 +549,6 @@ export function ProfileWizard() {
               value={data.spiritualBio}
               limit={LIMITS.bio}
             />
-            <PreferNotButton onClick={() => updateData("spiritualBio", "")} />
           </div>
         );
       case 3:
@@ -658,9 +645,6 @@ export function ProfileWizard() {
                 <Plus className="size-4" aria-hidden="true" />
                 Add another moment
               </button>
-              <PreferNotButton
-                onClick={() => updateData("onboardingPosts", [""])}
-              />
             </div>
           </fieldset>
         );
@@ -713,7 +697,6 @@ export function ProfileWizard() {
               value={data.hiddenStory}
               limit={LIMITS.hiddenStory}
             />
-            <PreferNotButton onClick={() => updateData("hiddenStory", "")} />
           </div>
         );
       case 8:
@@ -748,7 +731,6 @@ export function ProfileWizard() {
                 limit={LIMITS.godsComment}
               />
             </div>
-            <PreferNotButton onClick={() => updateData("godsComment", "")} />
           </div>
         );
       case 9:
@@ -797,9 +779,6 @@ export function ProfileWizard() {
               }
               maxLength={LIMITS.hashtag}
               placeholder="#YourGraceForToday"
-            />
-            <PreferNotButton
-              onClick={() => updateData("heavenlyHashtag", "")}
             />
           </fieldset>
         );
@@ -881,16 +860,7 @@ export function ProfileWizard() {
         <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6">
           <Logo />
           <div className="flex items-center gap-2 sm:gap-3">
-            <div className="hidden sm:block">
-              <ModeBadge />
-            </div>
-            <button
-              type="button"
-              className="btn-quiet px-2 text-xs"
-              onClick={() => router.push("/settings")}
-            >
-              Account
-            </button>
+            <ThemeToggle />
             <button
               type="button"
               className="btn-quiet text-xs"
@@ -1014,7 +984,7 @@ export function ProfileWizard() {
                   onClick={() => setDiscardOpen(true)}
                 >
                   <Trash2 className="size-4" aria-hidden="true" />
-                  Discard this draft
+                  Cancel account creation
                 </button>
               </div>
             </div>
@@ -1112,9 +1082,9 @@ export function ProfileWizard() {
 
       <ConfirmDialog
         open={discardOpen}
-        title="Discard this draft?"
-        description="This removes every unfinished answer and uploaded draft image from this device and the connected services. This cannot be undone."
-        confirmLabel="Discard draft"
+        title="Cancel account creation?"
+        description="All profile changes and uploaded images will be permanently removed. The account and email address you used to sign up will not be saved. This cannot be undone."
+        confirmLabel="Cancel and delete account"
         destructive
         busy={discarding}
         onClose={() => setDiscardOpen(false)}

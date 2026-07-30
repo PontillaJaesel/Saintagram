@@ -84,7 +84,6 @@ export function ProfileEditor() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
-  const [clearHiddenOpen, setClearHiddenOpen] = useState(false);
   const [privacyConfirmed, setPrivacyConfirmed] = useState(false);
   const nameRef = useRef<HTMLInputElement>(null);
   const errorRef = useRef<HTMLDivElement>(null);
@@ -443,16 +442,6 @@ export function ProfileEditor() {
           <p className="mt-2 text-right text-xs text-muted">
             {profile.hiddenStory.length} / {LIMITS.hiddenStory}
           </p>
-          <button
-            type="button"
-            className="btn-quiet mt-2 text-clay-600"
-            onClick={() => {
-              if (profile.hiddenStory) setClearHiddenOpen(true);
-            }}
-            disabled={!profile.hiddenStory}
-          >
-            Prefer not to answer
-          </button>
         </EditorSection>
       </div>
 
@@ -471,18 +460,6 @@ export function ProfileEditor() {
         </button>
       </div>
 
-      <ConfirmDialog
-        open={clearHiddenOpen}
-        title="Clear your Hidden Story?"
-        description="This removes the private text from the editor. It will be permanently deleted from storage when you save profile changes."
-        confirmLabel="Clear Hidden Story"
-        destructive
-        onClose={() => setClearHiddenOpen(false)}
-        onConfirm={() => {
-          setField("hiddenStory", "");
-          setClearHiddenOpen(false);
-        }}
-      />
     </form>
   );
 }

@@ -11,15 +11,6 @@ import {
   type Unsubscribe
 } from "firebase/auth";
 import {
-<<<<<<< HEAD
-  get,
-  push,
-  ref,
-  remove,
-  set,
-  update
-} from "firebase/database";
-=======
   collection,
   deleteDoc,
   doc,
@@ -32,7 +23,6 @@ import {
   where,
   writeBatch
 } from "firebase/firestore";
->>>>>>> origin/feature/Access-Code
 import { DEMO_EMAIL, DEMO_PASSWORD, LIMITS } from "@/lib/constants";
 import { getFirebaseServices, isFirebaseConfigured } from "@/lib/firebase";
 import {
@@ -158,10 +148,6 @@ function nowIso(): string {
 
 function firebaseDraftCacheKey(userId: string): string {
   return `${STORAGE_PREFIX}:firebaseDraftCache:${userId}`;
-}
-
-function firebaseProfileImageKey(userId: string): string {
-  return `${STORAGE_PREFIX}:firebaseProfileImage:${userId}`;
 }
 
 function createUserRecord(id: string, email: string): AppUser {
@@ -395,11 +381,11 @@ function friendlyAuthError(error: unknown): Error {
 async function getFirebaseUserRecord(userId: string, email = ""): Promise<AppUser> {
   const services = getFirebaseServices();
   if (!services) throw new Error("Firebase is not available.");
-  const userRef = ref(services.db, `users/${userId}`);
-  const snapshot = await get(userRef);
-  if (snapshot.exists()) return snapshot.val() as AppUser;
+  const userRef = doc(services.db, "users", userId);
+  const snapshot = await getDoc(userRef);
+  if (snapshot.exists()) return snapshot.data() as AppUser;
   const user = createUserRecord(userId, email);
-  await set(userRef, user);
+  await setDoc(userRef, user);
   return user;
 }
 
@@ -470,7 +456,7 @@ export const appService = {
           password
         );
         const user = createUserRecord(credential.user.uid, email);
-        await set(ref(services.db, `users/${user.id}`), user);
+        await setDoc(doc(services.db, "users", user.id), user);
         return user;
       }
 
@@ -614,7 +600,7 @@ export const appService = {
       assertFirebaseOwner(userId);
       const services = getFirebaseServices();
       if (!services) throw new Error("Firebase is not available.");
-      await update(ref(services.db, `users/${userId}`), {
+      await updateDoc(doc(services.db, "users", userId), {
         ...patch,
         updatedAt
       });
@@ -642,19 +628,9 @@ export const appService = {
       assertFirebaseOwner(userId);
       const services = getFirebaseServices();
       if (!services) return null;
-      const snapshot = await get(ref(services.db, `profiles/${userId}`));
+      const snapshot = await getDoc(doc(services.db, "profiles", userId));
       return snapshot.exists()
-<<<<<<< HEAD
-        ? {
-            ...(snapshot.val() as PublicSpiritualProfile),
-            imageUrl: readJson<string>(
-              firebaseProfileImageKey(userId),
-              ""
-            )
-          }
-=======
         ? storedPublicProfile(snapshot.data(), userId)
->>>>>>> origin/feature/Access-Code
         : null;
     }
     assertLocalOwner(userId);
@@ -670,9 +646,9 @@ export const appService = {
       assertFirebaseOwner(userId);
       const services = getFirebaseServices();
       if (!services) return "";
-      const snapshot = await get(ref(services.db, `privateProfiles/${userId}`));
+      const snapshot = await getDoc(doc(services.db, "privateProfiles", userId));
       return snapshot.exists()
-        ? String(snapshot.val().hiddenStory ?? "")
+        ? String(snapshot.data().hiddenStory ?? "")
         : "";
     }
     assertLocalOwner(userId);
@@ -696,25 +672,9 @@ export const appService = {
       const services = getFirebaseServices();
       if (!services) return null;
       try {
-<<<<<<< HEAD
-        const snapshot = await get(ref(services.db, `drafts/${userId}`));
-        if (snapshot.exists()) {
-          const draft = snapshot.val() as ProfileDraft;
-          return {
-            ...draft,
-            draftData: {
-              ...draft.draftData,
-              imageUrl: readJson<string>(
-                firebaseProfileImageKey(userId),
-                ""
-              )
-            }
-          };
-=======
         const snapshot = await getDoc(doc(services.db, "drafts", userId));
         if (snapshot.exists()) {
           return storedProfileDraft(snapshot.data(), userId);
->>>>>>> origin/feature/Access-Code
         }
       } catch {
         // A sanitized browser copy keeps non-sensitive progress recoverable
@@ -749,15 +709,12 @@ export const appService = {
       const services = getFirebaseServices();
       if (!services) throw new Error("Firebase is not available.");
       // Keep only a non-sensitive local fallback. The Hidden Story remains in
-      // the owner-protected database draft and never persists in this cache.
+      // the owner-protected Firestore draft and never persists in this cache.
       writeJson(firebaseDraftCacheKey(userId), {
         ...draft,
         draftData: { ...draft.draftData, hiddenStory: "" }
       });
-      await set(ref(services.db, `drafts/${userId}`), {
-        ...draft,
-        draftData: { ...draft.draftData, imageUrl: "" }
-      });
+      await setDoc(doc(services.db, "drafts", userId), draft);
       return draft;
     }
     assertLocalOwner(userId);
@@ -771,7 +728,7 @@ export const appService = {
     if (isFirebaseConfigured) {
       assertFirebaseOwner(userId);
       const services = getFirebaseServices();
-      if (services) await remove(ref(services.db, `drafts/${userId}`));
+      if (services) await deleteDoc(doc(services.db, "drafts", userId));
       if (storageAvailable()) {
         window.localStorage.removeItem(firebaseDraftCacheKey(userId));
       }
@@ -813,48 +770,36 @@ export const appService = {
         createdAt: existing?.createdAt ?? now,
         updatedAt: now
       };
-      const changes: Record<string, unknown> = {
-        [`profiles/${userId}`]: {
-          ...toPublicProfile(fullProfile),
-          imageUrl: ""
-        },
-        [`privateProfiles/${userId}`]: {
-          userId,
-          hiddenStory: fullProfile.hiddenStory,
-          updatedAt: now
-        },
-        [`users/${userId}/profileCompleted`]: true,
-        [`users/${userId}/updatedAt`]: now,
-        [`drafts/${userId}`]: null
-      };
+      const batch = writeBatch(services.db);
+      batch.set(doc(services.db, "profiles", userId), toPublicProfile(fullProfile));
+      batch.set(doc(services.db, "privateProfiles", userId), {
+        userId,
+        hiddenStory: fullProfile.hiddenStory,
+        updatedAt: now
+      });
+      batch.update(doc(services.db, "users", userId), {
+        profileCompleted: true,
+        updatedAt: now
+      });
+      batch.delete(doc(services.db, "drafts", userId));
       data.onboardingPosts.forEach((content) => {
-        const postId = push(
-          ref(services.db, `reflectionPosts/${userId}`)
-        ).key;
-        if (!postId) return;
+        const postRef = doc(collection(services.db, "reflectionPosts"));
         const post: ReflectionPost = {
-          id: postId,
+          id: postRef.id,
           userId,
           content,
           isPrivate: false,
           createdAt: now,
           updatedAt: now
         };
-        changes[`reflectionPosts/${userId}/${postId}`] = post;
+        batch.set(postRef, post);
       });
-<<<<<<< HEAD
-      await update(ref(services.db), changes);
-      if (storageAvailable()) {
-        window.localStorage.removeItem(firebaseDraftCacheKey(userId));
-      }
-=======
       await batch.commit();
       await cleanupReplacedProfileImage(
         userId,
         existing?.imagePath ?? "",
         fullProfile.imagePath
       );
->>>>>>> origin/feature/Access-Code
       return fullProfile;
     }
 
@@ -941,20 +886,6 @@ export const appService = {
       assertStoredProfileImagePath(userId, updated.imagePath);
       const services = getFirebaseServices();
       if (!services) throw new Error("Firebase is not available.");
-<<<<<<< HEAD
-      await update(ref(services.db), {
-        [`profiles/${userId}`]: {
-          ...toPublicProfile(updated),
-          imageUrl: ""
-        },
-        [`privateProfiles/${userId}`]: {
-          userId,
-          hiddenStory: updated.hiddenStory,
-          updatedAt: now
-        },
-        [`users/${userId}/updatedAt`]: now
-      });
-=======
       const existing = await this.getProfileView(userId);
       const batch = writeBatch(services.db);
       batch.set(doc(services.db, "profiles", userId), toPublicProfile(updated));
@@ -970,7 +901,6 @@ export const appService = {
         existing?.imagePath ?? "",
         updated.imagePath
       );
->>>>>>> origin/feature/Access-Code
       return updated;
     }
 
@@ -998,20 +928,7 @@ export const appService = {
   async uploadProfileImage(userId: string, file: File): Promise<string> {
     if (isFirebaseConfigured) {
       assertFirebaseOwner(userId);
-<<<<<<< HEAD
-      return new Promise<string>((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = () => {
-          const imageUrl = String(reader.result ?? "");
-          writeJson(firebaseProfileImageKey(userId), imageUrl);
-          resolve(imageUrl);
-        };
-        reader.onerror = () => reject(new Error("The image could not be read."));
-        reader.readAsDataURL(file);
-      });
-=======
       return uploadSupabaseProfileImage(userId, file);
->>>>>>> origin/feature/Access-Code
     }
 
     assertLocalOwner(userId);
@@ -1036,12 +953,13 @@ export const appService = {
       assertFirebaseOwner(userId);
       const services = getFirebaseServices();
       if (!services) return [];
-      const snapshot = await get(
-        ref(services.db, `reflectionPosts/${userId}`)
+      const snapshot = await getDocs(
+        query(
+          collection(services.db, "reflectionPosts"),
+          where("userId", "==", userId)
+        )
       );
-      posts = snapshot.exists()
-        ? Object.values(snapshot.val() as JsonMap<ReflectionPost>)
-        : [];
+      posts = snapshot.docs.map((item) => item.data() as ReflectionPost);
     } else {
       assertLocalOwner(userId);
       posts = Object.values(
@@ -1059,13 +977,15 @@ export const appService = {
       assertFirebaseOwner(userId);
       const services = getFirebaseServices();
       if (!services) return [];
-      const snapshot = await get(
-        ref(services.db, `reflectionPosts/${userId}`)
+      const snapshot = await getDocs(
+        query(
+          collection(services.db, "reflectionPosts"),
+          where("userId", "==", userId),
+          where("isPrivate", "==", false)
+        )
       );
-      return (snapshot.exists()
-        ? Object.values(snapshot.val() as JsonMap<ReflectionPost>)
-        : [])
-        .filter((item) => !item.isPrivate)
+      return snapshot.docs
+        .map((item) => item.data() as ReflectionPost)
         .sort(
           (a, b) =>
             new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
@@ -1087,13 +1007,15 @@ export const appService = {
       assertFirebaseOwner(userId);
       const services = getFirebaseServices();
       if (!services) return [];
-      const snapshot = await get(
-        ref(services.db, `reflectionPosts/${userId}`)
+      const snapshot = await getDocs(
+        query(
+          collection(services.db, "reflectionPosts"),
+          where("userId", "==", userId),
+          where("isPrivate", "==", true)
+        )
       );
-      return (snapshot.exists()
-        ? Object.values(snapshot.val() as JsonMap<ReflectionPost>)
-        : [])
-        .filter((item) => item.isPrivate)
+      return snapshot.docs
+        .map((item) => item.data() as ReflectionPost)
         .sort(
           (a, b) =>
             new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
@@ -1125,31 +1047,26 @@ export const appService = {
       assertFirebaseOwner(userId);
       const services = getFirebaseServices();
       if (!services) throw new Error("Firebase is not available.");
-      const id =
-        input.id ??
-        push(ref(services.db, `reflectionPosts/${userId}`)).key ??
-        newId("reflection-");
-      const postRef = ref(
-        services.db,
-        `reflectionPosts/${userId}/${id}`
-      );
+      const postRef = input.id
+        ? doc(services.db, "reflectionPosts", input.id)
+        : doc(collection(services.db, "reflectionPosts"));
       let createdAt = input.createdAt ?? now;
       if (input.id) {
-        const existing = await get(postRef);
-        if (!existing.exists() || existing.val().userId !== userId) {
+        const existing = await getDoc(postRef);
+        if (!existing.exists() || existing.data().userId !== userId) {
           throw new Error("That reflection could not be found.");
         }
-        createdAt = String(existing.val().createdAt ?? createdAt);
+        createdAt = String(existing.data().createdAt ?? createdAt);
       }
       const post: ReflectionPost = {
-        id,
+        id: postRef.id,
         userId,
         content,
         isPrivate: input.isPrivate,
         createdAt,
         updatedAt: now
       };
-      await set(postRef, post);
+      await setDoc(postRef, post);
       return post;
     }
 
@@ -1182,15 +1099,12 @@ export const appService = {
       assertFirebaseOwner(userId);
       const services = getFirebaseServices();
       if (!services) throw new Error("Firebase is not available.");
-      const postRef = ref(
-        services.db,
-        `reflectionPosts/${userId}/${reflectionId}`
-      );
-      const existing = await get(postRef);
-      if (!existing.exists() || existing.val().userId !== userId) {
+      const postRef = doc(services.db, "reflectionPosts", reflectionId);
+      const existing = await getDoc(postRef);
+      if (!existing.exists() || existing.data().userId !== userId) {
         throw new Error("That reflection could not be found.");
       }
-      await remove(postRef);
+      await deleteDoc(postRef);
       return;
     }
 
@@ -1224,6 +1138,86 @@ export const appService = {
     };
   },
 
+  async cancelAccountCreation(userId: string): Promise<void> {
+    if (isFirebaseConfigured) {
+      assertFirebaseOwner(userId);
+      const services = getFirebaseServices();
+      if (!services) throw new Error("Firebase is not available.");
+      const firebaseUser = services.auth.currentUser;
+      if (!firebaseUser || firebaseUser.uid !== userId) {
+        throw new Error("Please log in again.");
+      }
+
+      const userRecord = await this.refreshUser(userId);
+      if (userRecord.profileCompleted) {
+        throw new Error(
+          "A completed account must be deleted from Settings."
+        );
+      }
+
+      try {
+        await deleteAllSupabaseProfileImages(userId);
+      } catch (imageError) {
+        const detail =
+          imageError instanceof Error ? ` ${imageError.message}` : "";
+        throw new Error(
+          `Your uploaded images could not be removed, so cancellation stopped.${detail}`
+        );
+      }
+
+      const idToken = await firebaseUser.getIdToken();
+      const cancellationResponse = await fetch("/api/cancel-account", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${idToken}` },
+        cache: "no-store",
+        credentials: "same-origin"
+      });
+      if (!cancellationResponse.ok) {
+        let message = "";
+        try {
+          const body = (await cancellationResponse.json()) as {
+            error?: unknown;
+          };
+          if (typeof body.error === "string") message = body.error;
+        } catch {
+          // Use the safe fallback below.
+        }
+        throw new Error(
+          message || "The account and email could not be removed."
+        );
+      }
+      if (storageAvailable()) {
+        window.localStorage.removeItem(firebaseDraftCacheKey(userId));
+      }
+      return;
+    }
+
+    assertLocalOwner(userId);
+    const account = localAccounts().find((item) => item.user.id === userId);
+    if (!account) throw new Error("That account could not be found.");
+    if (account.user.profileCompleted) {
+      throw new Error("A completed account must be deleted from Settings.");
+    }
+
+    saveLocalAccounts(
+      localAccounts().filter((item) => item.user.id !== userId)
+    );
+    const removeUserEntry = <T extends { userId: string }>(
+      key: string
+    ): void => {
+      const values = readJson<JsonMap<T>>(key, {});
+      Object.entries(values).forEach(([id, value]) => {
+        if (value.userId === userId) delete values[id];
+      });
+      writeJson(key, values);
+    };
+    removeUserEntry<PublicSpiritualProfile>(LOCAL_KEYS.profiles);
+    removeUserEntry<PrivateProfileRecord>(LOCAL_KEYS.privateProfiles);
+    removeUserEntry<ProfileDraft>(LOCAL_KEYS.drafts);
+    removeUserEntry<ReflectionPost>(LOCAL_KEYS.reflections);
+    writeJson(LOCAL_KEYS.session, null);
+  },
+
   async deleteAllUserData(
     userId: string,
     currentPassword: string
@@ -1242,18 +1236,6 @@ export const appService = {
       } catch (error) {
         throw friendlyAuthError(error);
       }
-<<<<<<< HEAD
-      await update(ref(services.db), {
-        [`profiles/${userId}`]: null,
-        [`privateProfiles/${userId}`]: null,
-        [`drafts/${userId}`]: null,
-        [`reflectionPosts/${userId}`]: null,
-        [`users/${userId}`]: null
-      });
-      if (storageAvailable()) {
-        window.localStorage.removeItem(firebaseDraftCacheKey(userId));
-        window.localStorage.removeItem(firebaseProfileImageKey(userId));
-=======
       // Remove Supabase Storage first. If this fails, retain the account and
       // Firestore records so the owner can retry without orphaning image data.
       try {
@@ -1266,8 +1248,34 @@ export const appService = {
         throw new Error(
           `Your profile images could not be removed, so account deletion stopped.${detail}`
         );
->>>>>>> origin/feature/Access-Code
       }
+
+      // A Firestore WriteBatch accepts at most 500 writes. Delete reflections
+      // in bounded pages, then remove the four UID-keyed account documents.
+      const reflectionBatchSize = 400;
+      while (true) {
+        const reflectionsPage = await getDocs(
+          query(
+            collection(services.db, "reflectionPosts"),
+            where("userId", "==", userId),
+            firestoreLimit(reflectionBatchSize)
+          )
+        );
+        if (reflectionsPage.empty) break;
+
+        const reflectionBatch = writeBatch(services.db);
+        reflectionsPage.docs.forEach((item) =>
+          reflectionBatch.delete(item.ref)
+        );
+        await reflectionBatch.commit();
+      }
+
+      const accountBatch = writeBatch(services.db);
+      accountBatch.delete(doc(services.db, "profiles", userId));
+      accountBatch.delete(doc(services.db, "privateProfiles", userId));
+      accountBatch.delete(doc(services.db, "drafts", userId));
+      accountBatch.delete(doc(services.db, "users", userId));
+      await accountBatch.commit();
       await deleteUser(firebaseUser);
       return;
     }

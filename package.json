@@ -14,7 +14,7 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:rules": "npx firebase-tools emulators:exec --only database \"vitest run --config vitest.rules.config.ts\""
+    "test:rules": "npx firebase-tools emulators:exec --only firestore \"vitest run --config vitest.rules.config.ts\""
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.111.0",

@@ -9,50 +9,50 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
-        canvas: "#F8F5EF",
-        paper: "#FFFDF8",
-        ink: "#27312E",
-        muted: "#66736E",
+        canvas: "rgb(var(--canvas) / <alpha-value>)",
+        paper: "rgb(var(--paper) / <alpha-value>)",
+        ink: "rgb(var(--ink) / <alpha-value>)",
+        muted: "rgb(var(--muted) / <alpha-value>)",
         sage: {
-          50: "#F1F5F2",
-          100: "#E4ECE6",
-          200: "#CBDACF",
-          300: "#A5C0AC",
-          400: "#7DA087",
-          500: "#5E826A",
-          600: "#496855",
-          700: "#3D5547",
-          800: "#34463C",
-          900: "#2C3A33"
+          50: "rgb(var(--sage-50) / <alpha-value>)",
+          100: "rgb(var(--sage-100) / <alpha-value>)",
+          200: "rgb(var(--sage-200) / <alpha-value>)",
+          300: "rgb(var(--sage-300) / <alpha-value>)",
+          400: "rgb(var(--sage-400) / <alpha-value>)",
+          500: "rgb(var(--sage-500) / <alpha-value>)",
+          600: "rgb(var(--sage-600) / <alpha-value>)",
+          700: "rgb(var(--sage-700) / <alpha-value>)",
+          800: "rgb(var(--sage-800) / <alpha-value>)",
+          900: "rgb(var(--sage-900) / <alpha-value>)"
         },
         gold: {
-          50: "#FFF9E9",
-          100: "#FDF0C8",
-          200: "#F9DF93",
-          300: "#F3C75B",
-          400: "#E9AA31",
-          500: "#CC8520",
-          600: "#A8611A",
-          700: "#874718"
+          50: "rgb(var(--gold-50) / <alpha-value>)",
+          100: "rgb(var(--gold-100) / <alpha-value>)",
+          200: "rgb(var(--gold-200) / <alpha-value>)",
+          300: "rgb(var(--gold-300) / <alpha-value>)",
+          400: "rgb(var(--gold-400) / <alpha-value>)",
+          500: "rgb(var(--gold-500) / <alpha-value>)",
+          600: "rgb(var(--gold-600) / <alpha-value>)",
+          700: "rgb(var(--gold-700) / <alpha-value>)"
         },
         clay: {
-          50: "#FCF3EE",
-          100: "#F7E2D7",
-          200: "#EFC5B2",
-          500: "#B96D4E",
-          600: "#995337"
+          50: "rgb(var(--clay-50) / <alpha-value>)",
+          100: "rgb(var(--clay-100) / <alpha-value>)",
+          200: "rgb(var(--clay-200) / <alpha-value>)",
+          500: "rgb(var(--clay-500) / <alpha-value>)",
+          600: "rgb(var(--clay-600) / <alpha-value>)"
         }
       },
       boxShadow: {
-        soft: "0 18px 50px -28px rgba(42, 55, 48, .35)",
-        lift: "0 18px 40px -18px rgba(64, 78, 70, .25)"
+        soft: "0 1px 2px rgba(26, 20, 30, .05), 0 12px 32px rgba(26, 20, 30, .06)",
+        lift: "0 18px 50px rgba(26, 20, 30, .12)"
       },
       borderRadius: {
         "4xl": "2rem"
       },
       fontFamily: {
-        sans: ["var(--font-sans)", "ui-sans-serif", "system-ui", "sans-serif"],
-        serif: ["var(--font-serif)", "Georgia", "serif"]
+        sans: ["New York", "New York Small", "Iowan Old Style", "Georgia", "serif"],
+        serif: ["SF Pro Display", "SF Pro Rounded", "-apple-system", "BlinkMacSystemFont", "Helvetica Neue", "Arial", "sans-serif"]
       }
     }
   },

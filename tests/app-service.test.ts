@@ -63,4 +63,16 @@ describe("local profile persistence", () => {
       /only access your own/i
     );
   });
+
+  it("removes an unfinished account, its email, and its saved draft", async () => {
+    const email = "cancel-signup@example.test";
+    const user = await appService.register(email, "Faithful123");
+    await appService.saveDraft(user.id, 4, draft);
+
+    await appService.cancelAccountCreation(user.id);
+
+    await expect(appService.login(email, "Faithful123")).rejects.toThrow(
+      /email and password do not match/i
+    );
+  });
 });
