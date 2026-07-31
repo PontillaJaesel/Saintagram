@@ -6,7 +6,7 @@
   color-scheme: light;
   --canvas: 249 249 251;
   --paper: 255 255 255;
-  --ink: 27 24 31;
+  --ink: 45 49 47;
   --muted: 102 96 110;
   --ambient-pink: 236 135 191;
   --ambient-purple: 172 146 237;
@@ -138,14 +138,13 @@ body {
     ),
     rgb(var(--canvas));
   background-attachment: fixed;
-  font-family: "New York", "New York Small", "Iowan Old Style",
-    "Palatino Linotype", Palatino, Georgia, serif;
+  font-family: "Montserrat", Arial, sans-serif;
   transition: background-color 180ms ease, color 180ms ease;
 }
 
 ::selection {
   background: #ec87bf;
-  color: #1b181f;
+  color: #2d312f;
 }
 
 @layer base {
@@ -153,8 +152,7 @@ body {
   h2,
   h3 {
     text-wrap: balance;
-    font-family: "SF Pro Display", "SF Pro Rounded", -apple-system,
-      BlinkMacSystemFont, "Helvetica Neue", Arial, sans-serif;
+    font-family: "Montserrat", Arial, sans-serif;
     letter-spacing: -0.025em;
   }
 
@@ -246,6 +244,30 @@ body {
     @apply rounded-[1.75rem] border border-sage-100/80 bg-paper shadow-soft;
   }
 
+  .font-secondary {
+    font-family: "Roboto", Arial, sans-serif;
+  }
+
+  .warning-indicator {
+    border: 1px solid rgb(226 178 51 / 0.7);
+    background: rgb(255 246 184 / 0.9);
+    color: rgb(158 42 48);
+    font-family: "Roboto", Arial, sans-serif;
+    font-style: italic;
+    font-weight: 600;
+  }
+
+  :root[data-theme="dark"] .warning-indicator {
+    border-color: rgb(226 178 51 / 0.55);
+    background: rgb(91 74 26 / 0.82);
+    color: rgb(255 176 181);
+  }
+
+  [aria-invalid="true"] {
+    border-color: rgb(190 54 61) !important;
+    box-shadow: 0 0 0 2px rgb(190 54 61 / 0.14);
+  }
+
   .field {
     @apply min-h-12 w-full rounded-xl border border-sage-200 bg-paper px-4 py-3 text-base text-ink placeholder:text-muted transition hover:border-sage-300 focus:border-sage-500 focus:outline-none focus:ring-2 focus:ring-sage-200;
   }
@@ -300,7 +322,7 @@ body {
 
   :root[data-theme="dark"] .btn-primary,
   :root[data-theme="dark"] .chip-selected {
-    color: #17131b;
+    color: #2d312f;
   }
 
   :root[data-theme="dark"] .bg-white {

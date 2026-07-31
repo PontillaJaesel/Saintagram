@@ -49,35 +49,49 @@ export function ReflectionManager() {
   const [editing, setEditing] = useState<ReflectionPost | null>(null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+  const [errorField, setErrorField] = useState<
+    "content" | "date" | "form" | null
+  >(null);
   const [deleteTarget, setDeleteTarget] = useState<ReflectionPost | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [privacyDialog, setPrivacyDialog] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const dateRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (!user) return;
-    let active = true;
-    appService
-      .getPublicReflections(user.id)
-      .then((posts) => {
-        if (active) setPublicPosts(posts);
-      })
-      .catch((loadError) => {
-        if (active) {
-          setError(
-            loadError instanceof Error
-              ? loadError.message
-              : "Your reflections could not be loaded."
-          );
-        }
-      })
-      .finally(() => {
-        if (active) setLoading(false);
-      });
-    return () => {
-      active = false;
-    };
+    setLoading(true);
+    return appService.subscribeReflections(
+      user.id,
+      "public",
+      (posts) => {
+        setPublicPosts(posts);
+        setError("");
+        setLoading(false);
+      },
+      (message) => {
+        setError(message);
+        setLoading(false);
+      }
+    );
   }, [user]);
+
+  useEffect(() => {
+    if (!user || !privateUnlocked) return;
+    setPrivateLoading(true);
+    return appService.subscribeReflections(
+      user.id,
+      "private",
+      (posts) => {
+        setPrivatePosts(posts);
+        setPrivateLoading(false);
+      },
+      (message) => {
+        notify(message, "error");
+        setPrivateLoading(false);
+      }
+    );
+  }, [notify, privateUnlocked, user]);
 
   const visiblePosts = useMemo(
     () =>
@@ -94,22 +108,28 @@ export function ReflectionManager() {
     setCreationDate(todayInputValue());
     setEditing(null);
     setError("");
+    setErrorField(null);
   };
 
   const submit = async (event: FormEvent) => {
     event.preventDefault();
     if (!user) return;
+    if (saving) return;
     if (!content.trim()) {
       setError("Write a short moment before saving.");
-      textareaRef.current?.focus();
+      setErrorField("content");
+      window.requestAnimationFrame(() => textareaRef.current?.focus());
       return;
     }
     if (!creationDate || Number.isNaN(new Date(`${creationDate}T12:00:00`).getTime())) {
       setError("Choose a valid creation date.");
+      setErrorField("date");
+      window.requestAnimationFrame(() => dateRef.current?.focus());
       return;
     }
     setSaving(true);
     setError("");
+    setErrorField(null);
     try {
       const createdAt = new Date(`${creationDate}T12:00:00`).toISOString();
       const saved = await appService.saveReflection(user.id, {
@@ -148,6 +168,7 @@ export function ReflectionManager() {
           ? saveError.message
           : "Your reflection could not be saved."
       );
+      setErrorField("form");
     } finally {
       setSaving(false);
     }
@@ -159,6 +180,7 @@ export function ReflectionManager() {
     setIsPrivate(post.isPrivate);
     setCreationDate(dateInputValue(post.createdAt));
     setError("");
+    setErrorField(null);
     window.requestAnimationFrame(() => {
       textareaRef.current?.focus();
       textareaRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
@@ -195,20 +217,7 @@ export function ReflectionManager() {
     if (!user) return;
     setPrivacyDialog(false);
     setPrivateLoading(true);
-    try {
-      const posts = await appService.getPrivateReflections(user.id);
-      setPrivatePosts(posts);
-      setPrivateUnlocked(true);
-    } catch (unlockError) {
-      notify(
-        unlockError instanceof Error
-          ? unlockError.message
-          : "Private reflections could not be opened.",
-        "error"
-      );
-    } finally {
-      setPrivateLoading(false);
-    }
+    setPrivateUnlocked(true);
   };
 
   const lockPrivate = () => {
@@ -234,7 +243,12 @@ export function ReflectionManager() {
             What is a moment God saw today?
           </h2>
         </div>
-        <form onSubmit={submit} className="p-5 sm:p-7" noValidate>
+        <form
+          id="reflection-editor"
+          onSubmit={submit}
+          className="scroll-mt-6 p-5 sm:p-7"
+          noValidate
+        >
           {editing && (
             <div className="mb-4 flex items-center justify-between gap-3 rounded-2xl bg-sage-50 p-3">
               <span className="text-sm font-bold text-sage-700">
@@ -256,17 +270,24 @@ export function ReflectionManager() {
           <textarea
             ref={textareaRef}
             id="reflection-content"
-            className="field min-h-44 resize-y"
+            className={`field min-h-44 resize-y ${
+              errorField === "content"
+                ? "border-clay-500 ring-2 ring-clay-100"
+                : ""
+            }`}
             value={content}
             onChange={(event) => {
               setContent(event.target.value);
-              setError("");
+              if (errorField === "content") {
+                setError("");
+                setErrorField(null);
+              }
             }}
             maxLength={LIMITS.post}
             placeholder="A quiet kindness, a hard choice, a prayer, an honest struggle…"
-            aria-invalid={Boolean(error)}
+            aria-invalid={errorField === "content"}
             aria-describedby={
-              error
+              errorField === "content"
                 ? "reflection-count reflection-error"
                 : "reflection-count"
             }
@@ -288,14 +309,29 @@ export function ReflectionManager() {
                 aria-hidden="true"
               />
               <input
+                ref={dateRef}
                 id="creation-date"
                 type="date"
-                className="field pl-12"
+                className={`field pl-12 ${
+                  errorField === "date"
+                    ? "border-clay-500 ring-2 ring-clay-100"
+                    : ""
+                }`}
                 value={creationDate}
                 max={todayInputValue()}
-                onChange={(event) => setCreationDate(event.target.value)}
+                onChange={(event) => {
+                  setCreationDate(event.target.value);
+                  if (errorField === "date") {
+                    setError("");
+                    setErrorField(null);
+                  }
+                }}
                 disabled={Boolean(editing)}
                 required
+                aria-invalid={errorField === "date"}
+                aria-describedby={
+                  errorField === "date" ? "reflection-error" : undefined
+                }
               />
             </div>
             {editing && (

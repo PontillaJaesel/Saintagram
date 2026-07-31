@@ -44,9 +44,12 @@ service cloud.firestore {
     }
 
     function isIsoDate(value) {
-      return value is string
-        && value.matches(
-          '^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}[.][0-9]{3}Z$'
+      return value is timestamp
+        || (
+          value is string
+          && value.matches(
+            '^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}[.][0-9]{3}Z$'
+          )
         );
     }
 

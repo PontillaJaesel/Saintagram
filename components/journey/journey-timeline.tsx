@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import Link from "next/link";
 import {
   BookHeart,
   CalendarDays,
@@ -36,30 +35,38 @@ export function JourneyTimeline() {
 
   useEffect(() => {
     if (!user) return;
-    let active = true;
-    Promise.all([
-      appService.getProfileView(user.id),
-      appService.getPublicReflections(user.id)
-    ])
-      .then(([nextProfile, nextPosts]) => {
-        if (!active) return;
+    let profileReady = false;
+    let postsReady = false;
+    const ready = () => {
+      if (profileReady && postsReady) setLoading(false);
+    };
+    const fail = (message: string) => {
+      setError(message);
+      setLoading(false);
+    };
+    const unsubscribeProfile = appService.subscribeProfile(
+      user.id,
+      (nextProfile) => {
         setProfile(nextProfile);
+        setError("");
+        profileReady = true;
+        ready();
+      },
+      fail
+    );
+    const unsubscribePosts = appService.subscribeReflections(
+      user.id,
+      "public",
+      (nextPosts) => {
         setPosts(nextPosts);
-      })
-      .catch((loadError) => {
-        if (active) {
-          setError(
-            loadError instanceof Error
-              ? loadError.message
-              : "Your journey could not be loaded."
-          );
-        }
-      })
-      .finally(() => {
-        if (active) setLoading(false);
-      });
+        postsReady = true;
+        ready();
+      },
+      fail
+    );
     return () => {
-      active = false;
+      unsubscribeProfile();
+      unsubscribePosts();
     };
   }, [user]);
 
@@ -123,11 +130,6 @@ export function JourneyTimeline() {
         icon={BookHeart}
         title="Your journey is just beginning"
         description="Profile updates and non-private reflections will form a gentle timeline here."
-        action={
-          <Link href="/reflect" className="btn-primary">
-            Add a reflection
-          </Link>
-        }
       />
     );
   }
@@ -191,9 +193,6 @@ export function JourneyTimeline() {
         <p className="mt-2 text-sm leading-6 text-muted">
           A journey grows through honest moments, not perfect consistency.
         </p>
-        <Link href="/reflect" className="btn-primary mt-5 w-full">
-          Add reflection
-        </Link>
       </aside>
     </div>
   );

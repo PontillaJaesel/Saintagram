@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useState } from "react";
+import { FormEvent, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
   ArrowRight,
@@ -28,10 +28,16 @@ export function AccessGate() {
   const [showCode, setShowCode] = useState(false);
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const codeRef = useRef<HTMLInputElement>(null);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (submitting) return;
+    if (!code.trim()) {
+      setError("Enter your access code to continue.");
+      window.requestAnimationFrame(() => codeRef.current?.focus());
+      return;
+    }
 
     setError("");
     setSubmitting(true);
@@ -114,6 +120,7 @@ export function AccessGate() {
                   aria-hidden="true"
                 />
                 <input
+                  ref={codeRef}
                   id="site-access-code"
                   name="code"
                   type={showCode ? "text" : "password"}
@@ -163,7 +170,7 @@ export function AccessGate() {
               <button
                 type="submit"
                 className="btn-primary mt-5 w-full text-base"
-                disabled={submitting || code.trim().length === 0}
+                disabled={submitting}
               >
                 {submitting ? "Checking your code…" : "Enter Saintagram"}
                 {!submitting && (

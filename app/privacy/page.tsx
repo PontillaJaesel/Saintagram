@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
@@ -21,10 +21,13 @@ function PrivacyContent() {
   const [accepted, setAccepted] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+  const acceptedRef = useRef<HTMLInputElement>(null);
 
   const continueToIntroduction = async () => {
+    if (saving) return;
     if (!accepted) {
       setError("Please accept the privacy notice before continuing.");
+      window.requestAnimationFrame(() => acceptedRef.current?.focus());
       return;
     }
     setSaving(true);
@@ -54,7 +57,7 @@ function PrivacyContent() {
       icon: LockKeyhole,
       title: "You control what is saved",
       description:
-        "Most prompts are optional, and sensitive questions always have a way to skip."
+        "Each profile question must be answered before moving forward, and you may return to revise an earlier answer."
     },
     {
       icon: EyeOff,
@@ -122,8 +125,8 @@ function PrivacyContent() {
             <p className="text-sm font-bold text-clay-600">Please remember</p>
             <ul className="mt-3 space-y-2 text-sm leading-6 text-ink">
               {[
-                "You may leave optional prompts blank.",
-                "You can clear an optional response whenever you need to.",
+                "Each profile step explains what answer is needed to continue.",
+                "You can return to an earlier step and revise your response.",
                 "Private content must never appear in a public or shareable view.",
                 "You can export or delete your personal data in Settings."
               ].map((item) => (
@@ -138,8 +141,15 @@ function PrivacyContent() {
             </ul>
           </div>
 
-          <label className="mt-6 flex cursor-pointer items-start gap-3 rounded-2xl border border-sage-200 bg-white p-4 transition hover:border-sage-400">
+          <label
+            className={`mt-6 flex cursor-pointer items-start gap-3 rounded-2xl bg-white p-4 transition ${
+              error
+                ? "border border-clay-500 ring-2 ring-clay-100"
+                : "border border-sage-200 hover:border-sage-400"
+            }`}
+          >
             <input
+              ref={acceptedRef}
               type="checkbox"
               checked={accepted}
               onChange={(event) => {
@@ -147,13 +157,19 @@ function PrivacyContent() {
                 setError("");
               }}
               className="mt-1 size-5 shrink-0 accent-sage-700"
+              aria-invalid={Boolean(error)}
+              aria-describedby={error ? "privacy-consent-error" : undefined}
             />
             <span className="text-sm font-semibold leading-6 text-ink">
               I understand and accept this privacy and consent notice.
             </span>
           </label>
           {error && (
-            <p className="mt-3 text-sm font-semibold text-clay-600" role="alert">
+            <p
+              id="privacy-consent-error"
+              className="mt-3 text-sm font-semibold text-clay-600"
+              role="alert"
+            >
               {error}
             </p>
           )}

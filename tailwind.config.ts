@@ -51,8 +51,9 @@ const config: Config = {
         "4xl": "2rem"
       },
       fontFamily: {
-        sans: ["New York", "New York Small", "Iowan Old Style", "Georgia", "serif"],
-        serif: ["SF Pro Display", "SF Pro Rounded", "-apple-system", "BlinkMacSystemFont", "Helvetica Neue", "Arial", "sans-serif"]
+        sans: ["Montserrat", "Arial", "sans-serif"],
+        serif: ["Montserrat", "Arial", "sans-serif"],
+        secondary: ["Roboto", "Arial", "sans-serif"]
       }
     }
   },

@@ -4,6 +4,7 @@ import {
   cleanText,
   formatFriendlyDate,
   isValidEmail,
+  normalizeCoverColor,
   normalizeHashtag,
   normalizeList,
   passwordError,
@@ -48,6 +49,17 @@ describe("normalizeHashtag", () => {
     ["!!!", ""]
   ])("normalizes %j to %j", (input, expected) => {
     expect(normalizeHashtag(input)).toBe(expected);
+  });
+});
+
+describe("normalizeCoverColor", () => {
+  it.each([
+    ["#a1b2c3", "#A1B2C3"],
+    [undefined, "#DDD2F6"],
+    [null, "#DDD2F6"],
+    ["not-a-color", "#DDD2F6"]
+  ])("normalizes %j safely", (input, expected) => {
+    expect(normalizeCoverColor(input)).toBe(expected);
   });
 });
 

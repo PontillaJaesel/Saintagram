@@ -16,6 +16,7 @@ export function toPublicProfile(
 ): PublicSpiritualProfile {
   const {
     hiddenStory: _hiddenStory,
+    coverColor: _coverColor,
     ...safeProfile
   } = profile;
   return safeProfile;

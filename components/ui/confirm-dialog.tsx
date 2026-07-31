@@ -7,6 +7,7 @@ import {
   type KeyboardEvent as ReactKeyboardEvent,
   type ReactNode
 } from "react";
+import { createPortal } from "react-dom";
 import { X } from "lucide-react";
 
 export function ConfirmDialog({
@@ -53,7 +54,7 @@ export function ConfirmDialog({
     };
   }, [open, onClose, busy]);
 
-  if (!open) return null;
+  if (!open || typeof document === "undefined") return null;
 
   const trapFocus = (event: ReactKeyboardEvent<HTMLDivElement>) => {
     if (event.key !== "Tab") return;
@@ -72,9 +73,9 @@ export function ConfirmDialog({
     }
   };
 
-  return (
+  return createPortal(
     <div
-      className="fixed inset-0 z-[90] grid place-items-end bg-ink/45 p-0 backdrop-blur-sm sm:place-items-center sm:p-6"
+      className="fixed inset-0 z-[100] grid place-items-end bg-ink/45 p-0 backdrop-blur-sm sm:place-items-center sm:p-6"
       onMouseDown={(event) => {
         if (event.target === event.currentTarget && !busy) onClose();
       }}
@@ -135,6 +136,7 @@ export function ConfirmDialog({
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }

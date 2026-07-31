@@ -26,6 +26,11 @@ export function normalizeHashtag(value: string): string {
   return `#${cleaned}`;
 }
 
+export function normalizeCoverColor(value: unknown): string {
+  const color = typeof value === "string" ? value.trim() : "";
+  return /^#[0-9a-f]{6}$/i.test(color) ? color.toUpperCase() : "#DDD2F6";
+}
+
 export function isValidEmail(email: string): boolean {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
 }

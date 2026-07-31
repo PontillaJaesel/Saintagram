@@ -5,6 +5,7 @@ import {
   Suspense,
   useEffect,
   useMemo,
+  useRef,
   useState
 } from "react";
 import Link from "next/link";
@@ -51,6 +52,9 @@ function AuthForm() {
   const [errorField, setErrorField] = useState<AuthErrorField>(null);
   const [message, setMessage] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const emailRef = useRef<HTMLInputElement>(null);
+  const passwordRef = useRef<HTMLInputElement>(null);
+  const confirmPasswordRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     setError("");
@@ -64,7 +68,7 @@ function AuthForm() {
         eyebrow: "Create your private space",
         title: "Begin as you are.",
         description:
-          "Your profile is for reflection—not performance. Only a profile name is required later."
+          "Your profile is for reflection—not performance. Each guided step asks for an honest answer."
       };
     }
     if (mode === "reset") {
@@ -95,29 +99,40 @@ function AuthForm() {
 
   const submit = async (event: FormEvent) => {
     event.preventDefault();
+    if (submitting) return;
     setError("");
     setErrorField(null);
     setMessage("");
     if (!isValidEmail(email)) {
       setError("Enter a valid email address.");
       setErrorField("email");
+      window.requestAnimationFrame(() => emailRef.current?.focus());
       return;
     }
     if (mode === "signup") {
+      if (!password.trim()) {
+        setError("Enter a password.");
+        setErrorField("password");
+        window.requestAnimationFrame(() => passwordRef.current?.focus());
+        return;
+      }
       const validation = passwordError(password);
       if (validation) {
         setError(validation);
         setErrorField("password");
+        window.requestAnimationFrame(() => passwordRef.current?.focus());
         return;
       }
-    } else if (mode === "login" && !password) {
+    } else if (mode === "login" && !password.trim()) {
       setError("Enter your password.");
       setErrorField("password");
+      window.requestAnimationFrame(() => passwordRef.current?.focus());
       return;
     }
     if (mode === "signup" && password !== confirmPassword) {
       setError("Those passwords do not match yet.");
       setErrorField("confirmPassword");
+      window.requestAnimationFrame(() => confirmPasswordRef.current?.focus());
       return;
     }
 
@@ -126,9 +141,7 @@ function AuthForm() {
       if (mode === "reset") {
         await auth.requestPasswordReset(email);
         setMessage(
-          auth.mode === "local"
-            ? "Demo account found. Email delivery is simulated in local mode."
-            : "Check your inbox for a password-reset link."
+          "If an account uses that email, password-reset instructions will arrive shortly."
         );
       } else if (mode === "signup") {
         const nextUser = await auth.register(email, password);
@@ -201,6 +214,7 @@ function AuthForm() {
                   aria-hidden="true"
                 />
                 <input
+                  ref={emailRef}
                   id="email"
                   type="email"
                   autoComplete="email"
@@ -252,6 +266,7 @@ function AuthForm() {
                     aria-hidden="true"
                   />
                   <input
+                    ref={passwordRef}
                     id="password"
                     type={showPassword ? "text" : "password"}
                     autoComplete={
@@ -307,6 +322,7 @@ function AuthForm() {
                   Confirm password
                 </label>
                 <input
+                  ref={confirmPasswordRef}
                   id="confirm-password"
                   type={showPassword ? "text" : "password"}
                   autoComplete="new-password"
