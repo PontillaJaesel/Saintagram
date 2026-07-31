@@ -50,6 +50,19 @@ describe("local profile persistence", () => {
     expect(posts[0]?.content).toBe("I tried again quietly.");
   });
 
+  it("keeps authentication in session storage instead of durable local storage", async () => {
+    const user = await appService.register(
+      "session-only@example.test",
+      "Faithful123"
+    );
+
+    expect(sessionStorage.getItem("saintagram:v1:session")).toBe(user.id);
+    expect(localStorage.getItem("saintagram:v1:session")).toBeNull();
+
+    await appService.logout();
+    expect(sessionStorage.getItem("saintagram:v1:session")).toBeNull();
+  });
+
   it("prevents one local session from reading another user's data", async () => {
     const owner = await appService.register(
       "owner@example.test",

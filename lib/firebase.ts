@@ -1,6 +1,6 @@
 import { getApp, getApps, initializeApp, type FirebaseApp } from "firebase/app";
 import {
-  browserLocalPersistence,
+  browserSessionPersistence,
   getAuth,
   setPersistence,
   type Auth
@@ -21,6 +21,7 @@ export interface FirebaseServices {
   app: FirebaseApp;
   auth: Auth;
   db: Firestore;
+  persistenceReady: Promise<void>;
 }
 
 let services: FirebaseServices | null = null;
@@ -31,11 +32,12 @@ export function getFirebaseServices(): FirebaseServices | null {
 
   const app = getApps().length ? getApp() : initializeApp(firebaseConfig);
   const auth = getAuth(app);
-  void setPersistence(auth, browserLocalPersistence);
+  const persistenceReady = setPersistence(auth, browserSessionPersistence);
   services = {
     app,
     auth,
-    db: getFirestore(app)
+    db: getFirestore(app),
+    persistenceReady
   };
   return services;
 }

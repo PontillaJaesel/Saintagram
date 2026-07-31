@@ -96,6 +96,33 @@ function writeJson<T>(key: string, value: T): void {
   window.localStorage.setItem(key, JSON.stringify(value));
 }
 
+function sessionStorageAvailable(): boolean {
+  return typeof window !== "undefined" && Boolean(window.sessionStorage);
+}
+
+function readSessionUid(): string | null {
+  if (!sessionStorageAvailable()) return null;
+  try {
+    return window.sessionStorage.getItem(LOCAL_KEYS.session);
+  } catch {
+    return null;
+  }
+}
+
+function writeSessionUid(userId: string | null): void {
+  if (!sessionStorageAvailable()) return;
+  if (userId) {
+    window.sessionStorage.setItem(LOCAL_KEYS.session, userId);
+  } else {
+    window.sessionStorage.removeItem(LOCAL_KEYS.session);
+  }
+  // Remove sessions saved by older releases so they cannot restore after the
+  // browser is reopened.
+  if (storageAvailable()) {
+    window.localStorage.removeItem(LOCAL_KEYS.session);
+  }
+}
+
 function newId(prefix = ""): string {
   const id =
     typeof crypto !== "undefined" && "randomUUID" in crypto
@@ -126,7 +153,7 @@ function saveLocalAccounts(accounts: LocalAccount[]): void {
 }
 
 function currentLocalUid(): string | null {
-  return readJson<string | null>(LOCAL_KEYS.session, null);
+  return readSessionUid();
 }
 
 function assertLocalOwner(userId: string): void {
@@ -405,22 +432,31 @@ export const appService = {
         callback(null);
         return () => undefined;
       }
-      return onAuthStateChanged(services.auth, async (firebaseUser) => {
-        if (!firebaseUser) {
-          callback(null);
-          return;
-        }
-        try {
-          callback(
-            await getFirebaseUserRecord(
-              firebaseUser.uid,
-              firebaseUser.email ?? ""
-            )
-          );
-        } catch {
-          callback(null);
-        }
+      let active = true;
+      let unsubscribe: Unsubscribe | null = null;
+      void services.persistenceReady.then(() => {
+        if (!active) return;
+        unsubscribe = onAuthStateChanged(services.auth, async (firebaseUser) => {
+          if (!firebaseUser) {
+            callback(null);
+            return;
+          }
+          try {
+            callback(
+              await getFirebaseUserRecord(
+                firebaseUser.uid,
+                firebaseUser.email ?? ""
+              )
+            );
+          } catch {
+            callback(null);
+          }
+        });
       });
+      return () => {
+        active = false;
+        unsubscribe?.();
+      };
     }
 
     let active = true;
@@ -450,6 +486,7 @@ export const appService = {
       if (isFirebaseConfigured) {
         const services = getFirebaseServices();
         if (!services) throw new Error("Firebase is not available.");
+        await services.persistenceReady;
         const credential = await createUserWithEmailAndPassword(
           services.auth,
           email.trim(),
@@ -469,7 +506,7 @@ export const appService = {
       const user = createUserRecord(newId("local-"), normalizedEmail);
       accounts.push({ user, passwordHash: await hashPassword(password) });
       saveLocalAccounts(accounts);
-      writeJson(LOCAL_KEYS.session, user.id);
+      writeSessionUid(user.id);
       return user;
     } catch (error) {
       throw friendlyAuthError(error);
@@ -481,6 +518,7 @@ export const appService = {
       if (isFirebaseConfigured) {
         const services = getFirebaseServices();
         if (!services) throw new Error("Firebase is not available.");
+        await services.persistenceReady;
         const credential = await signInWithEmailAndPassword(
           services.auth,
           email.trim(),
@@ -503,7 +541,7 @@ export const appService = {
       if (!account) {
         throw Object.assign(new Error(), { code: "auth/invalid-credential" });
       }
-      writeJson(LOCAL_KEYS.session, account.user.id);
+      writeSessionUid(account.user.id);
       return account.user;
     } catch (error) {
       throw friendlyAuthError(error);
@@ -522,7 +560,7 @@ export const appService = {
       }
       return;
     }
-    writeJson(LOCAL_KEYS.session, null);
+    writeSessionUid(null);
   },
 
   async requestPasswordReset(email: string): Promise<void> {
@@ -1215,7 +1253,7 @@ export const appService = {
     removeUserEntry<PrivateProfileRecord>(LOCAL_KEYS.privateProfiles);
     removeUserEntry<ProfileDraft>(LOCAL_KEYS.drafts);
     removeUserEntry<ReflectionPost>(LOCAL_KEYS.reflections);
-    writeJson(LOCAL_KEYS.session, null);
+    writeSessionUid(null);
   },
 
   async deleteAllUserData(
@@ -1307,6 +1345,6 @@ export const appService = {
     removeUserEntry<PrivateProfileRecord>(LOCAL_KEYS.privateProfiles);
     removeUserEntry<ProfileDraft>(LOCAL_KEYS.drafts);
     removeUserEntry<ReflectionPost>(LOCAL_KEYS.reflections);
-    writeJson(LOCAL_KEYS.session, null);
+    writeSessionUid(null);
   }
 };
