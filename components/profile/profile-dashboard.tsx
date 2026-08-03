@@ -22,7 +22,6 @@ import {
   Pencil,
   Search,
   ShieldCheck,
-  SlidersHorizontal,
   X,
   UsersRound
 } from "lucide-react";
@@ -41,7 +40,6 @@ import type {
 } from "@/types";
 
 type ProfileTab = "posts" | "journey" | "private";
-type ReflectionDateFilter = "all" | "30-days" | "year";
 
 const TABS: Array<{
   id: ProfileTab;
@@ -52,6 +50,15 @@ const TABS: Array<{
   { id: "journey", label: "Spiritual Journey", icon: Footprints },
   { id: "private", label: "Private Reflections", icon: LockKeyhole }
 ];
+
+function shortDate(value: string) {
+  if (!value) return "";
+  return new Intl.DateTimeFormat(undefined, {
+    month: "short",
+    day: "numeric",
+    year: "numeric"
+  }).format(new Date(`${value}T12:00:00`));
+}
 
 function ValueList({
   values,
@@ -87,9 +94,9 @@ export function ProfileDashboard() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [tab, setTab] = useState<ProfileTab>("posts");
-  const [searchDraft, setSearchDraft] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
-  const [dateFilter, setDateFilter] = useState<ReflectionDateFilter>("all");
+  const [dateStart, setDateStart] = useState("");
+  const [dateEnd, setDateEnd] = useState("");
   const [privacyDialog, setPrivacyDialog] = useState(false);
   const [privateUnlocked, setPrivateUnlocked] = useState(false);
   const [privateLoading, setPrivateLoading] = useState(false);
@@ -100,13 +107,10 @@ export function ProfileDashboard() {
 
   const filteredPosts = useMemo(() => {
     const normalizedQuery = searchQuery.trim().toLocaleLowerCase();
-    const now = Date.now();
-    const cutoff =
-      dateFilter === "30-days"
-        ? now - 30 * 24 * 60 * 60 * 1000
-        : dateFilter === "year"
-          ? now - 365 * 24 * 60 * 60 * 1000
-          : null;
+    const start = dateStart
+      ? new Date(`${dateStart}T00:00:00`).getTime()
+      : null;
+    const end = dateEnd ? new Date(`${dateEnd}T23:59:59.999`).getTime() : null;
 
     return posts.filter((post) => {
       const matchesText =
@@ -115,34 +119,41 @@ export function ProfileDashboard() {
           .toLocaleLowerCase()
           .includes(normalizedQuery);
       const createdAt = new Date(post.createdAt).getTime();
-      const matchesDate = cutoff === null || (!Number.isNaN(createdAt) && createdAt >= cutoff);
+      const matchesDate =
+        !Number.isNaN(createdAt) &&
+        (start === null || createdAt >= start) &&
+        (end === null || createdAt <= end);
       return matchesText && matchesDate;
     });
-  }, [dateFilter, posts, searchQuery]);
-
-  const searchReflections = () => {
-    setSearchQuery(searchDraft.trim());
-    setTab("posts");
-  };
+  }, [dateEnd, dateStart, posts, searchQuery]);
 
   const clearSearch = () => {
-    setSearchDraft("");
     setSearchQuery("");
   };
 
+  const clearSearchAndFilter = () => {
+    clearSearch();
+    setDateStart("");
+    setDateEnd("");
+  };
+
+  const dateFilterLabel = dateStart && dateEnd
+    ? `${shortDate(dateStart)} – ${shortDate(dateEnd)}`
+    : dateStart
+      ? `From ${shortDate(dateStart)}`
+      : dateEnd
+        ? `Until ${shortDate(dateEnd)}`
+        : "Date";
+
   const searchControls = (idSuffix: string) => (
-    <form
-      className="space-y-3"
+    <div
+      className="relative"
       role="search"
-      onSubmit={(event) => {
-        event.preventDefault();
-        searchReflections();
-      }}
     >
       <label htmlFor={`profile-search-${idSuffix}`} className="sr-only">
         Search your posted reflections
       </label>
-      <div className="flex gap-2">
+      <div className="flex min-h-12 items-center rounded-2xl border border-sage-200 bg-paper/90 shadow-sm transition focus-within:border-sage-500 focus-within:ring-2 focus-within:ring-sage-200">
         <div className="relative min-w-0 flex-1">
           <Search
             className="pointer-events-none absolute left-4 top-1/2 size-4 -translate-y-1/2 text-muted"
@@ -151,50 +162,81 @@ export function ProfileDashboard() {
           <input
             id={`profile-search-${idSuffix}`}
             type="search"
-            className="field rounded-full pl-11 pr-11"
-            value={searchDraft}
-            onChange={(event) => setSearchDraft(event.target.value)}
-            placeholder="Search your reflections"
+            className="min-h-11 w-full bg-transparent py-2 pl-11 pr-2 text-sm text-ink placeholder:text-muted focus:outline-none"
+            value={searchQuery}
+            onChange={(event) => {
+              setSearchQuery(event.target.value);
+              setTab("posts");
+            }}
+            placeholder="Search reflections…"
           />
-          {searchDraft && (
-            <button
-              type="button"
-              className="absolute right-3 top-1/2 grid size-8 -translate-y-1/2 place-items-center rounded-full text-muted transition hover:bg-sage-100 hover:text-ink"
-              onClick={clearSearch}
-              aria-label="Clear reflection search"
-            >
-              <X className="size-4" aria-hidden="true" />
-            </button>
-          )}
         </div>
-        <button type="submit" className="btn-primary shrink-0 px-4" aria-label="Search reflections">
-          <Search className="size-4" aria-hidden="true" />
-          <span className="hidden sm:inline xl:hidden 2xl:inline">Search</span>
-        </button>
+        {(searchQuery || dateStart || dateEnd) && (
+          <button
+            type="button"
+            className="grid size-9 shrink-0 place-items-center rounded-full text-muted transition hover:bg-sage-100 hover:text-ink"
+            onClick={clearSearchAndFilter}
+            aria-label="Clear search and date filter"
+          >
+            <X className="size-4" aria-hidden="true" />
+          </button>
+        )}
+        <details className="group relative mr-1 shrink-0">
+          <summary
+            className={`flex min-h-9 cursor-pointer list-none items-center gap-1.5 rounded-xl px-3 text-xs font-bold transition hover:bg-sage-100 [&::-webkit-details-marker]:hidden ${
+              dateStart || dateEnd ? "bg-sage-100 text-sage-700" : "text-muted"
+            }`}
+            aria-label="Choose a reflection date range"
+          >
+            <CalendarDays className="size-4" aria-hidden="true" />
+            <span className="hidden max-w-36 truncate sm:inline">{dateFilterLabel}</span>
+          </summary>
+          <div className="absolute right-0 z-30 mt-2 w-72 rounded-2xl border border-sage-100 bg-paper p-4 shadow-lift">
+            <p className="text-sm font-bold text-ink">Filter by date</p>
+            <div className="mt-3 grid grid-cols-2 gap-3">
+              <label className="text-xs font-semibold text-muted">
+                From
+                <input
+                  type="date"
+                  className="field mt-1 min-h-10 px-3 py-2 text-sm"
+                  value={dateStart}
+                  max={dateEnd || undefined}
+                  onChange={(event) => {
+                    setDateStart(event.target.value);
+                    setTab("posts");
+                  }}
+                />
+              </label>
+              <label className="text-xs font-semibold text-muted">
+                To
+                <input
+                  type="date"
+                  className="field mt-1 min-h-10 px-3 py-2 text-sm"
+                  value={dateEnd}
+                  min={dateStart || undefined}
+                  onChange={(event) => {
+                    setDateEnd(event.target.value);
+                    setTab("posts");
+                  }}
+                />
+              </label>
+            </div>
+            {(dateStart || dateEnd) && (
+              <button
+                type="button"
+                className="btn-quiet mt-3 min-h-9 w-full"
+                onClick={() => {
+                  setDateStart("");
+                  setDateEnd("");
+                }}
+              >
+                Clear date filter
+              </button>
+            )}
+          </div>
+        </details>
       </div>
-      <div className="relative">
-        <SlidersHorizontal
-          className="pointer-events-none absolute left-4 top-1/2 size-4 -translate-y-1/2 text-muted"
-          aria-hidden="true"
-        />
-        <label htmlFor={`profile-filter-${idSuffix}`} className="sr-only">
-          Filter reflections by date
-        </label>
-        <select
-          id={`profile-filter-${idSuffix}`}
-          className="field appearance-none rounded-full pl-11 pr-10 text-sm"
-          value={dateFilter}
-          onChange={(event) => {
-            setDateFilter(event.target.value as ReflectionDateFilter);
-            setTab("posts");
-          }}
-        >
-          <option value="all">All reflection dates</option>
-          <option value="30-days">Last 30 days</option>
-          <option value="year">Last 12 months</option>
-        </select>
-      </div>
-    </form>
+    </div>
   );
 
   useEffect(() => {
@@ -473,7 +515,7 @@ export function ProfileDashboard() {
                   </div>
                 </div>
                 <div className="mb-5 xl:hidden">{searchControls("mobile")}</div>
-                {(searchQuery || dateFilter !== "all") && (
+                {(searchQuery || dateStart || dateEnd) && (
                   <p className="font-secondary mb-4 text-sm text-muted" role="status" aria-live="polite">
                     {filteredPosts.length} {filteredPosts.length === 1 ? "reflection" : "reflections"} found
                     {searchQuery ? ` for “${searchQuery}”` : ""}.
@@ -502,8 +544,7 @@ export function ProfileDashboard() {
                         type="button"
                         className="btn-secondary"
                         onClick={() => {
-                          clearSearch();
-                          setDateFilter("all");
+                          clearSearchAndFilter();
                         }}
                       >
                         Clear search and filter
