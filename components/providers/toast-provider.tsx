@@ -55,15 +55,11 @@ export function ToastProvider({ children }: { children: ReactNode }) {
         {toasts.map((toast) => (
           <div
             key={toast.id}
-            className={`pointer-events-auto flex w-full max-w-sm items-start gap-3 rounded-2xl border p-4 text-sm font-semibold text-ink shadow-lift ${
-              toast.kind === "success"
-                ? "border-success-100 bg-success-50"
-                : "border-clay-200 bg-clay-50"
-            }`}
+            className="pointer-events-auto flex w-full max-w-sm items-start gap-3 rounded-2xl border border-sage-200 bg-white p-4 text-sm font-semibold text-ink shadow-lift"
             role={toast.kind === "error" ? "alert" : "status"}
           >
             {toast.kind === "success" ? (
-              <CheckCircle2 className="mt-0.5 size-5 shrink-0 text-success-600" />
+              <CheckCircle2 className="mt-0.5 size-5 shrink-0 text-sage-600" />
             ) : (
               <CircleAlert className="mt-0.5 size-5 shrink-0 text-clay-600" />
             )}

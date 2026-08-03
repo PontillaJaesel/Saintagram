@@ -41,14 +41,6 @@ const config: Config = {
           200: "rgb(var(--clay-200) / <alpha-value>)",
           500: "rgb(var(--clay-500) / <alpha-value>)",
           600: "rgb(var(--clay-600) / <alpha-value>)"
-        },
-        success: {
-          50: "rgb(var(--success-50) / <alpha-value>)",
-          100: "rgb(var(--success-100) / <alpha-value>)",
-          400: "rgb(var(--success-400) / <alpha-value>)",
-          500: "rgb(var(--success-500) / <alpha-value>)",
-          600: "rgb(var(--success-600) / <alpha-value>)",
-          700: "rgb(var(--success-700) / <alpha-value>)"
         }
       },
       boxShadow: {

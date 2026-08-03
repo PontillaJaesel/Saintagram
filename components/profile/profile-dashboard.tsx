@@ -270,7 +270,7 @@ export function ProfileDashboard() {
                   profileName={profile.profileName}
                 />
               </div>
-              <div className="translate-y-2 sm:translate-y-3">
+              <div className="pb-1">
                 <Link href="/profile/edit" className="btn-secondary">
                   <Pencil className="size-4" aria-hidden="true" />
                   Edit Profile
@@ -312,6 +312,14 @@ export function ProfileDashboard() {
             role="tablist"
             aria-label="Profile sections"
           >
+            <span
+              className="profile-tab-indicator pointer-events-none absolute bottom-1.5 left-1.5 top-1.5 rounded-xl"
+              style={{
+                width: "calc((100% - 0.75rem) / 3)",
+                transform: `translateX(${TABS.findIndex(({ id }) => id === tab) * 100}%)`
+              }}
+              aria-hidden="true"
+            />
             {TABS.map(({ id, label, icon: Icon }, index) => (
               <button
                 key={id}
@@ -324,14 +332,16 @@ export function ProfileDashboard() {
                 tabIndex={tab === id ? 0 : -1}
                 aria-selected={tab === id}
                 aria-controls={`panel-${id}`}
-                className="flex min-h-14 flex-col items-center justify-center gap-1 px-2 text-center text-[11px] font-bold text-muted sm:flex-row sm:text-sm"
+                className={`relative z-10 flex min-h-14 flex-col items-center justify-center gap-1 rounded-xl px-2 text-center text-[11px] font-bold transition-colors duration-300 sm:flex-row sm:text-sm ${
+                  tab === id
+                    ? "profile-tab-selected"
+                    : "text-muted hover:bg-sage-50 hover:text-ink"
+                }`}
                 onClick={() => chooseTab(id)}
                 onKeyDown={(event) => onTabKeyDown(event, index)}
               >
-                <Icon className="size-4 text-muted" aria-hidden="true" />
-                <span className={tab === id ? "profile-tab-selected" : ""}>
-                  {label}
-                </span>
+                <Icon className="size-4" aria-hidden="true" />
+                {label}
               </button>
             ))}
           </div>
