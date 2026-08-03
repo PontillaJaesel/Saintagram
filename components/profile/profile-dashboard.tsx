@@ -270,7 +270,7 @@ export function ProfileDashboard() {
                   profileName={profile.profileName}
                 />
               </div>
-              <div className="pb-1">
+              <div className="translate-y-2 sm:translate-y-3">
                 <Link href="/profile/edit" className="btn-secondary">
                   <Pencil className="size-4" aria-hidden="true" />
                   Edit Profile
@@ -308,14 +308,14 @@ export function ProfileDashboard() {
 
         <section className="overflow-hidden">
           <div
-            className="relative grid grid-cols-3 border-b border-sage-100 p-1.5"
+            className="relative grid grid-cols-3 border-b border-sage-100"
             role="tablist"
             aria-label="Profile sections"
           >
             <span
-              className="profile-tab-indicator pointer-events-none absolute bottom-1.5 left-1.5 top-1.5 rounded-xl"
+              className="profile-tab-indicator pointer-events-none absolute bottom-0 left-0 h-[3px] rounded-t-full"
               style={{
-                width: "calc((100% - 0.75rem) / 3)",
+                width: "calc(100% / 3)",
                 transform: `translateX(${TABS.findIndex(({ id }) => id === tab) * 100}%)`
               }}
               aria-hidden="true"
@@ -332,10 +332,10 @@ export function ProfileDashboard() {
                 tabIndex={tab === id ? 0 : -1}
                 aria-selected={tab === id}
                 aria-controls={`panel-${id}`}
-                className={`relative z-10 flex min-h-14 flex-col items-center justify-center gap-1 rounded-xl px-2 text-center text-[11px] font-bold transition-colors duration-300 sm:flex-row sm:text-sm ${
+                className={`relative z-10 flex min-h-16 min-w-0 flex-col items-center justify-center gap-1 px-2 text-center text-[11px] font-medium transition-colors duration-150 sm:flex-row sm:text-sm ${
                   tab === id
                     ? "profile-tab-selected"
-                    : "text-muted hover:bg-sage-50 hover:text-ink"
+                    : "text-muted hover:text-ink"
                 }`}
                 onClick={() => chooseTab(id)}
                 onKeyDown={(event) => onTabKeyDown(event, index)}

@@ -71,8 +71,8 @@ export function AppShell({
         </div>
       </header>
 
-      <div className="mx-auto w-full max-w-[92rem] lg:grid lg:grid-cols-[17rem_minmax(0,1fr)]">
-          <aside className="sticky top-0 hidden h-screen border-r border-sage-100 bg-paper/55 px-5 py-7 backdrop-blur-xl lg:flex lg:flex-col">
+      <div className="mx-auto w-full max-w-[92rem] lg:grid lg:grid-cols-[15rem_minmax(0,1fr)] xl:grid-cols-[16rem_minmax(0,1fr)]">
+          <aside className="sticky top-0 hidden h-screen border-r border-sage-100 bg-paper/55 px-3 py-6 backdrop-blur-xl lg:flex lg:flex-col xl:px-4">
             <Logo href="/profile" />
             <nav className="mt-10 space-y-2" aria-label="Primary navigation">
               {NAV_ITEMS.map(({ href, label, icon: Icon }) => {
@@ -83,7 +83,7 @@ export function AppShell({
                   <Link
                     key={href}
                     href={href}
-                    className={`flex min-h-14 items-center gap-4 rounded-2xl px-4 text-base font-semibold transition ${
+                    className={`flex min-h-12 items-center gap-3 rounded-xl px-3 text-sm font-semibold transition-colors ${
                       active
                         ? "bg-sage-100 text-sage-800"
                         : "text-ink hover:bg-sage-50"
