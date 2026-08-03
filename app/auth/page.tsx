@@ -559,23 +559,23 @@ function AuthForm() {
           aria-hidden="true"
         />
         <div className="relative max-w-lg">
-          <p className="text-xs font-bold uppercase tracking-[0.2em] text-gold-200">
+          <p className="text-xs font-bold uppercase tracking-[0.2em] text-[#f6c5df]">
             Matthew 5:3
           </p>
           <blockquote className="mt-7 font-serif text-4xl font-bold leading-tight">
             “Blessed are the poor in spirit, for theirs is the kingdom of
             heaven.”
           </blockquote>
-          <p className="mt-7 max-w-md text-base leading-7 text-sage-100">
+          <p className="mt-7 max-w-md text-base leading-7 text-[#e4ddea]">
             You do not need a perfect image here. Honesty, humility, and a need
             for God are welcome.
           </p>
         </div>
         <div className="relative rounded-3xl border border-sage-600 bg-sage-700/60 p-6">
-          <p className="text-sm font-bold text-gold-200">
+          <p className="text-sm font-bold text-[#f6c5df]">
             Your reflections belong to you.
           </p>
-          <p className="mt-2 text-sm leading-6 text-sage-100">
+          <p className="mt-2 text-sm leading-6 text-[#e4ddea]">
             Hidden Stories and private journal entries never appear on the
             standard profile screen.
           </p>

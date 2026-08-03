@@ -2,6 +2,7 @@
 
 import {
   useEffect,
+  useMemo,
   useRef,
   useState,
   type KeyboardEvent
@@ -19,7 +20,10 @@ import {
   MessageCircleHeart,
   NotebookPen,
   Pencil,
+  Search,
   ShieldCheck,
+  SlidersHorizontal,
+  X,
   UsersRound
 } from "lucide-react";
 import { useAuth } from "@/components/providers/auth-provider";
@@ -37,6 +41,7 @@ import type {
 } from "@/types";
 
 type ProfileTab = "posts" | "journey" | "private";
+type ReflectionDateFilter = "all" | "30-days" | "year";
 
 const TABS: Array<{
   id: ProfileTab;
@@ -82,6 +87,9 @@ export function ProfileDashboard() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [tab, setTab] = useState<ProfileTab>("posts");
+  const [searchDraft, setSearchDraft] = useState("");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [dateFilter, setDateFilter] = useState<ReflectionDateFilter>("all");
   const [privacyDialog, setPrivacyDialog] = useState(false);
   const [privateUnlocked, setPrivateUnlocked] = useState(false);
   const [privateLoading, setPrivateLoading] = useState(false);
@@ -89,6 +97,105 @@ export function ProfileDashboard() {
   const [privatePosts, setPrivatePosts] = useState<ReflectionPost[]>([]);
   const tabRefs = useRef<Array<HTMLButtonElement | null>>([]);
   const notified = useRef(false);
+
+  const filteredPosts = useMemo(() => {
+    const normalizedQuery = searchQuery.trim().toLocaleLowerCase();
+    const now = Date.now();
+    const cutoff =
+      dateFilter === "30-days"
+        ? now - 30 * 24 * 60 * 60 * 1000
+        : dateFilter === "year"
+          ? now - 365 * 24 * 60 * 60 * 1000
+          : null;
+
+    return posts.filter((post) => {
+      const matchesText =
+        !normalizedQuery ||
+        `${post.title ?? ""} ${post.content}`
+          .toLocaleLowerCase()
+          .includes(normalizedQuery);
+      const createdAt = new Date(post.createdAt).getTime();
+      const matchesDate = cutoff === null || (!Number.isNaN(createdAt) && createdAt >= cutoff);
+      return matchesText && matchesDate;
+    });
+  }, [dateFilter, posts, searchQuery]);
+
+  const searchReflections = () => {
+    setSearchQuery(searchDraft.trim());
+    setTab("posts");
+  };
+
+  const clearSearch = () => {
+    setSearchDraft("");
+    setSearchQuery("");
+  };
+
+  const searchControls = (idSuffix: string) => (
+    <form
+      className="space-y-3"
+      role="search"
+      onSubmit={(event) => {
+        event.preventDefault();
+        searchReflections();
+      }}
+    >
+      <label htmlFor={`profile-search-${idSuffix}`} className="sr-only">
+        Search your posted reflections
+      </label>
+      <div className="flex gap-2">
+        <div className="relative min-w-0 flex-1">
+          <Search
+            className="pointer-events-none absolute left-4 top-1/2 size-4 -translate-y-1/2 text-muted"
+            aria-hidden="true"
+          />
+          <input
+            id={`profile-search-${idSuffix}`}
+            type="search"
+            className="field rounded-full pl-11 pr-11"
+            value={searchDraft}
+            onChange={(event) => setSearchDraft(event.target.value)}
+            placeholder="Search your reflections"
+          />
+          {searchDraft && (
+            <button
+              type="button"
+              className="absolute right-3 top-1/2 grid size-8 -translate-y-1/2 place-items-center rounded-full text-muted transition hover:bg-sage-100 hover:text-ink"
+              onClick={clearSearch}
+              aria-label="Clear reflection search"
+            >
+              <X className="size-4" aria-hidden="true" />
+            </button>
+          )}
+        </div>
+        <button type="submit" className="btn-primary shrink-0 px-4" aria-label="Search reflections">
+          <Search className="size-4" aria-hidden="true" />
+          <span className="hidden sm:inline xl:hidden 2xl:inline">Search</span>
+        </button>
+      </div>
+      <div className="relative">
+        <SlidersHorizontal
+          className="pointer-events-none absolute left-4 top-1/2 size-4 -translate-y-1/2 text-muted"
+          aria-hidden="true"
+        />
+        <label htmlFor={`profile-filter-${idSuffix}`} className="sr-only">
+          Filter reflections by date
+        </label>
+        <select
+          id={`profile-filter-${idSuffix}`}
+          className="field appearance-none rounded-full pl-11 pr-10 text-sm"
+          value={dateFilter}
+          onChange={(event) => {
+            setDateFilter(event.target.value as ReflectionDateFilter);
+            setTab("posts");
+          }}
+        >
+          <option value="all">All reflection dates</option>
+          <option value="30-days">Last 30 days</option>
+          <option value="year">Last 12 months</option>
+        </select>
+      </div>
+    </form>
+  );
 
   useEffect(() => {
     if (!user) return;
@@ -365,9 +472,16 @@ export function ProfileDashboard() {
                     </p>
                   </div>
                 </div>
-                {posts.length ? (
+                <div className="mb-5 xl:hidden">{searchControls("mobile")}</div>
+                {(searchQuery || dateFilter !== "all") && (
+                  <p className="font-secondary mb-4 text-sm text-muted" role="status" aria-live="polite">
+                    {filteredPosts.length} {filteredPosts.length === 1 ? "reflection" : "reflections"} found
+                    {searchQuery ? ` for “${searchQuery}”` : ""}.
+                  </p>
+                )}
+                {filteredPosts.length ? (
                   <div className="space-y-3">
-                    {posts.map((post) => (
+                    {filteredPosts.map((post) => (
                       <ReflectionCard
                         key={post.id}
                         post={post}
@@ -378,6 +492,24 @@ export function ProfileDashboard() {
                       />
                     ))}
                   </div>
+                ) : posts.length ? (
+                  <EmptyState
+                    icon={Search}
+                    title="No reflections match"
+                    description="Try another search phrase or widen the date filter."
+                    action={
+                      <button
+                        type="button"
+                        className="btn-secondary"
+                        onClick={() => {
+                          clearSearch();
+                          setDateFilter("all");
+                        }}
+                      >
+                        Clear search and filter
+                      </button>
+                    }
+                  />
                 ) : (
                   <EmptyState
                     icon={NotebookPen}
@@ -529,14 +661,7 @@ export function ProfileDashboard() {
       </div>
 
       <aside className="hidden space-y-4 px-6 py-6 xl:block xl:sticky xl:top-0 xl:h-screen xl:overflow-y-auto xl:self-start">
-        <label className="relative block">
-          <span className="sr-only">Search your profile</span>
-          <input
-            type="search"
-            className="field rounded-full bg-paper/80"
-            placeholder="Search your reflections"
-          />
-        </label>
+        {searchControls("desktop")}
         <section className="surface p-5">
           <h2 className="flex items-center gap-2 font-serif text-xl font-bold">
             <MessageCircleHeart
