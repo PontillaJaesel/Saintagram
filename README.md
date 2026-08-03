@@ -1,5 +1,8 @@
 # Saintagram: My Profile Before God
 
+To deploy the application to Cloudflare Workers, follow the project-specific
+[Cloudflare Workers deployment guide](docs/cloudflare-workers.md).
+
 Saintagram is a responsive, private reflection application inspired by the
 familiar shape of a social profile without popularity metrics, public follower
 counts, rankings, streaks, or competitive engagement.
