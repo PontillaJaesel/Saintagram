@@ -845,7 +845,15 @@ export const appService = {
     if (isFirebaseConfigured) {
       const services = getFirebaseServices();
       if (services) {
-        const userId = services.auth.currentUser?.uid;
+        const currentUser = services.auth.currentUser;
+        const userId = currentUser?.uid;
+        if (currentUser?.isAnonymous && userId) {
+          await this.deleteAllUserData(userId, "");
+          if (storageAvailable()) {
+            window.localStorage.removeItem(firebaseDraftCacheKey(userId));
+          }
+          return;
+        }
         await signOut(services.auth);
         if (userId && storageAvailable()) {
           window.localStorage.removeItem(firebaseDraftCacheKey(userId));

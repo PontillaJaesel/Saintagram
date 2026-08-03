@@ -197,22 +197,38 @@ function AuthForm() {
     }
   };
 
-  const authenticateWithoutEmailForm = async (method: "google" | "guest") => {
+  const authenticateWithGoogle = async () => {
     if (submitting) return;
     setSubmitting(true);
     setError("");
     setMessage("");
     try {
-      const nextUser =
-        method === "google"
-          ? await auth.signInWithGoogle()
-          : await auth.continueAsGuest();
+      const nextUser = await auth.signInWithGoogle();
       navigateAfterLogin(nextUser);
     } catch (authenticationError) {
       setError(
         authenticationError instanceof Error
           ? authenticationError.message
           : "Authentication could not be completed. Please try again."
+      );
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const continueAsGuest = async () => {
+    if (submitting) return;
+    setSubmitting(true);
+    setError("");
+    setMessage("");
+    try {
+      const nextUser = await auth.continueAsGuest();
+      navigateAfterLogin(nextUser);
+    } catch (authenticationError) {
+      setError(
+        authenticationError instanceof Error
+          ? authenticationError.message
+          : "Guest account creation could not be completed. Please try again."
       );
     } finally {
       setSubmitting(false);
@@ -228,9 +244,10 @@ function AuthForm() {
   const formOnRight = mode !== "signup";
 
   return (
-    <main className="auth-screen-enter relative min-h-screen overflow-hidden">
+    <main className="auth-screen-enter relative min-h-screen overflow-hidden lg:grid lg:place-items-center lg:bg-canvas lg:p-4">
+      <div className="relative min-h-screen w-full overflow-hidden lg:h-[calc(100vh-2rem)] lg:min-h-0 lg:rounded-[2rem] lg:border lg:border-sage-100 lg:bg-paper lg:shadow-lift">
       <section
-        className={`flex min-h-screen flex-col px-5 py-5 transition-transform duration-700 ease-[cubic-bezier(.22,1,.36,1)] sm:px-10 lg:absolute lg:inset-y-0 lg:left-0 lg:w-1/2 lg:overflow-y-auto lg:px-14 lg:py-8 ${
+        className={`flex min-h-screen flex-col px-5 py-5 transition-transform duration-700 ease-[cubic-bezier(.22,1,.36,1)] sm:px-10 lg:absolute lg:inset-y-0 lg:left-0 lg:min-h-0 lg:w-1/2 lg:overflow-y-auto lg:px-14 lg:py-8 ${
           formOnRight ? "lg:translate-x-full" : "lg:translate-x-0"
         }`}
       >
@@ -263,7 +280,7 @@ function AuthForm() {
                 type="button"
                 className="btn-secondary w-full justify-start"
                 disabled={submitting}
-                onClick={() => void authenticateWithoutEmailForm("google")}
+                onClick={() => void authenticateWithGoogle()}
               >
                 <span className="grid size-5 place-items-center font-bold" aria-hidden="true">G</span>
                 Sign in with Google
@@ -271,17 +288,23 @@ function AuthForm() {
               <button type="button" className="btn-secondary w-full justify-start" onClick={() => setAuthMethod("email")}>
                 <Mail className="size-5" aria-hidden="true" /> Continue with email
               </button>
-              <button
-                type="button"
-                className="btn-secondary w-full justify-start"
-                disabled={submitting}
-                onClick={() => void authenticateWithoutEmailForm("guest")}
-              >
-                <UserRound className="size-5" aria-hidden="true" /> Continue as a guest
-              </button>
-              <p className="text-xs leading-5 text-muted">
-                Guest data stays connected to this browser until you explicitly log out or clear its site data.
-              </p>
+              {mode === "signup" && (
+                <>
+                  <button
+                    type="button"
+                    className="btn-secondary w-full justify-start"
+                    disabled={submitting}
+                    onClick={() => void continueAsGuest()}
+                  >
+                    <UserRound className="size-5" aria-hidden="true" />
+                    Continue as a guest
+                  </button>
+                  <p className="text-xs leading-5 text-muted">
+                    Guest data remains saved until you log out or delete the
+                    guest account. Either action permanently deletes it.
+                  </p>
+                </>
+              )}
               {error && (
                 <div className="rounded-2xl border border-clay-200 bg-clay-50 px-4 py-3 text-sm font-semibold text-clay-600" role="alert">
                   {error}
@@ -546,7 +569,7 @@ function AuthForm() {
       </section>
 
       <aside
-        className={`absolute inset-y-0 left-0 hidden w-1/2 overflow-hidden bg-sage-800 p-14 text-white shadow-lift transition-transform duration-700 ease-[cubic-bezier(.22,1,.36,1)] lg:flex lg:flex-col lg:justify-between ${
+        className={`absolute inset-y-0 left-0 hidden w-1/2 overflow-hidden bg-gradient-to-br from-sage-800 via-sage-700 to-sage-600 p-12 text-white transition-transform duration-700 ease-[cubic-bezier(.22,1,.36,1)] lg:flex lg:flex-col lg:justify-between ${
           formOnRight ? "translate-x-0" : "translate-x-full"
         }`}
       >
@@ -556,6 +579,10 @@ function AuthForm() {
         />
         <div
           className="absolute -right-10 -top-10 size-56 rounded-full border border-sage-500"
+          aria-hidden="true"
+        />
+        <div
+          className="absolute -bottom-24 -left-20 size-80 rounded-full bg-gold-500/20 blur-3xl"
           aria-hidden="true"
         />
         <div className="relative max-w-lg">
@@ -581,6 +608,7 @@ function AuthForm() {
           </p>
         </div>
       </aside>
+      </div>
     </main>
   );
 }

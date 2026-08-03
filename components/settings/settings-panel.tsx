@@ -649,7 +649,7 @@ export function SettingsPanel() {
         title="Log out of Saintagram?"
         description={
           user.isGuest
-            ? "This guest account cannot be recovered after logout. Its saved data will no longer be accessible."
+            ? "Logging out permanently deletes this guest account and all of its saved data. This cannot be undone."
             : "Your saved profile and reflections will remain. Sign in again to return."
         }
         confirmLabel="Log out"
