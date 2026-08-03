@@ -239,20 +239,20 @@ body {
   }
 
   :root[data-theme="dark"] .app-nav-active {
-    color: rgb(var(--sage-900));
+    color: rgb(var(--sage-600));
   }
 
   .primary-nav-indicator {
-    background: rgb(var(--sage-100));
-    box-shadow: 0 4px 14px rgb(var(--sage-700) / 0.1);
+    background: rgb(var(--sage-600));
+    box-shadow: 0 2px 8px rgb(var(--sage-600) / 0.28);
     transition:
-      transform 500ms cubic-bezier(0.22, 1, 0.36, 1),
-      background-color 180ms ease;
+      transform 240ms cubic-bezier(0.22, 1, 0.36, 1),
+      background-color 160ms ease;
   }
 
   :root[data-theme="dark"] .primary-nav-indicator {
     background: rgb(var(--sage-600));
-    box-shadow: 0 4px 18px rgb(var(--sage-500) / 0.2);
+    box-shadow: 0 2px 10px rgb(var(--sage-500) / 0.3);
   }
 
   .app-page-enter {

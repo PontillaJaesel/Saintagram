@@ -142,12 +142,12 @@ export function AppShell({
       </div>
 
       <nav
-        className="fixed inset-x-3 bottom-3 z-50 rounded-[1.6rem] border border-sage-100/80 bg-paper/85 px-2 pb-[max(.5rem,env(safe-area-inset-bottom))] pt-2 shadow-lift backdrop-blur-2xl lg:hidden"
+        className="fixed inset-x-3 bottom-3 z-50 overflow-hidden rounded-[1.6rem] border border-sage-100/80 bg-paper/90 px-2 pb-[max(.5rem,env(safe-area-inset-bottom))] pt-2 shadow-lift backdrop-blur-2xl lg:hidden"
         aria-label="Mobile navigation"
       >
         <div className="relative mx-auto grid max-w-lg grid-cols-4">
           <span
-            className="primary-nav-indicator pointer-events-none absolute inset-y-0 left-0 w-1/4 rounded-2xl"
+            className="primary-nav-indicator pointer-events-none absolute bottom-0 left-0 h-[3px] w-1/4 rounded-t-full"
             style={{
               transform: `translateX(${indicatorIndex * 100}%)`
             }}
@@ -161,7 +161,7 @@ export function AppShell({
               <Link
                 key={href}
                 href={href}
-                className={`relative z-10 flex min-h-14 flex-col items-center justify-center gap-1 rounded-2xl text-[11px] font-bold transition-colors duration-300 ${
+                className={`relative z-10 flex min-h-14 min-w-0 flex-col items-center justify-center gap-1 px-1 text-[11px] font-medium transition-colors duration-150 ${
                   active ? "app-nav-active" : "text-muted"
                 }`}
                 aria-current={active ? "page" : undefined}
