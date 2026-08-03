@@ -22,6 +22,7 @@ import {
   Pencil,
   Search,
   ShieldCheck,
+  SlidersHorizontal,
   X,
   UsersRound
 } from "lucide-react";
@@ -153,8 +154,8 @@ export function ProfileDashboard() {
       <label htmlFor={`profile-search-${idSuffix}`} className="sr-only">
         Search your posted reflections
       </label>
-      <div className="flex min-h-12 items-center rounded-2xl border border-sage-200 bg-paper/90 shadow-sm transition focus-within:border-sage-500 focus-within:ring-2 focus-within:ring-sage-200">
-        <div className="relative min-w-0 flex-1">
+      <div className="flex items-center gap-3">
+        <div className="relative min-w-0 flex-1 rounded-md border-2 border-sage-300 bg-paper/75 shadow-sm transition focus-within:border-sage-500 focus-within:bg-paper focus-within:ring-2 focus-within:ring-sage-200">
           <Search
             className="pointer-events-none absolute left-4 top-1/2 size-4 -translate-y-1/2 text-muted"
             aria-hidden="true"
@@ -162,7 +163,7 @@ export function ProfileDashboard() {
           <input
             id={`profile-search-${idSuffix}`}
             type="search"
-            className="min-h-11 w-full bg-transparent py-2 pl-11 pr-2 text-sm text-ink placeholder:text-muted focus:outline-none"
+            className="min-h-11 w-full bg-transparent py-2 pl-11 pr-11 text-sm text-ink placeholder:text-muted focus:outline-none"
             value={searchQuery}
             onChange={(event) => {
               setSearchQuery(event.target.value);
@@ -170,26 +171,28 @@ export function ProfileDashboard() {
             }}
             placeholder="Search reflections…"
           />
+          {(searchQuery || dateStart || dateEnd) && (
+            <button
+              type="button"
+              className="absolute right-1 top-1/2 grid size-9 -translate-y-1/2 place-items-center rounded-full text-muted transition hover:bg-sage-100 hover:text-ink"
+              onClick={clearSearchAndFilter}
+              aria-label="Clear search and date filter"
+            >
+              <X className="size-4" aria-hidden="true" />
+            </button>
+          )}
         </div>
-        {(searchQuery || dateStart || dateEnd) && (
-          <button
-            type="button"
-            className="grid size-9 shrink-0 place-items-center rounded-full text-muted transition hover:bg-sage-100 hover:text-ink"
-            onClick={clearSearchAndFilter}
-            aria-label="Clear search and date filter"
-          >
-            <X className="size-4" aria-hidden="true" />
-          </button>
-        )}
-        <details className="group relative mr-1 shrink-0">
+        <details className="group relative shrink-0">
           <summary
-            className={`flex min-h-9 cursor-pointer list-none items-center gap-1.5 rounded-xl px-3 text-xs font-bold transition hover:bg-sage-100 [&::-webkit-details-marker]:hidden ${
-              dateStart || dateEnd ? "bg-sage-100 text-sage-700" : "text-muted"
+            className={`relative grid size-11 cursor-pointer list-none place-items-center rounded-md transition hover:bg-sage-100 focus-visible:ring-2 [&::-webkit-details-marker]:hidden ${
+              dateStart || dateEnd ? "text-sage-700" : "text-muted"
             }`}
-            aria-label="Choose a reflection date range"
+            aria-label={`Filter reflections by date. ${dateFilterLabel}`}
           >
-            <CalendarDays className="size-4" aria-hidden="true" />
-            <span className="hidden max-w-36 truncate sm:inline">{dateFilterLabel}</span>
+            <SlidersHorizontal className="size-7" strokeWidth={1.8} aria-hidden="true" />
+            {(dateStart || dateEnd) && (
+              <span className="absolute right-0.5 top-0.5 size-2.5 rounded-full border-2 border-paper bg-sage-500" aria-hidden="true" />
+            )}
           </summary>
           <div className="absolute right-0 z-30 mt-2 w-72 rounded-2xl border border-sage-100 bg-paper p-4 shadow-lift">
             <p className="text-sm font-bold text-ink">Filter by date</p>
