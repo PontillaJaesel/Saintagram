@@ -141,6 +141,14 @@ export function TagEditor({
       <p className="mt-2 text-xs text-muted">
         {values.length} of {maxItems} possible entries
       </p>
+      <p className="mt-1 text-xs text-muted">
+        Duplicate entries are not allowed.
+      </p>
+      {values.length >= maxItems && (
+        <p className="warning-indicator mt-2 rounded-xl px-3 py-2 text-xs" role="alert">
+          Maximum entries added. Remove an entry before adding another.
+        </p>
+      )}
     </fieldset>
   );
 }

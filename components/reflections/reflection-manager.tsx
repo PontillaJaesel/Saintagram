@@ -44,6 +44,7 @@ export function ReflectionManager() {
   const [loading, setLoading] = useState(true);
   const [privateLoading, setPrivateLoading] = useState(false);
   const [content, setContent] = useState("");
+  const [title, setTitle] = useState("");
   const [isPrivate, setIsPrivate] = useState(false);
   const [creationDate, setCreationDate] = useState(todayInputValue);
   const [editing, setEditing] = useState<ReflectionPost | null>(null);
@@ -104,6 +105,7 @@ export function ReflectionManager() {
 
   const resetComposer = () => {
     setContent("");
+    setTitle("");
     setIsPrivate(false);
     setCreationDate(todayInputValue());
     setEditing(null);
@@ -134,6 +136,7 @@ export function ReflectionManager() {
       const createdAt = new Date(`${creationDate}T12:00:00`).toISOString();
       const saved = await appService.saveReflection(user.id, {
         id: editing?.id,
+        title,
         content,
         isPrivate,
         createdAt: editing ? editing.createdAt : createdAt
@@ -176,6 +179,7 @@ export function ReflectionManager() {
 
   const beginEdit = (post: ReflectionPost) => {
     setEditing(post);
+    setTitle(post.title ?? "");
     setContent(post.content);
     setIsPrivate(post.isPrivate);
     setCreationDate(dateInputValue(post.createdAt));
@@ -264,7 +268,22 @@ export function ReflectionManager() {
               </button>
             </div>
           )}
-          <label htmlFor="reflection-content" className="label">
+          <label htmlFor="reflection-title" className="label">
+            Moment title
+          </label>
+          <input
+            id="reflection-title"
+            className="field"
+            value={title}
+            onChange={(event) => setTitle(event.target.value)}
+            maxLength={LIMITS.momentTitle}
+            placeholder="Give this moment a name"
+          />
+          <p className="mt-2 text-right text-xs tabular-nums text-muted">
+            {title.length} / {LIMITS.momentTitle}
+          </p>
+
+          <label htmlFor="reflection-content" className="label mt-5">
             Your reflection
           </label>
           <textarea

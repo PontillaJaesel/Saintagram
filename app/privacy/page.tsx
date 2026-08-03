@@ -90,7 +90,7 @@ function PrivacyContent() {
           </p>
           {mode === "local" && (
             <div className="mt-6 rounded-2xl border border-gold-200 bg-gold-50 p-4 text-sm leading-6 text-gold-700">
-              <strong>Demo mode:</strong> Firebase is not configured, so your
+              <strong>Demo mode:</strong> Cloud sync is not configured, so your
               account and reflections stay in this browser’s local storage.
               This is useful for demonstration, but not a substitute for
               production-grade secure storage on a shared device.

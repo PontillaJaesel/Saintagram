@@ -5,6 +5,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { useAuth } from "@/components/providers/auth-provider";
 import { LoadingState } from "@/components/ui/loading-state";
 import { resolvePostAuthRoute } from "@/lib/routes";
+import { isIntentionalAuthExitPending } from "@/lib/auth-navigation";
 
 export function RouteGuard({
   children,
@@ -26,7 +27,9 @@ export function RouteGuard({
   let destination: string | null = null;
   if (!loading) {
     if (!user) {
-      destination = `/auth?mode=login&next=${encodeURIComponent(pathname)}`;
+      destination = isIntentionalAuthExitPending()
+        ? "/"
+        : `/auth?mode=login&next=${encodeURIComponent(pathname)}`;
     } else if (requireConsent && !user.privacyConsentAt) {
       destination = "/privacy";
     } else if (

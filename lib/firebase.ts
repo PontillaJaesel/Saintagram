@@ -1,6 +1,6 @@
 import { getApp, getApps, initializeApp, type FirebaseApp } from "firebase/app";
 import {
-  browserSessionPersistence,
+  browserLocalPersistence,
   getAuth,
   setPersistence,
   type Auth
@@ -32,7 +32,7 @@ export function getFirebaseServices(): FirebaseServices | null {
 
   const app = getApps().length ? getApp() : initializeApp(firebaseConfig);
   const auth = getAuth(app);
-  const persistenceReady = setPersistence(auth, browserSessionPersistence);
+  const persistenceReady = setPersistence(auth, browserLocalPersistence);
   services = {
     app,
     auth,

@@ -35,6 +35,41 @@ export function isValidEmail(email: string): boolean {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
 }
 
+const BLOCKED_SIGNUP_DOMAINS = new Set([
+  "10minutemail.com",
+  "example.com",
+  "example.net",
+  "example.org",
+  "fake.com",
+  "mailinator.com",
+  "temp-mail.org",
+  "test.com",
+  "yopmail.com"
+]);
+
+/**
+ * Rejects addresses that are explicitly reserved for examples/tests or use a
+ * small set of well-known disposable providers. Mailbox ownership itself can
+ * only be established by completing the Firebase verification email.
+ */
+export function registrationEmailError(email: string): string | null {
+  const normalized = email.trim().toLocaleLowerCase();
+  if (!isValidEmail(normalized)) return "Enter a valid email address.";
+
+  const domain = normalized.slice(normalized.lastIndexOf("@") + 1);
+  if (
+    BLOCKED_SIGNUP_DOMAINS.has(domain) ||
+    domain.endsWith(".test") ||
+    domain.endsWith(".example") ||
+    domain.endsWith(".invalid") ||
+    domain.endsWith(".localhost")
+  ) {
+    return "Use a real, non-temporary email address that you can verify.";
+  }
+
+  return null;
+}
+
 export function passwordError(password: string): string | null {
   if (password.length < 8) return "Use at least 8 characters.";
   if (!/[A-Za-z]/.test(password) || !/\d/.test(password)) {

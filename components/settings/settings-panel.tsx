@@ -21,8 +21,11 @@ import { useToast } from "@/components/providers/toast-provider";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { appService } from "@/lib/app-service";
 import { createPersonalDataPdf } from "@/lib/personal-data-pdf";
-import { isSupabaseConfigured } from "@/lib/supabase";
-import { formatFriendlyDate, passwordError } from "@/lib/validation";
+import {
+  formatFriendlyDate,
+  passwordError,
+  registrationEmailError
+} from "@/lib/validation";
 
 function SettingsSection({
   title,
@@ -68,11 +71,12 @@ function SettingsSection({
 export function SettingsPanel() {
   const {
     user,
-    mode,
     updateUser,
     changePassword,
     logout,
-    deleteAccount
+    deleteAccount,
+    upgradeGuestWithGoogle,
+    upgradeGuestWithEmail
   } = useAuth();
   const { notify } = useToast();
   const router = useRouter();
@@ -96,6 +100,12 @@ export function SettingsPanel() {
   const [deleteError, setDeleteError] = useState("");
   const [logoutOpen, setLogoutOpen] = useState(false);
   const [loggingOut, setLoggingOut] = useState(false);
+  const [guestEmailOpen, setGuestEmailOpen] = useState(false);
+  const [guestEmail, setGuestEmail] = useState("");
+  const [guestPassword, setGuestPassword] = useState("");
+  const [guestConfirmPassword, setGuestConfirmPassword] = useState("");
+  const [guestUpgradeBusy, setGuestUpgradeBusy] = useState(false);
+  const [guestUpgradeError, setGuestUpgradeError] = useState("");
 
   if (!user) return null;
 
@@ -215,7 +225,7 @@ export function SettingsPanel() {
       setDeleteError("Type DELETE exactly to confirm.");
       return;
     }
-    if (!deletePassword) {
+    if ((user.authProvider === "password" || (!user.authProvider && user.email)) && !deletePassword) {
       setDeleteError("Enter your current password to verify it is you.");
       return;
     }
@@ -234,21 +244,71 @@ export function SettingsPanel() {
     }
   };
 
+  const upgradeGuestGoogle = async () => {
+    if (guestUpgradeBusy) return;
+    setGuestUpgradeBusy(true);
+    setGuestUpgradeError("");
+    try {
+      await upgradeGuestWithGoogle();
+      notify("Your guest profile is now connected to Google.");
+    } catch (upgradeError) {
+      setGuestUpgradeError(
+        upgradeError instanceof Error
+          ? upgradeError.message
+          : "The Google account could not be connected."
+      );
+    } finally {
+      setGuestUpgradeBusy(false);
+    }
+  };
+
+  const upgradeGuestEmail = async (event: FormEvent) => {
+    event.preventDefault();
+    if (guestUpgradeBusy) return;
+    const emailError = registrationEmailError(guestEmail);
+    if (emailError) {
+      setGuestUpgradeError(emailError);
+      return;
+    }
+    const nextPasswordError = passwordError(guestPassword);
+    if (nextPasswordError) {
+      setGuestUpgradeError(nextPasswordError);
+      return;
+    }
+    if (guestPassword !== guestConfirmPassword) {
+      setGuestUpgradeError("Those passwords do not match.");
+      return;
+    }
+    setGuestUpgradeBusy(true);
+    setGuestUpgradeError("");
+    try {
+      await upgradeGuestWithEmail(guestEmail, guestPassword);
+      router.replace("/auth?mode=login&verification=sent");
+    } catch (upgradeError) {
+      setGuestUpgradeError(
+        upgradeError instanceof Error
+          ? upgradeError.message
+          : "The email account could not be created."
+      );
+      setGuestUpgradeBusy(false);
+    }
+  };
+
   return (
     <div className="mx-auto max-w-3xl space-y-5">
       <SettingsSection
         title="Account information"
-        description="The email and account details connected to your private profile."
+        description="The contact and account details connected to your private profile."
         icon={UserRound}
       >
         <dl className="grid gap-4 sm:grid-cols-2">
           <div className="rounded-2xl bg-sage-50 p-4">
             <dt className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-sage-600">
-              <Mail className="size-4" aria-hidden="true" />
-              Email
+              {user.email ? <Mail className="size-4" aria-hidden="true" /> : <UserRound className="size-4" aria-hidden="true" />}
+              {user.email ? "Email" : "Account"}
             </dt>
             <dd className="mt-2 break-all text-sm font-semibold text-ink">
-              {user.email}
+              {user.email || "Guest account on this browser"}
             </dd>
           </div>
           <div className="rounded-2xl bg-sage-50 p-4">
@@ -261,18 +321,61 @@ export function SettingsPanel() {
             </dd>
           </div>
         </dl>
-        <div className="mt-4 rounded-2xl border border-sage-100 p-4">
-          <div>
-            <p className="text-sm font-bold text-ink">Data connection</p>
-            <p className="mt-1 text-xs leading-5 text-muted">
-              {mode === "local"
-                ? "Demonstration data is stored only in this browser."
-                : isSupabaseConfigured
-                  ? "Account data uses Firebase ownership rules and private Supabase image policies."
-                  : "Firebase is connected, but Supabase profile-image storage still needs its project URL and publishable key."}
+        {user.isGuest && (
+          <div className="mt-4 rounded-2xl border border-gold-200 bg-gold-50 p-4">
+            <p className="text-sm font-bold text-gold-700">
+              Keep this profile permanently
             </p>
+            <p className="mt-1 text-xs leading-5 text-muted">
+              Connect a new sign-in method without losing your current profile or reflections. An email or Google account already used by another Saintagram profile cannot be connected.
+            </p>
+            <div className="mt-4 flex flex-wrap gap-3">
+              <button
+                type="button"
+                className="btn-secondary"
+                disabled={guestUpgradeBusy}
+                onClick={() => void upgradeGuestGoogle()}
+              >
+                Connect Google
+              </button>
+              <button
+                type="button"
+                className="btn-secondary"
+                disabled={guestUpgradeBusy}
+                onClick={() => {
+                  setGuestEmailOpen((open) => !open);
+                  setGuestUpgradeError("");
+                }}
+              >
+                Create email login
+              </button>
+            </div>
+            {guestEmailOpen && (
+              <form className="mt-4 space-y-3" onSubmit={upgradeGuestEmail} noValidate>
+                <div>
+                  <label htmlFor="guest-upgrade-email" className="label">Email address</label>
+                  <input id="guest-upgrade-email" type="email" autoComplete="email" className="field" value={guestEmail} onChange={(event) => { setGuestEmail(event.target.value); setGuestUpgradeError(""); }} required />
+                </div>
+                <div>
+                  <label htmlFor="guest-upgrade-password" className="label">Password</label>
+                  <input id="guest-upgrade-password" type="password" autoComplete="new-password" className="field" value={guestPassword} onChange={(event) => { setGuestPassword(event.target.value); setGuestUpgradeError(""); }} required />
+                </div>
+                <div>
+                  <label htmlFor="guest-upgrade-confirm" className="label">Confirm password</label>
+                  <input id="guest-upgrade-confirm" type="password" autoComplete="new-password" className="field" value={guestConfirmPassword} onChange={(event) => { setGuestConfirmPassword(event.target.value); setGuestUpgradeError(""); }} required />
+                </div>
+                <button type="submit" className="btn-primary" disabled={guestUpgradeBusy}>
+                  {guestUpgradeBusy ? "Connecting…" : "Create and verify email login"}
+                </button>
+              </form>
+            )}
+            {guestUpgradeError && (
+              <p className="mt-3 text-sm font-semibold text-clay-600" role="alert">
+                {guestUpgradeError}
+              </p>
+            )}
           </div>
-        </div>
+        )}
       </SettingsSection>
 
       <SettingsSection
@@ -280,6 +383,11 @@ export function SettingsPanel() {
         description="Verify your current password before choosing a new one."
         icon={KeyRound}
       >
+        {user.authProvider && user.authProvider !== "password" ? (
+          <p className="text-sm leading-6 text-muted">
+            This account does not use an email password.
+          </p>
+        ) : (
         <form onSubmit={submitPassword} className="space-y-4" noValidate>
           <div>
             <label htmlFor="current-password" className="label">
@@ -425,6 +533,7 @@ export function SettingsPanel() {
             {passwordBusy ? "Changing…" : "Change password"}
           </button>
         </form>
+        )}
       </SettingsSection>
 
       <SettingsSection
@@ -508,8 +617,8 @@ export function SettingsPanel() {
         danger
       >
         <p className="text-sm leading-6 text-muted">
-          This action cannot be undone. You will verify your password and type a
-          confirmation phrase before anything is removed.
+          This action cannot be undone. You will confirm the deletion before
+          anything is removed.
         </p>
         <button
           type="button"
@@ -538,7 +647,11 @@ export function SettingsPanel() {
       <ConfirmDialog
         open={logoutOpen}
         title="Log out of Saintagram?"
-        description="Your saved profile and reflections will remain. You will need your password to return."
+        description={
+          user.isGuest
+            ? "This guest account cannot be recovered after logout. Its saved data will no longer be accessible."
+            : "Your saved profile and reflections will remain. Sign in again to return."
+        }
         confirmLabel="Log out"
         busy={loggingOut}
         onClose={() => setLogoutOpen(false)}
@@ -562,7 +675,7 @@ export function SettingsPanel() {
         onConfirm={() => void confirmDelete()}
       >
         <div className="space-y-4">
-          <div>
+          {(user.authProvider === "password" || (!user.authProvider && user.email)) && <div>
             <label htmlFor="delete-password" className="label">
               Current password
             </label>
@@ -577,7 +690,7 @@ export function SettingsPanel() {
                 setDeleteError("");
               }}
             />
-          </div>
+          </div>}
           <div>
             <label htmlFor="delete-phrase" className="label">
               Type DELETE to confirm

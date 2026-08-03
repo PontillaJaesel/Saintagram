@@ -27,6 +27,10 @@ const ALICE_IMAGE_PATH =
 const BOB_IMAGE_PATH =
   "users/bob/profile/14fefae1-e03e-42ee-9cd4-dc86823426e8.png";
 const LEGACY_IMAGE_FIELD = ["image", "Url"].join("");
+const VERIFIED_EMAIL = {
+  email_verified: true,
+  firebase: { sign_in_provider: "password" }
+} as const;
 
 function emulatorAddress(): { host: string; port: number } {
   const address = process.env.FIRESTORE_EMULATOR_HOST ?? "127.0.0.1:8080";
@@ -128,11 +132,76 @@ describe("Saintagram Firestore ownership rules", () => {
     await testEnv.cleanup();
   });
 
+  it("rejects an authenticated account whose email is not verified", async () => {
+    const unverifiedDb = testEnv
+      .authenticatedContext(ALICE_ID, { email_verified: false })
+      .firestore();
+
+    await assertFails(getDoc(doc(unverifiedDb, "users", ALICE_ID)));
+    await assertFails(setDoc(doc(unverifiedDb, "users", ALICE_ID), aliceUser));
+  });
+
+  it("allows an anonymous guest account", async () => {
+    const guestDb = testEnv
+      .authenticatedContext("guest-user", {
+        firebase: { sign_in_provider: "anonymous" }
+      })
+      .firestore();
+
+    await assertSucceeds(
+      setDoc(doc(guestDb, "users", "guest-user"), {
+        ...aliceUser,
+        id: "guest-user",
+        email: "",
+        isGuest: true
+      })
+    );
+  });
+
+  it("allows a guest to upgrade to a previously unused Google identity", async () => {
+    const guestId = "upgrading-guest";
+    const guestDb = testEnv
+      .authenticatedContext(guestId, {
+        firebase: { sign_in_provider: "anonymous" }
+      })
+      .firestore();
+    await assertSucceeds(
+      setDoc(doc(guestDb, "users", guestId), {
+        ...aliceUser,
+        id: guestId,
+        email: "",
+        isGuest: true,
+        authProvider: "guest"
+      })
+    );
+
+    const googleEmail = "new-google@example.com";
+    const googleDb = testEnv
+      .authenticatedContext(guestId, {
+        email: googleEmail,
+        email_verified: true,
+        firebase: { sign_in_provider: "google.com" }
+      })
+      .firestore();
+    await assertSucceeds(
+      updateDoc(doc(googleDb, "users", guestId), {
+        email: googleEmail,
+        isGuest: false,
+        authProvider: "google",
+        updatedAt: NOW
+      })
+    );
+  });
+
   it("allows owners and rejects cross-user access to user records", async () => {
     const aliceDb = testEnv
-      .authenticatedContext(ALICE_ID, { email: aliceUser.email })
+      .authenticatedContext(ALICE_ID, {
+        email: aliceUser.email,
+        email_verified: true,
+        firebase: { sign_in_provider: "password" }
+      })
       .firestore();
-    const bobDb = testEnv.authenticatedContext(BOB_ID).firestore();
+    const bobDb = testEnv.authenticatedContext(BOB_ID, VERIFIED_EMAIL).firestore();
     const aliceRef = doc(aliceDb, "users", ALICE_ID);
 
     await assertSucceeds(setDoc(aliceRef, aliceUser));
@@ -155,8 +224,8 @@ describe("Saintagram Firestore ownership rules", () => {
   });
 
   it("allows owners, rejects cross-user access, and forbids hiddenStory on profiles", async () => {
-    const aliceDb = testEnv.authenticatedContext(ALICE_ID).firestore();
-    const bobDb = testEnv.authenticatedContext(BOB_ID).firestore();
+    const aliceDb = testEnv.authenticatedContext(ALICE_ID, VERIFIED_EMAIL).firestore();
+    const bobDb = testEnv.authenticatedContext(BOB_ID, VERIFIED_EMAIL).firestore();
     const aliceRef = doc(aliceDb, "profiles", ALICE_ID);
 
     await assertFails(
@@ -179,7 +248,7 @@ describe("Saintagram Firestore ownership rules", () => {
   });
 
   it("accepts only the owner's exact Supabase image path on profiles", async () => {
-    const aliceDb = testEnv.authenticatedContext(ALICE_ID).firestore();
+    const aliceDb = testEnv.authenticatedContext(ALICE_ID, VERIFIED_EMAIL).firestore();
     const aliceRef = doc(aliceDb, "profiles", ALICE_ID);
 
     await assertSucceeds(
@@ -214,8 +283,8 @@ describe("Saintagram Firestore ownership rules", () => {
   });
 
   it("allows only the owner to access the private profile", async () => {
-    const aliceDb = testEnv.authenticatedContext(ALICE_ID).firestore();
-    const bobDb = testEnv.authenticatedContext(BOB_ID).firestore();
+    const aliceDb = testEnv.authenticatedContext(ALICE_ID, VERIFIED_EMAIL).firestore();
+    const bobDb = testEnv.authenticatedContext(BOB_ID, VERIFIED_EMAIL).firestore();
     const aliceRef = doc(aliceDb, "privateProfiles", ALICE_ID);
 
     await assertSucceeds(setDoc(aliceRef, alicePrivateProfile));
@@ -240,8 +309,8 @@ describe("Saintagram Firestore ownership rules", () => {
   });
 
   it("allows only the owner to access a profile draft", async () => {
-    const aliceDb = testEnv.authenticatedContext(ALICE_ID).firestore();
-    const bobDb = testEnv.authenticatedContext(BOB_ID).firestore();
+    const aliceDb = testEnv.authenticatedContext(ALICE_ID, VERIFIED_EMAIL).firestore();
+    const bobDb = testEnv.authenticatedContext(BOB_ID, VERIFIED_EMAIL).firestore();
     const aliceRef = doc(aliceDb, "drafts", ALICE_ID);
 
     await assertSucceeds(setDoc(aliceRef, aliceDraft));
@@ -264,7 +333,7 @@ describe("Saintagram Firestore ownership rules", () => {
   });
 
   it("accepts only the owner's exact Supabase image path in drafts", async () => {
-    const aliceDb = testEnv.authenticatedContext(ALICE_ID).firestore();
+    const aliceDb = testEnv.authenticatedContext(ALICE_ID, VERIFIED_EMAIL).firestore();
     const aliceRef = doc(aliceDb, "drafts", ALICE_ID);
 
     await assertSucceeds(
@@ -294,8 +363,8 @@ describe("Saintagram Firestore ownership rules", () => {
   });
 
   it("allows only the owner to access a reflection post", async () => {
-    const aliceDb = testEnv.authenticatedContext(ALICE_ID).firestore();
-    const bobDb = testEnv.authenticatedContext(BOB_ID).firestore();
+    const aliceDb = testEnv.authenticatedContext(ALICE_ID, VERIFIED_EMAIL).firestore();
+    const bobDb = testEnv.authenticatedContext(BOB_ID, VERIFIED_EMAIL).firestore();
     const aliceRef = doc(
       aliceDb,
       "reflectionPosts",

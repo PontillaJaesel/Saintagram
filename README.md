@@ -11,8 +11,8 @@ controls.
 
 ## What is included
 
-- Email/password registration, login, persistent sessions, logout, password
-  reset request, password change, and account deletion
+- Google sign-in, verified email/password accounts, and persistent anonymous
+  guest accounts, plus logout, password reset, password change, and deletion
 - A server-verified invitation-code entrance protecting every application route
 - Consent and spiritual introduction gates
 - Protected-route routing based on consent and profile completion
@@ -80,7 +80,10 @@ New accounts and the entire onboarding journey also work in demo mode.
 ## Firebase setup
 
 1. Create a Firebase project.
-2. Enable **Authentication → Email/Password**.
+2. Under **Authentication → Sign-in method**, enable **Email/Password**,
+   **Google**, and **Anonymous**. Google and anonymous authentication are
+   supported on Firebase's no-cost Spark plan. Add each deployed host under
+   **Authentication → Settings → Authorized domains**.
 3. Create a Firestore database.
 4. Copy `.env.example` to `.env.local`.
 5. Fill in the Firebase web configuration:
@@ -96,6 +99,31 @@ NEXT_PUBLIC_FIREBASE_APP_ID=
 Firebase web configuration identifies the project and is expected in client
 code. Never add an Admin SDK private key, service-account JSON, or other server
 secret to a `NEXT_PUBLIC_` variable.
+
+Firebase Auth uses local browser persistence, so closing and reopening the site
+restores the last signed-in account. A guest therefore keeps the same anonymous
+Firebase UID and data until they explicitly log out, clear this site's browser
+data, switch browsers/devices, or lose access to that browser profile. Guest
+accounts have no recovery method; users should use Google or email for durable,
+cross-device access.
+
+### Verification and branded authentication email
+
+In **Firebase Console → Authentication → Templates**, enable and edit both
+**Email address verification** and **Password reset**. Set the sender name and
+the project's **Public-facing name** to `Saintagram` so Firebase's internal app
+name is not shown to recipients. For each template, choose **Customize domain**,
+enter `saintagram.com`, then add Firebase's TXT and CNAME records at the DNS
+provider. After Firebase reports verification complete, apply the custom domain.
+This console and DNS configuration controls the From address and cannot be set
+by browser code. Also add every deployed Saintagram host under
+**Authentication → Settings → Authorized domains**, because verification and
+password-reset emails return to the origin that requested them.
+
+Firebase-mode registrations are signed out after the verification message is
+sent. Unverified accounts cannot log in, read or write Firestore data, or gain
+Supabase image access. A login attempt for an unverified account sends a fresh
+verification message. The local demo mode intentionally skips email delivery.
 
 Deploy the supplied rules and indexes after selecting the project:
 

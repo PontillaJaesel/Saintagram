@@ -8,6 +8,7 @@ import {
   normalizeHashtag,
   normalizeList,
   passwordError,
+  registrationEmailError,
   validateImage
 } from "@/lib/validation";
 
@@ -74,6 +75,20 @@ describe("authentication validation", () => {
     expect(isValidEmail(email)).toBe(expected);
   });
 
+  it.each([
+    "person@test.com",
+    "person@example.com",
+    "person@school.test",
+    "person@mailinator.com",
+    "person@yopmail.com"
+  ])("rejects dummy or disposable signup email %j", (email) => {
+    expect(registrationEmailError(email)).toMatch(/real, non-temporary/i);
+  });
+
+  it("allows a normally formatted address to proceed to Firebase verification", () => {
+    expect(registrationEmailError("person@gmail.com")).toBeNull();
+  });
+
   it("requires at least eight password characters", () => {
     expect(passwordError("Faith1")).toBe("Use at least 8 characters.");
   });
@@ -90,6 +105,7 @@ describe("authentication validation", () => {
   it("accepts a password that meets the MVP rules", () => {
     expect(passwordError("Beloved1")).toBeNull();
   });
+
 });
 
 describe("image validation", () => {

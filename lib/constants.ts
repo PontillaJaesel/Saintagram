@@ -70,6 +70,7 @@ export const LIMITS = {
   profileName: 60,
   bio: 320,
   listEntry: 60,
+  momentTitle: 60,
   post: 500,
   hiddenStory: 1000,
   godsComment: 280,

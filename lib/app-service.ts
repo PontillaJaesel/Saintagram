@@ -2,9 +2,15 @@ import {
   createUserWithEmailAndPassword,
   deleteUser,
   EmailAuthProvider,
+  GoogleAuthProvider,
+  linkWithCredential,
+  linkWithPopup,
   onAuthStateChanged,
   reauthenticateWithCredential,
+  sendEmailVerification,
   sendPasswordResetEmail,
+  signInAnonymously,
+  signInWithPopup,
   signInWithEmailAndPassword,
   signOut,
   updatePassword,
@@ -42,7 +48,8 @@ import {
   cleanText,
   normalizeCoverColor,
   normalizeHashtag,
-  normalizeList
+  normalizeList,
+  registrationEmailError
 } from "@/lib/validation";
 import {
   DEFAULT_PRIVACY_PREFERENCES,
@@ -100,29 +107,20 @@ function writeJson<T>(key: string, value: T): void {
   window.localStorage.setItem(key, JSON.stringify(value));
 }
 
-function sessionStorageAvailable(): boolean {
-  return typeof window !== "undefined" && Boolean(window.sessionStorage);
-}
-
 function readSessionUid(): string | null {
-  if (!sessionStorageAvailable()) return null;
+  if (!storageAvailable()) return null;
   try {
-    return window.sessionStorage.getItem(LOCAL_KEYS.session);
+    return window.localStorage.getItem(LOCAL_KEYS.session);
   } catch {
     return null;
   }
 }
 
 function writeSessionUid(userId: string | null): void {
-  if (!sessionStorageAvailable()) return;
+  if (!storageAvailable()) return;
   if (userId) {
-    window.sessionStorage.setItem(LOCAL_KEYS.session, userId);
+    window.localStorage.setItem(LOCAL_KEYS.session, userId);
   } else {
-    window.sessionStorage.removeItem(LOCAL_KEYS.session);
-  }
-  // Remove sessions saved by older releases so they cannot restore after the
-  // browser is reopened.
-  if (storageAvailable()) {
     window.localStorage.removeItem(LOCAL_KEYS.session);
   }
 }
@@ -181,11 +179,24 @@ function firebaseDraftCacheKey(userId: string): string {
   return `${STORAGE_PREFIX}:firebaseDraftCache:${userId}`;
 }
 
-function createUserRecord(id: string, email: string): AppUser {
+function emailActionSettings(path: string) {
+  return {
+    url: `${window.location.origin}${path}`,
+    handleCodeInApp: false
+  };
+}
+
+function createUserRecord(
+  id: string,
+  email: string,
+  authProvider: "password" | "google" | "guest" = "password"
+): AppUser {
   const now = nowIso();
   return {
     id,
     email: email.trim().toLocaleLowerCase(),
+    ...(authProvider === "guest" ? { isGuest: true } : {}),
+    authProvider,
     createdAt: now,
     updatedAt: now,
     privacyConsentAt: null,
@@ -278,6 +289,7 @@ function storedProfileDraft(
     spiritualBio: stringValue(rawDraft.spiritualBio),
     followers: stringList(rawDraft.followers),
     following: stringList(rawDraft.following),
+    onboardingPostTitles: stringList(rawDraft.onboardingPostTitles),
     onboardingPosts: stringList(rawDraft.onboardingPosts),
     heartSeeks: stringList(rawDraft.heartSeeks),
     hiddenStory: stringValue(rawDraft.hiddenStory),
@@ -317,6 +329,7 @@ function storedReflection(
   return {
     id,
     userId,
+    title: cleanText(stringValue(data.title), LIMITS.momentTitle),
     content,
     isPrivate: data.isPrivate,
     createdAt,
@@ -456,21 +469,116 @@ function friendlyAuthError(error: unknown): Error {
       "There have been several attempts. Take a short pause, then try again.",
     "auth/network-request-failed":
       "We could not connect. Check your internet connection and try again.",
+    "auth/email-not-verified":
+      "Verify your email before logging in. We sent you a new verification link.",
+    "auth/unauthorized-domain":
+      "This website domain is not authorized for sign-in.",
+    "auth/account-exists-with-different-credential":
+      "An account already exists with different sign-in information.",
+    "auth/credential-already-in-use":
+      "That account is already connected to another Saintagram profile.",
+    "auth/provider-already-linked":
+      "This guest account is already connected to that sign-in method.",
+    "auth/web-storage-unsupported":
+      "Authentication needs browser storage. Enable it and try again.",
+    "auth/popup-blocked":
+      "Your browser blocked the Google sign-in window. Allow pop-ups and try again.",
+    "auth/popup-closed-by-user":
+      "Google sign-in was cancelled before it finished.",
+    "auth/cancelled-popup-request":
+      "Another Google sign-in window is already open.",
+    "auth/operation-not-allowed":
+      "This sign-in method is not enabled. Please contact the site owner.",
     "auth/requires-recent-login":
       "For your safety, please log out and log in again before making this change.",
     "auth/weak-password": "Choose a stronger password with at least 8 characters."
   };
   if (messages[code]) return new Error(messages[code]);
+  if (code.startsWith("auth/")) {
+    return new Error(
+      `Authentication could not be completed (${code}). Please try again or contact the site owner.`
+    );
+  }
   return new Error("Something went wrong. Please try again.");
 }
 
-async function getFirebaseUserRecord(userId: string, email = ""): Promise<AppUser> {
+async function hasStoredProfileImageReference(userId: string): Promise<boolean> {
+  const services = getFirebaseServices();
+  if (!services) return false;
+  const [profileSnapshot, draftSnapshot] = await Promise.all([
+    getDoc(doc(services.db, "profiles", userId)),
+    getDoc(doc(services.db, "drafts", userId))
+  ]);
+  const profilePath = profileSnapshot.exists()
+    ? stringValue(profileSnapshot.data().imagePath)
+    : "";
+  const draftData = draftSnapshot.exists()
+    ? draftSnapshot.data().draftData
+    : null;
+  const draftPath =
+    typeof draftData === "object" && draftData
+      ? stringValue((draftData as Record<string, unknown>).imagePath)
+      : "";
+  return (
+    isOwnedProfileImagePath(profilePath, userId) ||
+    isOwnedProfileImagePath(draftPath, userId)
+  );
+}
+
+async function deleteGuestOwnedDocuments(userId: string): Promise<void> {
+  const services = getFirebaseServices();
+  if (!services) throw new Error("The account service is unavailable.");
+
+  while (true) {
+    const reflectionsPage = await getDocs(
+      query(
+        collection(services.db, "reflectionPosts"),
+        where("userId", "==", userId),
+        firestoreLimit(400)
+      )
+    );
+    if (reflectionsPage.empty) break;
+    const reflectionBatch = writeBatch(services.db);
+    reflectionsPage.docs.forEach((item) => reflectionBatch.delete(item.ref));
+    await reflectionBatch.commit();
+  }
+
+  const accountBatch = writeBatch(services.db);
+  accountBatch.delete(doc(services.db, "profiles", userId));
+  accountBatch.delete(doc(services.db, "privateProfiles", userId));
+  accountBatch.delete(doc(services.db, "drafts", userId));
+  accountBatch.delete(doc(services.db, "users", userId));
+  await accountBatch.commit();
+}
+
+async function getFirebaseUserRecord(
+  userId: string,
+  email = "",
+  authProvider?: "password" | "google" | "guest"
+): Promise<AppUser> {
   const services = getFirebaseServices();
   if (!services) throw new Error("Firebase is not available.");
   const userRef = doc(services.db, "users", userId);
   const snapshot = await getDoc(userRef);
-  if (snapshot.exists()) return snapshot.data() as AppUser;
-  const user = createUserRecord(userId, email);
+  if (snapshot.exists()) {
+    const stored = snapshot.data() as AppUser;
+    if (authProvider && (
+      stored.email !== email ||
+      stored.authProvider !== authProvider ||
+      Boolean(stored.isGuest) !== (authProvider === "guest")
+    )) {
+      const identityPatch = {
+        email: email.trim().toLocaleLowerCase(),
+        isGuest: authProvider === "guest",
+        authProvider,
+        updatedAt: nowIso()
+      };
+      await updateDoc(userRef, identityPatch);
+      return { ...stored, ...identityPatch };
+    }
+    return stored;
+  }
+  const user = createUserRecord(userId, email, authProvider ?? "password");
   await setDoc(userRef, user);
   return user;
 }
@@ -500,11 +608,25 @@ export const appService = {
             callback(null);
             return;
           }
+          const usesPassword = firebaseUser.providerData.some(
+            (provider) => provider.providerId === "password"
+          );
+          if (usesPassword && !firebaseUser.emailVerified) {
+            callback(null);
+            return;
+          }
           try {
             callback(
               await getFirebaseUserRecord(
                 firebaseUser.uid,
-                firebaseUser.email ?? ""
+                firebaseUser.email ?? "",
+                firebaseUser.isAnonymous
+                  ? "guest"
+                  : firebaseUser.providerData.some(
+                        (provider) => provider.providerId === "google.com"
+                      )
+                    ? "google"
+                    : "password"
               )
             );
           } catch {
@@ -541,6 +663,11 @@ export const appService = {
   },
 
   async register(email: string, password: string): Promise<AppUser> {
+    if (isFirebaseConfigured) {
+      const invalidEmail = registrationEmailError(email);
+      if (invalidEmail) throw new Error(invalidEmail);
+    }
+
     try {
       if (isFirebaseConfigured) {
         const services = getFirebaseServices();
@@ -552,7 +679,14 @@ export const appService = {
           password
         );
         const user = createUserRecord(credential.user.uid, email);
-        await setDoc(doc(services.db, "users", user.id), user);
+        try {
+          await sendEmailVerification(
+            credential.user,
+            emailActionSettings("/auth?mode=login&verified=1")
+          );
+        } finally {
+          await signOut(services.auth);
+        }
         return user;
       }
 
@@ -583,6 +717,18 @@ export const appService = {
           email.trim(),
           password
         );
+        await credential.user.reload();
+        if (!credential.user.emailVerified) {
+          try {
+            await sendEmailVerification(
+              credential.user,
+              emailActionSettings("/auth?mode=login&verified=1")
+            );
+          } finally {
+            await signOut(services.auth);
+          }
+          throw Object.assign(new Error(), { code: "auth/email-not-verified" });
+        }
         return getFirebaseUserRecord(
           credential.user.uid,
           credential.user.email ?? email
@@ -602,6 +748,94 @@ export const appService = {
       }
       writeSessionUid(account.user.id);
       return account.user;
+    } catch (error) {
+      throw friendlyAuthError(error);
+    }
+  },
+
+  async signInWithGoogle(): Promise<AppUser> {
+    try {
+      const services = getFirebaseServices();
+      if (!services) throw new Error("Google sign-in is currently unavailable.");
+      await services.persistenceReady;
+      const provider = new GoogleAuthProvider();
+      provider.setCustomParameters({ prompt: "select_account" });
+      const credential = await signInWithPopup(services.auth, provider);
+      return await getFirebaseUserRecord(
+        credential.user.uid,
+        credential.user.email ?? "",
+        "google"
+      );
+    } catch (error) {
+      throw friendlyAuthError(error);
+    }
+  },
+
+  async continueAsGuest(): Promise<AppUser> {
+    try {
+      const services = getFirebaseServices();
+      if (!services) throw new Error("Guest access is currently unavailable.");
+      await services.persistenceReady;
+      if (services.auth.currentUser?.isAnonymous) {
+        return await getFirebaseUserRecord(
+          services.auth.currentUser.uid,
+          "",
+          "guest"
+        );
+      }
+      const credential = await signInAnonymously(services.auth);
+      return await getFirebaseUserRecord(
+        credential.user.uid,
+        "",
+        "guest"
+      );
+    } catch (error) {
+      throw friendlyAuthError(error);
+    }
+  },
+
+  async upgradeGuestWithGoogle(): Promise<AppUser> {
+    try {
+      const services = getFirebaseServices();
+      const guest = services?.auth.currentUser;
+      if (!services || !guest?.isAnonymous) {
+        throw new Error("Only a guest account can be upgraded.");
+      }
+      const provider = new GoogleAuthProvider();
+      provider.setCustomParameters({ prompt: "select_account" });
+      const credential = await linkWithPopup(guest, provider);
+      await credential.user.getIdToken(true);
+      return await getFirebaseUserRecord(
+        credential.user.uid,
+        credential.user.email ?? "",
+        "google"
+      );
+    } catch (error) {
+      throw friendlyAuthError(error);
+    }
+  },
+
+  async upgradeGuestWithEmail(email: string, password: string): Promise<void> {
+    const invalidEmail = registrationEmailError(email);
+    if (invalidEmail) throw new Error(invalidEmail);
+    try {
+      const services = getFirebaseServices();
+      const guest = services?.auth.currentUser;
+      if (!services || !guest?.isAnonymous) {
+        throw new Error("Only a guest account can be upgraded.");
+      }
+      const credential = await linkWithCredential(
+        guest,
+        EmailAuthProvider.credential(email.trim(), password)
+      );
+      try {
+        await sendEmailVerification(
+          credential.user,
+          emailActionSettings("/auth?mode=login&verified=1")
+        );
+      } finally {
+        await signOut(services.auth);
+      }
     } catch (error) {
       throw friendlyAuthError(error);
     }
@@ -627,10 +861,11 @@ export const appService = {
       if (isFirebaseConfigured) {
         const services = getFirebaseServices();
         if (!services) throw new Error("Firebase is not available.");
-        await sendPasswordResetEmail(services.auth, email.trim(), {
-          url: `${window.location.origin}/auth?mode=login&reset=sent`,
-          handleCodeInApp: false
-        });
+        await sendPasswordResetEmail(
+          services.auth,
+          email.trim(),
+          emailActionSettings("/auth?mode=login&reset=sent")
+        );
         return;
       }
       await ensureLocalSeed();
@@ -992,11 +1227,12 @@ export const appService = {
         updatedAt: now
       });
       batch.delete(doc(services.db, "drafts", userId));
-      data.onboardingPosts.forEach((content) => {
+      data.onboardingPosts.forEach((content, index) => {
         const postRef = doc(collection(services.db, "reflectionPosts"));
         const post: ReflectionPost = {
           id: postRef.id,
           userId,
+          title: data.onboardingPostTitles?.[index] || `Moment ${index + 1}`,
           content,
           isPrivate: false,
           createdAt: now,
@@ -1057,11 +1293,12 @@ export const appService = {
       LOCAL_KEYS.reflections,
       {}
     );
-    data.onboardingPosts.forEach((content) => {
+    data.onboardingPosts.forEach((content, index) => {
       const id = newId("reflection-");
       reflections[id] = {
         id,
         userId,
+        title: data.onboardingPostTitles?.[index] || `Moment ${index + 1}`,
         content,
         isPrivate: false,
         createdAt: now,
@@ -1255,10 +1492,12 @@ export const appService = {
     userId: string,
     input: Pick<ReflectionPost, "content" | "isPrivate"> & {
       id?: string;
+      title?: string;
       createdAt?: string;
     }
   ): Promise<ReflectionPost> {
     const content = cleanText(input.content, LIMITS.post);
+    const title = cleanText(input.title ?? "", LIMITS.momentTitle);
     if (!content) throw new Error("Write a short moment before saving.");
     const now = nowIso();
 
@@ -1282,6 +1521,7 @@ export const appService = {
       const post: ReflectionPost = {
         id: postRef.id,
         userId,
+        title,
         content,
         isPrivate: input.isPrivate,
         createdAt,
@@ -1307,6 +1547,7 @@ export const appService = {
     const post: ReflectionPost = {
       id,
       userId,
+      title,
       content,
       isPrivate: input.isPrivate,
       createdAt: input.id
@@ -1382,10 +1623,38 @@ export const appService = {
 
       try {
         await deleteAllSupabaseProfileImages(userId);
-      } catch {
-        throw new Error(
-          "Your uploaded images could not be removed, so cancellation stopped. Please try again."
-        );
+      } catch (imageCleanupError) {
+        if (await hasStoredProfileImageReference(userId)) {
+          console.error("Private image cleanup failed during cancellation.", imageCleanupError);
+          throw new Error(
+            "Your uploaded images could not be removed, so cancellation stopped. Please try again."
+          );
+        }
+      }
+
+      if (firebaseUser.isAnonymous) {
+        try {
+          await deleteGuestOwnedDocuments(userId);
+          await deleteUser(firebaseUser);
+        } catch (guestCancellationError) {
+          console.error("Guest account cancellation failed.", guestCancellationError);
+          const code =
+            typeof guestCancellationError === "object" &&
+            guestCancellationError &&
+            "code" in guestCancellationError
+              ? String(guestCancellationError.code)
+              : "";
+          if (code.startsWith("auth/")) {
+            throw friendlyAuthError(guestCancellationError);
+          }
+          throw new Error(
+            "The guest account could not be removed. Please try again."
+          );
+        }
+        if (storageAvailable()) {
+          window.localStorage.removeItem(firebaseDraftCacheKey(userId));
+        }
+        return;
       }
 
       const idToken = await firebaseUser.getIdToken();
@@ -1406,7 +1675,7 @@ export const appService = {
           // Use the safe fallback below.
         }
         throw new Error(
-          message || "The account and email could not be removed."
+          message || "The account could not be removed."
         );
       }
       if (storageAvailable()) {
@@ -1450,23 +1719,31 @@ export const appService = {
       const services = getFirebaseServices();
       if (!services) throw new Error("Firebase is not available.");
       const firebaseUser = services.auth.currentUser;
-      if (!firebaseUser?.email) throw new Error("Please log in again.");
-      try {
-        await reauthenticateWithCredential(
-          firebaseUser,
-          EmailAuthProvider.credential(firebaseUser.email, currentPassword)
-        );
-      } catch (error) {
-        throw friendlyAuthError(error);
+      if (!firebaseUser) throw new Error("Please log in again.");
+      const usesPassword = firebaseUser.providerData.some(
+        (provider) => provider.providerId === "password"
+      );
+      if (usesPassword && firebaseUser.email) {
+        try {
+          await reauthenticateWithCredential(
+            firebaseUser,
+            EmailAuthProvider.credential(firebaseUser.email, currentPassword)
+          );
+        } catch (error) {
+          throw friendlyAuthError(error);
+        }
       }
       // Remove Supabase Storage first. If this fails, retain the account and
       // Firestore records so the owner can retry without orphaning image data.
       try {
         await deleteAllSupabaseProfileImages(userId);
-      } catch {
-        throw new Error(
-          "Your profile images could not be removed, so account deletion stopped. Please try again."
-        );
+      } catch (imageCleanupError) {
+        if (await hasStoredProfileImageReference(userId)) {
+          console.error("Private image cleanup failed during account deletion.", imageCleanupError);
+          throw new Error(
+            "Your profile image could not be removed, so account deletion stopped. Please try again."
+          );
+        }
       }
 
       // A Firestore WriteBatch accepts at most 500 writes. Delete reflections

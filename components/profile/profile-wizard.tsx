@@ -75,6 +75,7 @@ function cloneEmptyDraft(): ProfileDraftData {
     ...EMPTY_DRAFT,
     followers: [],
     following: [],
+    onboardingPostTitles: [""],
     onboardingPosts: [""],
     heartSeeks: []
   };
@@ -188,6 +189,9 @@ export function ProfileWizard() {
           setData({
             ...cloneEmptyDraft(),
             ...draft.draftData,
+            onboardingPostTitles: draft.draftData.onboardingPosts?.map(
+              (_post, index) => draft.draftData.onboardingPostTitles?.[index] ?? ""
+            ) ?? [""],
             onboardingPosts: draft.draftData.onboardingPosts?.length
               ? draft.draftData.onboardingPosts
               : [""]
@@ -657,30 +661,49 @@ export function ProfileWizard() {
                   className="rounded-2xl border border-sage-100 bg-sage-50/60 p-4"
                 >
                   <div className="mb-2 flex items-center justify-between">
-                    <label
-                      htmlFor={`onboarding-post-${index}`}
-                      className="text-sm font-bold text-ink"
-                    >
+                    <span className="text-sm font-bold text-ink">
                       Moment {index + 1}
-                    </label>
+                    </span>
                     {data.onboardingPosts.length > 1 && (
                       <button
                         type="button"
                         className="grid min-h-11 min-w-11 place-items-center rounded-full text-muted hover:bg-white hover:text-clay-600"
-                        onClick={() =>
-                          updateData(
-                            "onboardingPosts",
-                            data.onboardingPosts.filter(
-                              (_item, itemIndex) => itemIndex !== index
-                            )
-                          )
-                        }
+                        onClick={() => {
+                          updateData("onboardingPosts", data.onboardingPosts.filter(
+                            (_item, itemIndex) => itemIndex !== index
+                          ));
+                          updateData("onboardingPostTitles", (data.onboardingPostTitles ?? []).filter(
+                            (_item, itemIndex) => itemIndex !== index
+                          ));
+                        }}
                         aria-label={`Remove moment ${index + 1}`}
                       >
                         <Trash2 className="size-4" aria-hidden="true" />
                       </button>
                     )}
                   </div>
+                  <label htmlFor={`onboarding-title-${index}`} className="label">
+                    Moment title
+                  </label>
+                  <input
+                    id={`onboarding-title-${index}`}
+                    className="field mb-3 bg-white"
+                    value={data.onboardingPostTitles?.[index] ?? ""}
+                    maxLength={LIMITS.momentTitle}
+                    placeholder={`Moment ${index + 1}`}
+                    onChange={(event) => {
+                      const titles = [...(data.onboardingPostTitles ?? [])];
+                      titles[index] = event.target.value;
+                      updateData("onboardingPostTitles", titles);
+                    }}
+                  />
+                  <CharacterCount
+                    value={data.onboardingPostTitles?.[index] ?? ""}
+                    limit={LIMITS.momentTitle}
+                  />
+                  <label htmlFor={`onboarding-post-${index}`} className="label mt-3">
+                    Moment entry
+                  </label>
                   <textarea
                     id={`onboarding-post-${index}`}
                     className="field min-h-28 resize-y bg-white"
@@ -701,12 +724,16 @@ export function ProfileWizard() {
               <button
                 type="button"
                 className="btn-secondary"
-                onClick={() =>
+                onClick={() => {
                   updateData("onboardingPosts", [
                     ...data.onboardingPosts,
                     ""
-                  ])
-                }
+                  ]);
+                  updateData("onboardingPostTitles", [
+                    ...(data.onboardingPostTitles ?? []),
+                    ""
+                  ]);
+                }}
                 disabled={data.onboardingPosts.length >= 20}
               >
                 <Plus className="size-4" aria-hidden="true" />
@@ -889,7 +916,12 @@ export function ProfileWizard() {
                     {data.onboardingPosts
                       .filter((post) => post.trim())
                       .map((post, index) => (
-                        <li key={index}>{post}</li>
+                        <li key={index} className="user-content">
+                          <strong className="text-ink">
+                            {data.onboardingPostTitles?.[index] || `Moment ${index + 1}`}:
+                          </strong>{" "}
+                          {post}
+                        </li>
                       ))}
                   </ul>
                 ) : (

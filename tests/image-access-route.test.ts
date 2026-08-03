@@ -43,10 +43,14 @@ describe("POST /api/image-access", () => {
       getUser: mocks.getUser,
       setCustomUserClaims: mocks.setCustomUserClaims
     });
-    mocks.verifyIdToken.mockResolvedValue({ uid: "alice" });
+    mocks.verifyIdToken.mockResolvedValue({
+      uid: "alice",
+      email_verified: true
+    });
     mocks.getUser.mockResolvedValue({
       uid: "alice",
       disabled: false,
+      emailVerified: true,
       customClaims: { invitation: "accepted" }
     });
     mocks.setCustomUserClaims.mockResolvedValue(undefined);
@@ -125,6 +129,7 @@ describe("POST /api/image-access", () => {
     mocks.getUser.mockResolvedValueOnce({
       uid: "alice",
       disabled: false,
+      emailVerified: true,
       customClaims: {
         invitation: "accepted",
         role: "authenticated"
@@ -141,6 +146,7 @@ describe("POST /api/image-access", () => {
     mocks.getUser.mockResolvedValueOnce({
       uid: "alice",
       disabled: true,
+      emailVerified: true,
       customClaims: {}
     });
     const disabled = await POST(request(`Bearer ${TOKEN}`));
@@ -150,6 +156,7 @@ describe("POST /api/image-access", () => {
     mocks.getUser.mockResolvedValueOnce({
       uid: "alice",
       disabled: false,
+      emailVerified: true,
       customClaims: { role: "admin" }
     });
     const consoleError = vi.spyOn(console, "error").mockImplementation(() => {});
@@ -157,6 +164,44 @@ describe("POST /api/image-access", () => {
     expect(conflicting.status).toBe(503);
     expect(mocks.setCustomUserClaims).not.toHaveBeenCalled();
     expect(consoleError).toHaveBeenCalledOnce();
+  });
+
+  it("rejects users whose email address is not verified", async () => {
+    mocks.verifyIdToken.mockResolvedValueOnce({
+      uid: "alice",
+      email_verified: false
+    });
+    mocks.getUser.mockResolvedValueOnce({
+      uid: "alice",
+      disabled: false,
+      emailVerified: false,
+      customClaims: {}
+    });
+
+    const response = await POST(request(`Bearer ${TOKEN}`));
+
+    expect(response.status).toBe(401);
+    expect(mocks.setCustomUserClaims).not.toHaveBeenCalled();
+  });
+
+  it("allows a Firebase anonymous guest identity", async () => {
+    mocks.verifyIdToken.mockResolvedValueOnce({
+      uid: "guest",
+      firebase: { sign_in_provider: "anonymous" }
+    });
+    mocks.getUser.mockResolvedValueOnce({
+      uid: "guest",
+      disabled: false,
+      emailVerified: false,
+      customClaims: {}
+    });
+
+    const response = await POST(request(`Bearer ${TOKEN}`));
+
+    expect(response.status).toBe(200);
+    expect(mocks.setCustomUserClaims).toHaveBeenCalledWith("guest", {
+      role: "authenticated"
+    });
   });
 
   it("fails safely when Firebase Admin is unavailable", async () => {

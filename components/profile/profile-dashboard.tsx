@@ -487,7 +487,7 @@ export function ProfileDashboard() {
                         <EyeOff className="size-4" aria-hidden="true" />
                         Hidden Story
                       </p>
-                      <p className="mt-3 whitespace-pre-wrap text-sm leading-7 text-ink">
+                      <p className="user-content mt-3 whitespace-pre-wrap text-sm leading-7 text-ink">
                         {privateStory || (
                           <span className="italic text-muted">
                             You chose not to add a Hidden Story.
@@ -503,11 +503,23 @@ export function ProfileDashboard() {
                       ) : (
                         <EmptyState
                           icon={LockKeyhole}
-                          title="No private journal entries"
-                          description="You can mark a new reflection private whenever it needs a quieter place."
+                          title={
+                            privateStory
+                              ? "No additional private journal entries"
+                              : "No private journal entries yet"
+                          }
+                          description={
+                            privateStory
+                              ? "Your Hidden Story is saved above. Add another private entry whenever you need more room."
+                              : "Add a private reflection whenever it needs a quieter place."
+                          }
                         />
                       )}
                     </div>
+                    <Link href="/reflect" className="btn-primary mt-5">
+                      <NotebookPen className="size-4" aria-hidden="true" />
+                      Add another private journal entry
+                    </Link>
                   </div>
                 )}
               </div>

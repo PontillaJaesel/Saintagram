@@ -122,7 +122,7 @@ export function personalDataPdfDefinition(
         margin: [0, 0, 0, 6]
       },
       {
-        text: `Account: ${safeText(archive.user.email)}`,
+        text: `Account: ${safeText(archive.user.email || (archive.user.isGuest ? "Guest account" : "Unavailable"))}`,
         margin: [0, 0, 0, 8]
       },
       {

@@ -69,7 +69,7 @@ export async function POST(request: Request): Promise<NextResponse> {
     return response(
       {
         error:
-          "The account and email could not be removed. Please try again."
+          "The account could not be removed. Please try again."
       },
       500
     );

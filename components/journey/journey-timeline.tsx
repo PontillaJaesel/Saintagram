@@ -75,7 +75,7 @@ export function JourneyTimeline() {
     const journey: JourneyItem[] = posts.map((post) => ({
       id: post.id,
       date: post.createdAt,
-      title: "A moment God saw",
+      title: post.title || "A moment God saw",
       description: post.content,
       type: "reflection"
     }));
@@ -176,7 +176,7 @@ export function JourneyTimeline() {
                   {formatFriendlyDate(item.date)}
                 </time>
                 <h3 className="mt-2 font-serif text-xl font-bold">{item.title}</h3>
-                <p className="mt-2 whitespace-pre-wrap text-sm leading-7 text-muted">
+                <p className="user-content mt-2 whitespace-pre-wrap text-sm leading-7 text-muted">
                   {item.description}
                 </p>
               </li>

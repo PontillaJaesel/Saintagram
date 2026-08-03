@@ -15,6 +15,8 @@ export interface PrivacyPreferences {
 export interface AppUser {
   id: string;
   email: string;
+  isGuest?: boolean;
+  authProvider?: "password" | "google" | "guest";
   createdAt: string;
   updatedAt: string;
   privacyConsentAt: string | null;
@@ -47,6 +49,7 @@ export interface SpiritualProfile extends PublicSpiritualProfile {
 export interface ReflectionPost {
   id: string;
   userId: string;
+  title?: string;
   content: string;
   isPrivate: boolean;
   createdAt: string;
@@ -60,6 +63,7 @@ export interface ProfileDraftData {
   spiritualBio: string;
   followers: string[];
   following: string[];
+  onboardingPostTitles?: string[];
   onboardingPosts: string[];
   heartSeeks: string[];
   hiddenStory: string;
@@ -91,6 +95,7 @@ export const EMPTY_DRAFT: ProfileDraftData = {
   spiritualBio: "",
   followers: [],
   following: [],
+  onboardingPostTitles: [""],
   onboardingPosts: [""],
   heartSeeks: [],
   hiddenStory: "",

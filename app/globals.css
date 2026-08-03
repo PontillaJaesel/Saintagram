@@ -160,6 +160,16 @@ body {
     text-wrap: pretty;
   }
 
+  p,
+  li,
+  h1,
+  h2,
+  h3,
+  blockquote {
+    overflow-wrap: anywhere;
+    word-break: break-word;
+  }
+
   :focus-visible {
     @apply outline-none ring-2 ring-sage-500 ring-offset-2 ring-offset-canvas;
   }
@@ -331,6 +341,17 @@ body {
 
   :root[data-theme="dark"] .text-white {
     color: rgb(var(--ink));
+  }
+
+  :root[data-theme="dark"] :is(.text-black, .text-sage-700, .text-sage-800, .text-sage-900) {
+    color: rgb(var(--ink));
+  }
+
+  .user-content {
+    min-width: 0;
+    max-width: 100%;
+    overflow-wrap: anywhere;
+    word-break: break-word;
   }
 
   .theme-toggle-label {

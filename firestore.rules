@@ -3,11 +3,24 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
     function signedIn() {
-      return request.auth != null;
+      return request.auth != null
+        && (
+          request.auth.token.email_verified == true
+          || request.auth.token.firebase.sign_in_provider == 'google.com'
+          || request.auth.token.firebase.sign_in_provider == 'anonymous'
+        );
     }
 
     function isCurrentUser(userId) {
       return signedIn() && request.auth.uid == userId;
+    }
+
+    function authProviderName() {
+      return request.auth.token.firebase.sign_in_provider == 'anonymous'
+        ? 'guest'
+        : request.auth.token.firebase.sign_in_provider == 'google.com'
+          ? 'google'
+          : 'password';
     }
 
     function ownsExistingDocument() {
@@ -72,6 +85,8 @@ service cloud.firestore {
       return data.keys().hasOnly([
           'id',
           'email',
+          'isGuest',
+          'authProvider',
           'createdAt',
           'updatedAt',
           'privacyConsentAt',
@@ -89,6 +104,8 @@ service cloud.firestore {
         && data.id is string
         && data.email is string
         && data.email.size() <= 320
+        && (!('isGuest' in data) || data.isGuest is bool)
+        && (!('authProvider' in data) || data.authProvider in ['password', 'google', 'guest'])
         && isIsoDate(data.createdAt)
         && isIsoDate(data.updatedAt)
         && data.profileCompleted is bool
@@ -202,6 +219,7 @@ service cloud.firestore {
           'spiritualBio',
           'followers',
           'following',
+          'onboardingPostTitles',
           'onboardingPosts',
           'heartSeeks',
           'hiddenStory',
@@ -223,6 +241,8 @@ service cloud.firestore {
         && isShortString(value.spiritualBio, 320)
         && isStringList(value.followers, 30)
         && isStringList(value.following, 30)
+        && (!value.keys().hasAny(['onboardingPostTitles'])
+          || isStringList(value.onboardingPostTitles, 20))
         && isStringList(value.onboardingPosts, 20)
         && isStringList(value.heartSeeks, 30)
         && isShortString(value.hiddenStory, 1000)
@@ -266,6 +286,7 @@ service cloud.firestore {
         && data.keys().hasAll([
           'id',
           'userId',
+          'title',
           'content',
           'isPrivate',
           'createdAt',
@@ -273,6 +294,7 @@ service cloud.firestore {
         ])
         && data.id is string
         && data.userId is string
+        && (!data.keys().hasAny(['title']) || isShortString(data.title, 60))
         && isShortString(data.content, 500)
         && data.content.size() > 0
         && data.isPrivate is bool
@@ -291,12 +313,32 @@ service cloud.firestore {
           request.auth.token.email == null
           || request.resource.data.email == request.auth.token.email
         )
+        && request.resource.data.get('isGuest', false)
+          == (request.auth.token.firebase.sign_in_provider == 'anonymous')
+        && request.resource.data.get('authProvider', 'password')
+          == authProviderName()
         && hasValidUserShape(request.resource.data);
 
       allow update: if isCurrentUser(userId)
         && hasValidUserShape(request.resource.data)
         && request.resource.data.id == resource.data.id
-        && request.resource.data.email == resource.data.email
+        && (
+          (
+            request.resource.data.email == resource.data.email
+            && request.resource.data.get('isGuest', false)
+              == resource.data.get('isGuest', false)
+            && request.resource.data.get('authProvider', 'password')
+              == resource.data.get('authProvider', 'password')
+          )
+          || (
+            resource.data.get('isGuest', false) == true
+            && request.resource.data.get('isGuest', false) == false
+            && request.resource.data.email == request.auth.token.email
+            && request.resource.data.get('authProvider', 'password')
+              == authProviderName()
+            && authProviderName() != 'guest'
+          )
+        )
         && request.resource.data.createdAt == resource.data.createdAt;
 
       allow delete: if isCurrentUser(userId);

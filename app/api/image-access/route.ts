@@ -98,7 +98,14 @@ export async function POST(request: Request): Promise<NextResponse> {
 
   try {
     const user = await auth.getUser(decodedToken.uid);
-    if (user.disabled) return authenticationFailure();
+    const verifiedEmail =
+      user.emailVerified && decodedToken.email_verified === true;
+    const signInProvider = decodedToken.firebase?.sign_in_provider;
+    const verifiedProvider =
+      signInProvider === "google.com" || signInProvider === "anonymous";
+    if (user.disabled || (!verifiedEmail && !verifiedProvider)) {
+      return authenticationFailure();
+    }
 
     const existingRole = user.customClaims?.role;
     if (existingRole && existingRole !== "authenticated") {

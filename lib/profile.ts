@@ -34,6 +34,13 @@ export function normalizeProfileImageReference(value: string): string {
 }
 
 export function normalizeDraft(data: ProfileDraftData): ProfileDraftData {
+  const moments = data.onboardingPosts
+    .map((post, index) => ({
+      content: cleanText(post, LIMITS.post),
+      title: cleanText(data.onboardingPostTitles?.[index] ?? "", LIMITS.momentTitle)
+    }))
+    .filter((moment) => Boolean(moment.content))
+    .slice(0, 20);
   return {
     profileName: cleanText(data.profileName, LIMITS.profileName),
     imagePath: normalizeProfileImageReference(data.imagePath),
@@ -41,10 +48,8 @@ export function normalizeDraft(data: ProfileDraftData): ProfileDraftData {
     spiritualBio: cleanText(data.spiritualBio, LIMITS.bio),
     followers: normalizeList(data.followers),
     following: normalizeList(data.following),
-    onboardingPosts: data.onboardingPosts
-      .map((post) => cleanText(post, LIMITS.post))
-      .filter(Boolean)
-      .slice(0, 20),
+    onboardingPostTitles: moments.map((moment) => moment.title),
+    onboardingPosts: moments.map((moment) => moment.content),
     heartSeeks: normalizeList(data.heartSeeks),
     hiddenStory: cleanText(data.hiddenStory, LIMITS.hiddenStory),
     godsComment: cleanText(data.godsComment, LIMITS.godsComment),

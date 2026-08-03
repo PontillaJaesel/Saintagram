@@ -50,7 +50,12 @@ export function ReflectionCard({
               <span aria-label="This reflection was edited">Edited</span>
             )}
           </div>
-          <p className="mt-3 whitespace-pre-wrap text-base leading-7 text-ink">
+          {post.title && (
+            <h3 className="user-content mt-2 text-base font-bold text-ink">
+              {post.title}
+            </h3>
+          )}
+          <p className="user-content mt-3 whitespace-pre-wrap text-base leading-7 text-ink">
             {post.content}
           </p>
         </div>

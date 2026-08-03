@@ -10,6 +10,10 @@ import {
   type ReactNode
 } from "react";
 import { appService } from "@/lib/app-service";
+import {
+  beginIntentionalAuthExit,
+  cancelIntentionalAuthExit
+} from "@/lib/auth-navigation";
 import type { AppUser } from "@/types";
 
 interface AuthContextValue {
@@ -20,6 +24,10 @@ interface AuthContextValue {
   login: (email: string, password: string) => Promise<AppUser>;
   logout: () => Promise<void>;
   requestPasswordReset: (email: string) => Promise<void>;
+  signInWithGoogle: () => Promise<AppUser>;
+  continueAsGuest: () => Promise<AppUser>;
+  upgradeGuestWithGoogle: () => Promise<AppUser>;
+  upgradeGuestWithEmail: (email: string, password: string) => Promise<void>;
   changePassword: (
     currentPassword: string,
     newPassword: string
@@ -49,7 +57,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const register = useCallback(async (email: string, password: string) => {
     const nextUser = await appService.register(email, password);
-    setUser(nextUser);
+    if (appService.mode === "local") setUser(nextUser);
     return nextUser;
   }, []);
 
@@ -60,13 +68,45 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const logout = useCallback(async () => {
-    await appService.logout();
-    setUser(null);
+    beginIntentionalAuthExit();
+    try {
+      await appService.logout();
+      setUser(null);
+    } catch (error) {
+      cancelIntentionalAuthExit();
+      throw error;
+    }
   }, []);
 
   const requestPasswordReset = useCallback(async (email: string) => {
     await appService.requestPasswordReset(email);
   }, []);
+
+  const signInWithGoogle = useCallback(async () => {
+    const nextUser = await appService.signInWithGoogle();
+    setUser(nextUser);
+    return nextUser;
+  }, []);
+
+  const continueAsGuest = useCallback(async () => {
+    const nextUser = await appService.continueAsGuest();
+    setUser(nextUser);
+    return nextUser;
+  }, []);
+
+  const upgradeGuestWithGoogle = useCallback(async () => {
+    const nextUser = await appService.upgradeGuestWithGoogle();
+    setUser(nextUser);
+    return nextUser;
+  }, []);
+
+  const upgradeGuestWithEmail = useCallback(
+    async (email: string, password: string) => {
+      await appService.upgradeGuestWithEmail(email, password);
+      setUser(null);
+    },
+    []
+  );
 
   const refreshUser = useCallback(async () => {
     if (!user) return null;
@@ -97,14 +137,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const deleteAccount = useCallback(async (currentPassword: string) => {
     if (!user) throw new Error("Please log in to continue.");
-    await appService.deleteAllUserData(user.id, currentPassword);
-    setUser(null);
+    beginIntentionalAuthExit();
+    try {
+      await appService.deleteAllUserData(user.id, currentPassword);
+      setUser(null);
+    } catch (error) {
+      cancelIntentionalAuthExit();
+      throw error;
+    }
   }, [user]);
 
   const cancelAccountCreation = useCallback(async () => {
     if (!user) throw new Error("Please log in to continue.");
-    await appService.cancelAccountCreation(user.id);
-    setUser(null);
+    beginIntentionalAuthExit();
+    try {
+      await appService.cancelAccountCreation(user.id);
+      setUser(null);
+    } catch (error) {
+      cancelIntentionalAuthExit();
+      throw error;
+    }
   }, [user]);
 
   const value = useMemo<AuthContextValue>(
@@ -116,6 +168,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       login,
       logout,
       requestPasswordReset,
+      signInWithGoogle,
+      continueAsGuest,
+      upgradeGuestWithGoogle,
+      upgradeGuestWithEmail,
       changePassword,
       refreshUser,
       updateUser,
@@ -129,6 +185,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       login,
       logout,
       requestPasswordReset,
+      signInWithGoogle,
+      continueAsGuest,
+      upgradeGuestWithGoogle,
+      upgradeGuestWithEmail,
       changePassword,
       refreshUser,
       updateUser,

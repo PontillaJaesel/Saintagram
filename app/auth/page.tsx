@@ -18,16 +18,22 @@ import {
   KeyRound,
   LoaderCircle,
   LockKeyhole,
-  Mail
+  Mail,
+  UserRound
 } from "lucide-react";
 import { Logo } from "@/components/brand/logo";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { useAuth } from "@/components/providers/auth-provider";
 import { DEMO_EMAIL, DEMO_PASSWORD } from "@/lib/constants";
 import { resolvePostAuthRoute } from "@/lib/routes";
-import { isValidEmail, passwordError } from "@/lib/validation";
+import {
+  isValidEmail,
+  passwordError,
+  registrationEmailError
+} from "@/lib/validation";
 
 type AuthMode = "login" | "signup" | "reset";
+type AuthMethod = "email";
 type AuthErrorField =
   | "email"
   | "password"
@@ -45,6 +51,7 @@ function AuthForm() {
       ? requestedMode
       : "login";
   const [email, setEmail] = useState("");
+  const [authMethod, setAuthMethod] = useState<AuthMethod | null>(null);
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -60,7 +67,18 @@ function AuthForm() {
     setError("");
     setErrorField(null);
     setMessage("");
+    setAuthMethod(mode === "reset" ? "email" : null);
   }, [mode]);
+
+  useEffect(() => {
+    if (searchParams.get("verified") === "1") {
+      setMessage("Email verified. You can log in now.");
+    } else if (searchParams.get("verification") === "sent") {
+      setMessage(
+        "We sent a verification link to your email. Open it before logging in."
+      );
+    }
+  }, [searchParams]);
 
   const copy = useMemo(() => {
     if (mode === "signup") {
@@ -110,6 +128,13 @@ function AuthForm() {
       return;
     }
     if (mode === "signup") {
+      const emailValidation = registrationEmailError(email);
+      if (emailValidation) {
+        setError(emailValidation);
+        setErrorField("email");
+        window.requestAnimationFrame(() => emailRef.current?.focus());
+        return;
+      }
       if (!password.trim()) {
         setError("Enter a password.");
         setErrorField("password");
@@ -145,7 +170,11 @@ function AuthForm() {
         );
       } else if (mode === "signup") {
         const nextUser = await auth.register(email, password);
-        navigateAfterLogin(nextUser);
+        if (auth.mode === "firebase") {
+          router.replace("/auth?mode=login&verification=sent");
+        } else {
+          navigateAfterLogin(nextUser);
+        }
       } else {
         const nextUser = await auth.login(email, password);
         navigateAfterLogin(nextUser);
@@ -162,6 +191,28 @@ function AuthForm() {
           : mode === "login"
             ? "credentials"
             : null
+      );
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const authenticateWithoutEmailForm = async (method: "google" | "guest") => {
+    if (submitting) return;
+    setSubmitting(true);
+    setError("");
+    setMessage("");
+    try {
+      const nextUser =
+        method === "google"
+          ? await auth.signInWithGoogle()
+          : await auth.continueAsGuest();
+      navigateAfterLogin(nextUser);
+    } catch (authenticationError) {
+      setError(
+        authenticationError instanceof Error
+          ? authenticationError.message
+          : "Authentication could not be completed. Please try again."
       );
     } finally {
       setSubmitting(false);
@@ -203,7 +254,58 @@ function AuthForm() {
             {copy.description}
           </p>
 
+          {!authMethod && mode !== "reset" && (
+            <div className="mt-8 space-y-3" role="group" aria-label="Choose authentication method">
+              <p className="text-sm font-bold text-ink">
+                How would you like to {mode === "signup" ? "create your account" : "log in"}?
+              </p>
+              <button
+                type="button"
+                className="btn-secondary w-full justify-start"
+                disabled={submitting}
+                onClick={() => void authenticateWithoutEmailForm("google")}
+              >
+                <span className="grid size-5 place-items-center font-bold" aria-hidden="true">G</span>
+                Sign in with Google
+              </button>
+              <button type="button" className="btn-secondary w-full justify-start" onClick={() => setAuthMethod("email")}>
+                <Mail className="size-5" aria-hidden="true" /> Continue with email
+              </button>
+              <button
+                type="button"
+                className="btn-secondary w-full justify-start"
+                disabled={submitting}
+                onClick={() => void authenticateWithoutEmailForm("guest")}
+              >
+                <UserRound className="size-5" aria-hidden="true" /> Continue as a guest
+              </button>
+              <p className="text-xs leading-5 text-muted">
+                Guest data stays connected to this browser until you explicitly log out or clear its site data.
+              </p>
+              {error && (
+                <div className="rounded-2xl border border-clay-200 bg-clay-50 px-4 py-3 text-sm font-semibold text-clay-600" role="alert">
+                  {error}
+                </div>
+              )}
+            </div>
+          )}
+
+          {authMethod && (
           <form className="mt-8 space-y-5" onSubmit={submit} noValidate>
+            {mode !== "reset" && (
+              <button
+                type="button"
+                className="text-sm font-bold text-sage-700 underline-offset-4 hover:underline"
+                onClick={() => {
+                  setAuthMethod(null);
+                  setError("");
+                  setMessage("");
+                }}
+              >
+                Change sign-in method
+              </button>
+            )}
+            {authMethod === "email" && (
             <div>
               <label htmlFor="email" className="label">
                 Email address
@@ -244,8 +346,9 @@ function AuthForm() {
                 />
               </div>
             </div>
+            )}
 
-            {mode !== "reset" && (
+            {authMethod === "email" && mode !== "reset" && (
               <div>
                 <div className="flex items-center justify-between">
                   <label htmlFor="password" className="label">
@@ -316,7 +419,7 @@ function AuthForm() {
               </div>
             )}
 
-            {mode === "signup" && (
+            {authMethod === "email" && mode === "signup" && (
               <div>
                 <label htmlFor="confirm-password" className="label">
                   Confirm password
@@ -389,6 +492,7 @@ function AuthForm() {
               )}
             </button>
           </form>
+          )}
 
           {auth.mode === "local" && mode === "login" && (
             <div className="mt-5 rounded-2xl border border-gold-200 bg-gold-50 p-4">

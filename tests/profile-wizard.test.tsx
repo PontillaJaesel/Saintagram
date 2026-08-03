@@ -67,6 +67,7 @@ const COMPLETED_DRAFT: ProfileDraftData = {
   spiritualBio: "Learning to trust grace.",
   followers: ["Mary"],
   following: ["Jesus"],
+  onboardingPostTitles: [""],
   onboardingPosts: ["A quiet kindness"],
   heartSeeks: ["Peace"],
   hiddenStory: "A private story held before God.",
