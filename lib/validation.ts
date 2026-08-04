@@ -81,7 +81,7 @@ export function passwordError(password: string): string | null {
 export function validateImage(file: File): string | null {
   const allowed = ["image/jpeg", "image/png", "image/webp"];
   if (!allowed.includes(file.type)) return "Choose a JPG, PNG, or WebP image.";
-  if (file.size > LIMITS.imageBytes) return "Choose an image smaller than 2 MB.";
+  if (file.size > LIMITS.imageBytes) return "Choose an image no larger than 2 MB.";
   return null;
 }
 

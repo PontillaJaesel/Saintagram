@@ -7,6 +7,7 @@ import {
   linkWithPopup,
   onAuthStateChanged,
   reauthenticateWithCredential,
+  reauthenticateWithPopup,
   sendEmailVerification,
   sendPasswordResetEmail,
   signInAnonymously,
@@ -317,12 +318,14 @@ function storedReflection(
   const content = stringValue(data.content).trim();
   const createdAt = dateValue(data.createdAt);
   const updatedAt = dateValue(data.updatedAt);
+  const editedAt = dateValue(data.editedAt);
   if (
     userId !== expectedUserId ||
     !content ||
     typeof data.isPrivate !== "boolean" ||
     Number.isNaN(Date.parse(createdAt)) ||
-    Number.isNaN(Date.parse(updatedAt))
+    Number.isNaN(Date.parse(updatedAt)) ||
+    (editedAt && Number.isNaN(Date.parse(editedAt)))
   ) {
     return null;
   }
@@ -333,7 +336,8 @@ function storedReflection(
     content,
     isPrivate: data.isPrivate,
     createdAt,
-    updatedAt
+    updatedAt,
+    ...(editedAt ? { editedAt } : {})
   };
 }
 
@@ -479,6 +483,8 @@ function friendlyAuthError(error: unknown): Error {
       "That account is already connected to another Saintagram profile.",
     "auth/provider-already-linked":
       "This guest account is already connected to that sign-in method.",
+    "auth/user-mismatch":
+      "Choose the same Google account that you used to begin this profile.",
     "auth/web-storage-unsupported":
       "Authentication needs browser storage. Enable it and try again.",
     "auth/popup-blocked":
@@ -525,7 +531,7 @@ async function hasStoredProfileImageReference(userId: string): Promise<boolean> 
   );
 }
 
-async function deleteGuestOwnedDocuments(userId: string): Promise<void> {
+async function deleteFirebaseOwnedDocuments(userId: string): Promise<void> {
   const services = getFirebaseServices();
   if (!services) throw new Error("The account service is unavailable.");
 
@@ -1423,7 +1429,9 @@ export const appService = {
           where("userId", "==", userId)
         )
       );
-      posts = snapshot.docs.map((item) => item.data() as ReflectionPost);
+      posts = snapshot.docs
+        .map((item) => storedReflection(item.id, item.data(), userId))
+        .filter((post): post is ReflectionPost => Boolean(post));
     } else {
       assertLocalOwner(userId);
       posts = Object.values(
@@ -1449,10 +1457,10 @@ export const appService = {
         )
       );
       return snapshot.docs
-        .map((item) => item.data() as ReflectionPost)
-        .sort(
-          (a, b) =>
-            new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+        .map((item) => storedReflection(item.id, item.data(), userId))
+        .filter((post): post is ReflectionPost => Boolean(post))
+        .sort((a, b) =>
+          new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
         );
     }
     assertLocalOwner(userId);
@@ -1479,10 +1487,10 @@ export const appService = {
         )
       );
       return snapshot.docs
-        .map((item) => item.data() as ReflectionPost)
-        .sort(
-          (a, b) =>
-            new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+        .map((item) => storedReflection(item.id, item.data(), userId))
+        .filter((post): post is ReflectionPost => Boolean(post))
+        .sort((a, b) =>
+          new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
         );
     }
     assertLocalOwner(userId);
@@ -1508,6 +1516,11 @@ export const appService = {
     const title = cleanText(input.title ?? "", LIMITS.momentTitle);
     if (!content) throw new Error("Write a short moment before saving.");
     const now = nowIso();
+    const requestedCreatedAt = input.createdAt ?? now;
+    if (Number.isNaN(Date.parse(requestedCreatedAt))) {
+      throw new Error("Choose a valid creation date.");
+    }
+    const normalizedCreatedAt = new Date(requestedCreatedAt).toISOString();
 
     if (isFirebaseConfigured) {
       assertFirebaseOwner(userId);
@@ -1516,15 +1529,12 @@ export const appService = {
       const postRef = input.id
         ? doc(services.db, "reflectionPosts", input.id)
         : doc(collection(services.db, "reflectionPosts"));
-      let createdAt = input.createdAt ?? now;
-      let storedCreatedAt: unknown = createdAt;
+      const createdAt = normalizedCreatedAt;
       if (input.id) {
         const existing = await getDoc(postRef);
         if (!existing.exists() || existing.data().userId !== userId) {
           throw new Error("That reflection could not be found.");
         }
-        storedCreatedAt = existing.data().createdAt ?? createdAt;
-        createdAt = dateValue(storedCreatedAt) || createdAt;
       }
       const post: ReflectionPost = {
         id: postRef.id,
@@ -1533,12 +1543,14 @@ export const appService = {
         content,
         isPrivate: input.isPrivate,
         createdAt,
-        updatedAt: now
+        updatedAt: now,
+        ...(input.id ? { editedAt: now } : {})
       };
       await setDoc(postRef, {
         ...post,
-        createdAt: input.id ? storedCreatedAt : serverTimestamp(),
-        updatedAt: serverTimestamp()
+        createdAt: new Date(createdAt),
+        updatedAt: serverTimestamp(),
+        ...(input.id ? { editedAt: serverTimestamp() } : {})
       });
       return post;
     }
@@ -1552,16 +1564,20 @@ export const appService = {
       throw new Error("That reflection could not be found.");
     }
     const id = input.id ?? newId("reflection-");
+    const existingCreatedAt = input.id
+      ? reflections[input.id]?.createdAt
+      : undefined;
     const post: ReflectionPost = {
       id,
       userId,
       title,
       content,
       isPrivate: input.isPrivate,
-      createdAt: input.id
-        ? reflections[input.id].createdAt
-        : input.createdAt ?? now,
-      updatedAt: now
+      createdAt: input.createdAt
+        ? normalizedCreatedAt
+        : existingCreatedAt ?? now,
+      updatedAt: now,
+      ...(input.id ? { editedAt: now } : {})
     };
     reflections[id] = post;
     writeJson(LOCAL_KEYS.reflections, reflections);
@@ -1629,6 +1645,21 @@ export const appService = {
         );
       }
 
+      const usesGoogle = firebaseUser.providerData.some(
+        (provider) => provider.providerId === "google.com"
+      );
+      if (usesGoogle) {
+        try {
+          const provider = new GoogleAuthProvider();
+          if (firebaseUser.email) {
+            provider.setCustomParameters({ login_hint: firebaseUser.email });
+          }
+          await reauthenticateWithPopup(firebaseUser, provider);
+        } catch (reauthenticationError) {
+          throw friendlyAuthError(reauthenticationError);
+        }
+      }
+
       try {
         await deleteAllSupabaseProfileImages(userId);
       } catch (imageCleanupError) {
@@ -1640,51 +1671,21 @@ export const appService = {
         }
       }
 
-      if (firebaseUser.isAnonymous) {
-        try {
-          await deleteGuestOwnedDocuments(userId);
-          await deleteUser(firebaseUser);
-        } catch (guestCancellationError) {
-          console.error("Guest account cancellation failed.", guestCancellationError);
-          const code =
-            typeof guestCancellationError === "object" &&
-            guestCancellationError &&
-            "code" in guestCancellationError
-              ? String(guestCancellationError.code)
-              : "";
-          if (code.startsWith("auth/")) {
-            throw friendlyAuthError(guestCancellationError);
-          }
-          throw new Error(
-            "The guest account could not be removed. Please try again."
-          );
+      try {
+        await deleteFirebaseOwnedDocuments(userId);
+        await deleteUser(firebaseUser);
+      } catch (cancellationError) {
+        console.error("Account creation cancellation failed.", cancellationError);
+        const code =
+          typeof cancellationError === "object" &&
+          cancellationError &&
+          "code" in cancellationError
+            ? String(cancellationError.code)
+            : "";
+        if (code.startsWith("auth/")) {
+          throw friendlyAuthError(cancellationError);
         }
-        if (storageAvailable()) {
-          window.localStorage.removeItem(firebaseDraftCacheKey(userId));
-        }
-        return;
-      }
-
-      const idToken = await firebaseUser.getIdToken();
-      const cancellationResponse = await fetch("/api/cancel-account", {
-        method: "POST",
-        headers: { Authorization: `Bearer ${idToken}` },
-        cache: "no-store",
-        credentials: "same-origin"
-      });
-      if (!cancellationResponse.ok) {
-        let message = "";
-        try {
-          const body = (await cancellationResponse.json()) as {
-            error?: unknown;
-          };
-          if (typeof body.error === "string") message = body.error;
-        } catch {
-          // Use the safe fallback below.
-        }
-        throw new Error(
-          message || "The account could not be removed."
-        );
+        throw new Error("The account could not be removed. Please try again.");
       }
       if (storageAvailable()) {
         window.localStorage.removeItem(firebaseDraftCacheKey(userId));

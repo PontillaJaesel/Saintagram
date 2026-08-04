@@ -41,7 +41,7 @@ export function AccessGate() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          code,
+          code: code.trim(),
           next: getSafeAccessDestination(searchParams.get("next"))
         })
       });

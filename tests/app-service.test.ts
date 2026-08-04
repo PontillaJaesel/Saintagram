@@ -122,4 +122,36 @@ describe("local profile persistence", () => {
     expect(posts).toHaveLength(1);
     expect(posts[0].content).toBe("A synchronized reflection.");
   });
+
+  it("saves and updates a reflection's chosen date", async () => {
+    const user = await appService.register(
+      "reflection-date@example.test",
+      "Faithful123"
+    );
+    const originalDate = "2026-05-10T12:00:00.000Z";
+    const changedDate = "2026-04-02T12:00:00.000Z";
+    const created = await appService.saveReflection(user.id, {
+      content: "A remembered moment.",
+      isPrivate: false,
+      createdAt: originalDate
+    });
+
+    expect(created.createdAt).toBe(originalDate);
+    expect(created.editedAt).toBeUndefined();
+
+    const updated = await appService.saveReflection(user.id, {
+      id: created.id,
+      content: created.content,
+      isPrivate: created.isPrivate,
+      createdAt: changedDate
+    });
+
+    expect(updated.createdAt).toBe(changedDate);
+    expect(updated.editedAt).toBeDefined();
+    await expect(appService.getReflections(user.id)).resolves.toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ id: created.id, createdAt: changedDate })
+      ])
+    );
+  });
 });

@@ -17,7 +17,6 @@ const mocks = vi.hoisted(() => {
   const list = vi.fn();
   const from = vi.fn(() => ({ upload, download, remove, list }));
   const getIdToken = vi.fn();
-  const getIdTokenResult = vi.fn();
   return {
     upload,
     download,
@@ -25,12 +24,10 @@ const mocks = vi.hoisted(() => {
     list,
     from,
     getIdToken,
-    getIdTokenResult,
     supabaseConfigured: true,
     currentUser: {
       uid: "alice",
-      getIdToken,
-      getIdTokenResult
+      getIdToken
     }
   };
 });
@@ -66,9 +63,6 @@ describe("Supabase profile-image storage", () => {
     mocks.currentUser.uid = "alice";
     mocks.supabaseConfigured = true;
     mocks.getIdToken.mockResolvedValue("header.payload.signature");
-    mocks.getIdTokenResult.mockResolvedValue({
-      claims: { role: "authenticated" }
-    });
     mocks.upload.mockResolvedValue({ data: {}, error: null });
     mocks.download.mockResolvedValue({
       data: new Blob(["image"], { type: "image/png" }),
@@ -133,85 +127,21 @@ describe("Supabase profile-image storage", () => {
     );
   });
 
-  it("force-refreshes a missing Firebase role before downloading", async () => {
-    mocks.getIdTokenResult
-      .mockResolvedValueOnce({ claims: {} })
-      .mockResolvedValueOnce({ claims: { role: "authenticated" } });
-
+  it("uses the Firebase token directly without provisioning a custom role", async () => {
     await expect(
       downloadSupabaseProfileImage(VALID_IMAGE_PATH)
     ).resolves.toEqual(expect.any(Blob));
-    expect(mocks.getIdTokenResult).toHaveBeenNthCalledWith(1);
-    expect(mocks.getIdTokenResult).toHaveBeenNthCalledWith(2, true);
+    expect(mocks.getIdToken).toHaveBeenCalledOnce();
     expect(mocks.download).toHaveBeenCalledWith(VALID_IMAGE_PATH);
     expect(fetch).not.toHaveBeenCalled();
   });
 
-  it("automatically enables image access and refreshes the Firebase token", async () => {
-    mocks.getIdTokenResult
-      .mockResolvedValueOnce({ claims: {} })
-      .mockResolvedValueOnce({ claims: {} })
-      .mockResolvedValueOnce({ claims: { role: "authenticated" } });
-
-    await expect(
-      downloadSupabaseProfileImage(VALID_IMAGE_PATH)
-    ).resolves.toEqual(expect.any(Blob));
-
-    expect(mocks.getIdToken).toHaveBeenCalledOnce();
-    expect(fetch).toHaveBeenCalledWith(
-      "/api/image-access",
-      expect.objectContaining({
-        method: "POST",
-        headers: {
-          Authorization: "Bearer header.payload.signature"
-        },
-        cache: "no-store",
-        credentials: "same-origin"
-      })
-    );
-    expect(mocks.getIdTokenResult).toHaveBeenNthCalledWith(3, true);
-    expect(mocks.download).toHaveBeenCalledWith(VALID_IMAGE_PATH);
-  });
-
-  it("fails closed when automatic image-access setup is rejected", async () => {
-    mocks.getIdTokenResult.mockResolvedValue({ claims: {} });
-    vi.mocked(fetch).mockResolvedValueOnce(
-      new Response(
-        JSON.stringify({
-          error:
-            "Automatic image access setup is unavailable. Please contact the site owner."
-        }),
-        {
-          status: 503,
-          headers: { "Content-Type": "application/json" }
-        }
-      )
-    );
-
-    await expect(
-      downloadSupabaseProfileImage(VALID_IMAGE_PATH)
-    ).rejects.toThrow(/automatic image access setup is unavailable/i);
-    expect(mocks.download).not.toHaveBeenCalled();
-  });
-
-  it("fails closed if the refreshed token still lacks the claim", async () => {
-    mocks.getIdTokenResult.mockResolvedValue({ claims: {} });
-
-    await expect(
-      downloadSupabaseProfileImage(VALID_IMAGE_PATH)
-    ).rejects.toThrow(/refreshed sign-in session is missing/i);
-    expect(fetch).toHaveBeenCalledOnce();
-    expect(mocks.download).not.toHaveBeenCalled();
-  });
-
   it("reports missing Supabase configuration before changing claims", async () => {
     mocks.supabaseConfigured = false;
-    mocks.getIdTokenResult.mockResolvedValue({ claims: {} });
-
     await expect(
       downloadSupabaseProfileImage(VALID_IMAGE_PATH)
     ).rejects.toThrow(/Supabase image storage is not configured/i);
-    expect(mocks.getIdTokenResult).not.toHaveBeenCalled();
+    expect(mocks.getIdToken).not.toHaveBeenCalled();
     expect(fetch).not.toHaveBeenCalled();
   });
 
@@ -223,6 +153,64 @@ describe("Supabase profile-image storage", () => {
       )
     ).rejects.toThrow(/does not belong/i);
     expect(mocks.remove).not.toHaveBeenCalled();
+  });
+
+  it("deletes an image from the signed-in owner's storage folder", async () => {
+    await expect(
+      deleteSupabaseProfileImage("alice", VALID_IMAGE_PATH)
+    ).resolves.toBeUndefined();
+
+    expect(mocks.getIdToken).toHaveBeenCalledOnce();
+    expect(mocks.from).toHaveBeenCalledWith("profile-images");
+    expect(mocks.remove).toHaveBeenCalledWith([VALID_IMAGE_PATH]);
+  });
+
+  it("reports an actionable error when refreshed image access is rejected", async () => {
+    const policyError = {
+      statusCode: "403",
+      message: "new row violates row-level security policy"
+    };
+    mocks.upload
+      .mockResolvedValueOnce({ data: null, error: policyError })
+      .mockResolvedValueOnce({ data: null, error: policyError });
+    const file = new File(["image"], "avatar.png", { type: "image/png" });
+
+    await expect(uploadSupabaseProfileImage("alice", file)).rejects.toThrow(
+      /apply the Supabase image-access migration/i
+    );
+  });
+
+  it("refreshes the Firebase token and retries upload without a server auth call", async () => {
+    mocks.upload
+      .mockResolvedValueOnce({
+        data: null,
+        error: {
+          statusCode: "403",
+          message: "new row violates row-level security policy"
+        }
+      })
+      .mockResolvedValueOnce({ data: {}, error: null });
+    const file = new File(["image"], "avatar.png", { type: "image/png" });
+
+    await expect(uploadSupabaseProfileImage("alice", file)).resolves.toMatch(
+      /^users\/alice\/profile\//
+    );
+
+    expect(mocks.getIdToken).toHaveBeenCalledWith(true);
+    expect(mocks.upload).toHaveBeenCalledTimes(2);
+    expect(fetch).not.toHaveBeenCalled();
+  });
+
+  it("reports an actionable error when the private bucket is missing", async () => {
+    mocks.upload.mockResolvedValueOnce({
+      data: null,
+      error: { statusCode: "404", message: "Bucket not found" }
+    });
+    const file = new File(["image"], "avatar.png", { type: "image/png" });
+
+    await expect(uploadSupabaseProfileImage("alice", file)).rejects.toThrow(
+      /private image bucket is missing/i
+    );
   });
 
   it("removes every listed object during account deletion", async () => {

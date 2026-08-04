@@ -134,7 +134,7 @@ describe("image validation", () => {
     );
 
     expect(validateImage(file)).toBe(
-      "Choose an image smaller than 2 MB."
+      "Choose an image no larger than 2 MB."
     );
   });
 });

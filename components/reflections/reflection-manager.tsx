@@ -139,7 +139,7 @@ export function ReflectionManager() {
         title,
         content,
         isPrivate,
-        createdAt: editing ? editing.createdAt : createdAt
+        createdAt
       });
       if (saved.isPrivate) {
         if (privateUnlocked) {
@@ -345,7 +345,6 @@ export function ReflectionManager() {
                     setErrorField(null);
                   }
                 }}
-                disabled={Boolean(editing)}
                 required
                 aria-invalid={errorField === "date"}
                 aria-describedby={
@@ -353,11 +352,6 @@ export function ReflectionManager() {
                 }
               />
             </div>
-            {editing && (
-              <p className="mt-2 text-xs text-muted">
-                The original creation date is preserved when editing.
-              </p>
-            )}
           </div>
 
           <label className="mt-5 flex cursor-pointer items-start gap-3 rounded-2xl border border-sage-200 p-4 transition hover:border-sage-400">

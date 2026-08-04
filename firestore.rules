@@ -278,10 +278,12 @@ service cloud.firestore {
       return data.keys().hasOnly([
           'id',
           'userId',
+          'title',
           'content',
           'isPrivate',
           'createdAt',
-          'updatedAt'
+          'updatedAt',
+          'editedAt'
         ])
         && data.keys().hasAll([
           'id',
@@ -299,7 +301,8 @@ service cloud.firestore {
         && data.content.size() > 0
         && data.isPrivate is bool
         && isIsoDate(data.createdAt)
-        && isIsoDate(data.updatedAt);
+        && isIsoDate(data.updatedAt)
+        && (!('editedAt' in data) || isIsoDate(data.editedAt));
     }
 
     // Account metadata is private and keyed by the Firebase Authentication UID.
@@ -418,7 +421,6 @@ service cloud.firestore {
         && ownsIncomingDocument()
         && request.resource.data.id == resource.data.id
         && request.resource.data.userId == resource.data.userId
-        && request.resource.data.createdAt == resource.data.createdAt
         && hasValidReflectionShape(request.resource.data);
 
       allow delete: if ownsExistingDocument();

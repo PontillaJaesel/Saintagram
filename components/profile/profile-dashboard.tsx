@@ -844,7 +844,14 @@ export function ProfileDashboard() {
                     <div className="mt-5 space-y-3">
                       {privatePosts.length ? (
                         privatePosts.map((post) => (
-                          <ReflectionCard key={post.id} post={post} />
+                          <ReflectionCard
+                            key={post.id}
+                            post={post}
+                            showDate={
+                              user?.privacyPreferences?.showReflectionDates ??
+                              true
+                            }
+                          />
                         ))
                       ) : (
                         <EmptyState
