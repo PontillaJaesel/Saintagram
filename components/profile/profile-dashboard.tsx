@@ -176,11 +176,26 @@ export function ProfileDashboard() {
         : "Date";
 
   const choosePreset = (preset: "week" | "month" | "year") => {
-    const end = new Date();
-    const start = new Date(end);
-    if (preset === "week") start.setDate(end.getDate() - 6);
-    if (preset === "month") start.setMonth(end.getMonth() - 1);
-    if (preset === "year") start.setFullYear(end.getFullYear() - 1);
+    const today = new Date();
+    let start: Date;
+    let end: Date;
+    if (preset === "week") {
+      const currentWeekStart = new Date(
+        today.getFullYear(),
+        today.getMonth(),
+        today.getDate() - today.getDay()
+      );
+      end = new Date(currentWeekStart);
+      end.setDate(currentWeekStart.getDate() - 1);
+      start = new Date(end);
+      start.setDate(end.getDate() - 6);
+    } else if (preset === "month") {
+      start = new Date(today.getFullYear(), today.getMonth() - 1, 1);
+      end = new Date(today.getFullYear(), today.getMonth(), 0);
+    } else {
+      start = new Date(today.getFullYear() - 1, 0, 1);
+      end = new Date(today.getFullYear() - 1, 11, 31);
+    }
     setDatePreset(preset);
     setDraftDateStart(dateInputValue(start));
     setDraftDateEnd(dateInputValue(end));
