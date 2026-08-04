@@ -256,7 +256,7 @@ export function ProfileDashboard() {
               <span className="absolute right-0.5 top-0.5 size-2.5 rounded-full border-2 border-paper bg-sage-500" aria-hidden="true" />
             )}
           </summary>
-          <div className="absolute right-0 z-30 mt-2 w-[min(34rem,calc(100vw-2rem))] overflow-hidden rounded-2xl border border-sage-100 bg-paper shadow-lift sm:grid sm:grid-cols-[9.5rem_1fr]">
+          <div className="fixed inset-x-4 top-1/2 z-50 max-h-[calc(100dvh-2rem)] -translate-y-1/2 overflow-x-hidden overflow-y-auto rounded-2xl border border-sage-100 bg-paper shadow-lift sm:absolute sm:inset-x-auto sm:right-0 sm:top-full sm:mt-2 sm:w-[min(34rem,calc(100vw-2rem))] sm:translate-y-0 sm:grid-cols-[9.5rem_1fr] sm:grid">
             <div className="flex flex-col border-b border-sage-100 p-3 sm:border-b-0 sm:border-r">
               <div className="grid grid-cols-2 gap-1 sm:grid-cols-1">
                 {([['week', 'Last Week'], ['month', 'Last Month'], ['year', 'Last Year'], ['custom', 'Custom']] as const).map(([value, label]) => (
@@ -574,7 +574,7 @@ export function ProfileDashboard() {
           </div>
         </section>
 
-        <section className="overflow-hidden">
+        <section className="overflow-visible">
           <div
             className="relative grid grid-cols-3 border-b border-sage-100"
             role="tablist"
@@ -641,7 +641,7 @@ export function ProfileDashboard() {
                   </p>
                 )}
                 {filteredPosts.length ? (
-                  <div className="space-y-3">
+                  <div className="profile-scroll max-h-[min(60vh,42rem)] space-y-3 overflow-y-auto overscroll-contain pr-2" tabIndex={0} aria-label="Reflection search results">
                     {filteredPosts.map((post) => (
                       <ReflectionCard
                         key={post.id}

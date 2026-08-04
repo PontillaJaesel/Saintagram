@@ -363,6 +363,31 @@ body {
     word-break: break-word;
   }
 
+  .profile-scroll {
+    scrollbar-width: thin;
+    scrollbar-color: rgb(var(--sage-300)) transparent;
+  }
+
+  .profile-scroll::-webkit-scrollbar {
+    width: 8px;
+  }
+
+  .profile-scroll::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  .profile-scroll::-webkit-scrollbar-thumb {
+    border: 2px solid transparent;
+    border-radius: 999px;
+    background: rgb(var(--sage-300));
+    background-clip: padding-box;
+  }
+
+  .profile-scroll::-webkit-scrollbar-thumb:hover {
+    background: rgb(var(--sage-500));
+    background-clip: padding-box;
+  }
+
   .theme-toggle-label {
     @apply hidden pr-1 text-xs font-bold xl:inline;
   }
