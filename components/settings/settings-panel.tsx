@@ -108,11 +108,8 @@ export function SettingsPanel() {
   const [privateCheckEnabled, setPrivateCheckEnabled] = useState(
     user?.privacyPreferences?.requirePrivateCheck ?? true
   );
-  const [reflectionDatesEnabled, setReflectionDatesEnabled] = useState(
-    user?.privacyPreferences?.showReflectionDates ?? true
-  );
   const [privacyPreferenceBusy, setPrivacyPreferenceBusy] = useState<
-    "requirePrivateCheck" | "showReflectionDates" | null
+    "requirePrivateCheck" | null
   >(null);
 
   useEffect(() => {
@@ -121,15 +118,9 @@ export function SettingsPanel() {
         user?.privacyPreferences?.requirePrivateCheck ?? true
       );
     }
-    if (privacyPreferenceBusy !== "showReflectionDates") {
-      setReflectionDatesEnabled(
-        user?.privacyPreferences?.showReflectionDates ?? true
-      );
-    }
   }, [
     privacyPreferenceBusy,
-    user?.privacyPreferences?.requirePrivateCheck,
-    user?.privacyPreferences?.showReflectionDates
+    user?.privacyPreferences?.requirePrivateCheck
   ]);
 
   if (!user) return null;
@@ -187,17 +178,16 @@ export function SettingsPanel() {
   };
 
   const updatePrivacyPreference = async (
-    preference: "requirePrivateCheck" | "showReflectionDates",
+    preference: "requirePrivateCheck",
     value: boolean
   ) => {
     if (privacyPreferenceBusy) return;
     const previous = {
       requirePrivateCheck: privateCheckEnabled,
-      showReflectionDates: reflectionDatesEnabled
+      showReflectionDates: user.privacyPreferences?.showReflectionDates ?? true
     };
     const next = { ...previous, [preference]: value };
     setPrivateCheckEnabled(next.requirePrivateCheck);
-    setReflectionDatesEnabled(next.showReflectionDates);
     setPrivacyPreferenceBusy(preference);
     try {
       await updateUser({
@@ -206,7 +196,6 @@ export function SettingsPanel() {
       notify("Privacy preference saved.");
     } catch (preferenceError) {
       setPrivateCheckEnabled(previous.requirePrivateCheck);
-      setReflectionDatesEnabled(previous.showReflectionDates);
       notify(
         preferenceError instanceof Error
           ? preferenceError.message
@@ -603,34 +592,6 @@ export function SettingsPanel() {
               onChange={(event) =>
                 void updatePrivacyPreference(
                   "requirePrivateCheck",
-                  event.target.checked
-                )
-              }
-            />
-          </label>
-          <label
-            className={`flex cursor-pointer items-start justify-between gap-4 rounded-2xl border border-sage-100 p-4 transition hover:border-sage-300 ${
-              privacyPreferenceBusy === "showReflectionDates"
-                ? "cursor-wait opacity-70"
-                : ""
-            }`}
-          >
-            <span>
-              <span className="block text-sm font-bold text-ink">
-                Show dates on profile reflections
-              </span>
-              <span className="mt-1 block text-xs leading-5 text-muted">
-                Dates remain visible only to you.
-              </span>
-            </span>
-            <input
-              type="checkbox"
-              className="mt-1 size-5 shrink-0 accent-sage-700"
-              checked={reflectionDatesEnabled}
-              disabled={Boolean(privacyPreferenceBusy)}
-              onChange={(event) =>
-                void updatePrivacyPreference(
-                  "showReflectionDates",
                   event.target.checked
                 )
               }
