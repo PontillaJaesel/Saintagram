@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ArrowRight, Heart, Sparkles } from "lucide-react";
 import { RouteGuard } from "@/components/auth/route-guard";
@@ -40,12 +39,7 @@ function IntroductionContent() {
       />
       <header className="relative mx-auto flex max-w-5xl items-center justify-between">
         <Logo />
-        <div className="flex items-center gap-2">
-          <ThemeToggle />
-          <Link href="/settings" className="btn-quiet">
-            Account
-          </Link>
-        </div>
+        <ThemeToggle />
       </header>
       <section className="relative mx-auto flex min-h-[calc(100vh-5rem)] max-w-4xl flex-col items-center justify-center py-12 text-center">
         <div className="grid size-14 place-items-center rounded-2xl bg-sage-700 text-gold-200 shadow-lift">
@@ -67,13 +61,8 @@ function IntroductionContent() {
             <div>
               <h2 className="font-serif text-2xl font-bold">Come without a filter.</h2>
               <p className="mt-3 text-base leading-7 text-muted">
-                Humility is not thinking less of yourself. It is being honest
-                before God: recognizing your need for Him, receiving what is
-                true, and letting go of the pressure to present a perfect image.
-              </p>
-              <p className="mt-3 text-base leading-7 text-muted">
-                As you build this profile, there are no impressive answers to
-                give. Bring the person God already sees—and already loves.
+                Be honest before God without trying to appear perfect. Simply
+                bring the person He already sees and loves.
               </p>
             </div>
           </div>

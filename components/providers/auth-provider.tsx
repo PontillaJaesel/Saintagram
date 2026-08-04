@@ -140,6 +140,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     beginIntentionalAuthExit();
     try {
       await appService.deleteAllUserData(user.id, currentPassword);
+      beginIntentionalAuthExit();
       setUser(null);
     } catch (error) {
       cancelIntentionalAuthExit();
@@ -152,6 +153,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     beginIntentionalAuthExit();
     try {
       await appService.cancelAccountCreation(user.id);
+      beginIntentionalAuthExit();
       setUser(null);
     } catch (error) {
       cancelIntentionalAuthExit();

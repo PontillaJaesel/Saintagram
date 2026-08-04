@@ -1,10 +1,9 @@
 "use client";
 
-import { FormEvent, useRef, useState } from "react";
+import { FormEvent, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   CalendarDays,
-  Check,
   Database,
   Download,
   EyeOff,
@@ -106,6 +105,32 @@ export function SettingsPanel() {
   const [guestConfirmPassword, setGuestConfirmPassword] = useState("");
   const [guestUpgradeBusy, setGuestUpgradeBusy] = useState(false);
   const [guestUpgradeError, setGuestUpgradeError] = useState("");
+  const [privateCheckEnabled, setPrivateCheckEnabled] = useState(
+    user?.privacyPreferences?.requirePrivateCheck ?? true
+  );
+  const [reflectionDatesEnabled, setReflectionDatesEnabled] = useState(
+    user?.privacyPreferences?.showReflectionDates ?? true
+  );
+  const [privacyPreferenceBusy, setPrivacyPreferenceBusy] = useState<
+    "requirePrivateCheck" | "showReflectionDates" | null
+  >(null);
+
+  useEffect(() => {
+    if (privacyPreferenceBusy !== "requirePrivateCheck") {
+      setPrivateCheckEnabled(
+        user?.privacyPreferences?.requirePrivateCheck ?? true
+      );
+    }
+    if (privacyPreferenceBusy !== "showReflectionDates") {
+      setReflectionDatesEnabled(
+        user?.privacyPreferences?.showReflectionDates ?? true
+      );
+    }
+  }, [
+    privacyPreferenceBusy,
+    user?.privacyPreferences?.requirePrivateCheck,
+    user?.privacyPreferences?.showReflectionDates
+  ]);
 
   if (!user) return null;
 
@@ -161,22 +186,35 @@ export function SettingsPanel() {
     }
   };
 
-  const updateDatesPreference = async (showReflectionDates: boolean) => {
+  const updatePrivacyPreference = async (
+    preference: "requirePrivateCheck" | "showReflectionDates",
+    value: boolean
+  ) => {
+    if (privacyPreferenceBusy) return;
+    const previous = {
+      requirePrivateCheck: privateCheckEnabled,
+      showReflectionDates: reflectionDatesEnabled
+    };
+    const next = { ...previous, [preference]: value };
+    setPrivateCheckEnabled(next.requirePrivateCheck);
+    setReflectionDatesEnabled(next.showReflectionDates);
+    setPrivacyPreferenceBusy(preference);
     try {
       await updateUser({
-        privacyPreferences: {
-          requirePrivateCheck: true,
-          showReflectionDates
-        }
+        privacyPreferences: next
       });
       notify("Privacy preference saved.");
     } catch (preferenceError) {
+      setPrivateCheckEnabled(previous.requirePrivateCheck);
+      setReflectionDatesEnabled(previous.showReflectionDates);
       notify(
         preferenceError instanceof Error
           ? preferenceError.message
           : "The preference could not be saved.",
         "error"
       );
+    } finally {
+      setPrivacyPreferenceBusy(null);
     }
   };
 
@@ -542,22 +580,41 @@ export function SettingsPanel() {
         icon={ShieldCheck}
       >
         <div className="space-y-3">
-          <div className="flex items-start gap-3 rounded-2xl border border-sage-100 bg-sage-50 p-4">
-            <Check
-              className="mt-0.5 size-5 shrink-0 text-sage-600"
-              aria-hidden="true"
+          <label
+            className={`flex cursor-pointer items-start justify-between gap-4 rounded-2xl border border-sage-100 p-4 transition hover:border-sage-300 ${
+              privacyPreferenceBusy === "requirePrivateCheck"
+                ? "cursor-wait opacity-70"
+                : ""
+            }`}
+          >
+            <span>
+              <span className="block text-sm font-bold text-ink">
+                Confirm before opening private content
+              </span>
+              <span className="mt-1 block text-xs leading-5 text-muted">
+                Ask before showing private content.
+              </span>
+            </span>
+            <input
+              type="checkbox"
+              className="mt-1 size-5 shrink-0 accent-sage-700"
+              checked={privateCheckEnabled}
+              disabled={Boolean(privacyPreferenceBusy)}
+              onChange={(event) =>
+                void updatePrivacyPreference(
+                  "requirePrivateCheck",
+                  event.target.checked
+                )
+              }
             />
-            <div>
-              <p className="text-sm font-bold text-ink">
-                Private view confirmation is always on
-              </p>
-              <p className="mt-1 text-xs leading-5 text-muted">
-                Hidden Stories and private entries require an additional
-                privacy check and are cleared from view when you leave the tab.
-              </p>
-            </div>
-          </div>
-          <label className="flex cursor-pointer items-start justify-between gap-4 rounded-2xl border border-sage-100 p-4 hover:border-sage-300">
+          </label>
+          <label
+            className={`flex cursor-pointer items-start justify-between gap-4 rounded-2xl border border-sage-100 p-4 transition hover:border-sage-300 ${
+              privacyPreferenceBusy === "showReflectionDates"
+                ? "cursor-wait opacity-70"
+                : ""
+            }`}
+          >
             <span>
               <span className="block text-sm font-bold text-ink">
                 Show dates on profile reflections
@@ -569,11 +626,13 @@ export function SettingsPanel() {
             <input
               type="checkbox"
               className="mt-1 size-5 shrink-0 accent-sage-700"
-              checked={
-                user.privacyPreferences?.showReflectionDates ?? true
-              }
+              checked={reflectionDatesEnabled}
+              disabled={Boolean(privacyPreferenceBusy)}
               onChange={(event) =>
-                void updateDatesPreference(event.target.checked)
+                void updatePrivacyPreference(
+                  "showReflectionDates",
+                  event.target.checked
+                )
               }
             />
           </label>

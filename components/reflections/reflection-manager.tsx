@@ -415,7 +415,7 @@ export function ReflectionManager() {
               Reflections
             </h2>
             <p className="mt-1 text-sm text-muted">
-              Newest first, with no reactions or engagement totals.
+              Your newest reflections first.
             </p>
           </div>
           {privateUnlocked ? (
@@ -427,7 +427,13 @@ export function ReflectionManager() {
             <button
               type="button"
               className="btn-secondary"
-              onClick={() => setPrivacyDialog(true)}
+              onClick={() => {
+                if (user?.privacyPreferences?.requirePrivateCheck ?? true) {
+                  setPrivacyDialog(true);
+                } else {
+                  void unlockPrivate();
+                }
+              }}
               disabled={privateLoading}
             >
               <ShieldCheck className="size-4" aria-hidden="true" />

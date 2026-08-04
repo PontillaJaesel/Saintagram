@@ -95,6 +95,10 @@ const PRIVATE_REFLECTION: ReflectionPost = {
 
 describe("ProfileDashboard private content", () => {
   beforeEach(() => {
+    TEST_USER.privacyPreferences = {
+      requirePrivateCheck: true,
+      showReflectionDates: true
+    };
     mocks.getProfileView.mockResolvedValue({
       ...PROFILE,
       hiddenStory: PUBLIC_VIEW_SECRET
@@ -157,5 +161,26 @@ describe("ProfileDashboard private content", () => {
     expect(await screen.findByText(PRIVATE_STORY)).toBeInTheDocument();
     expect(screen.getByText(PRIVATE_POST)).toBeInTheDocument();
     expect(screen.queryByText(PUBLIC_VIEW_SECRET)).not.toBeInTheDocument();
+  });
+
+  it("opens private content directly when confirmation is disabled", async () => {
+    TEST_USER.privacyPreferences = {
+      requirePrivateCheck: false,
+      showReflectionDates: true
+    };
+    const user = userEvent.setup();
+    render(<ProfileDashboard />);
+
+    await screen.findByRole("heading", { name: PROFILE.profileName });
+    await user.click(
+      screen.getByRole("tab", { name: "Private Reflections" })
+    );
+    await user.click(screen.getByRole("button", { name: "Privacy check" }));
+
+    expect(
+      screen.queryByRole("alertdialog", { name: "Is this a private moment?" })
+    ).not.toBeInTheDocument();
+    expect(await screen.findByText(PRIVATE_STORY)).toBeInTheDocument();
+    expect(screen.getByText(PRIVATE_POST)).toBeInTheDocument();
   });
 });

@@ -208,7 +208,7 @@ export function ImageSymbolPicker({
           disabled={uploading || (!imagePath && !selectedSymbol)}
         >
           <Trash2 className="size-4" aria-hidden="true" />
-          Skip image
+          Delete image
         </button>
       </div>
       <p className="mt-3 text-xs leading-5 text-muted">

@@ -84,9 +84,7 @@ function AuthForm() {
     if (mode === "signup") {
       return {
         eyebrow: "Create your private space",
-        title: "Begin as you are.",
-        description:
-          "Your profile is for reflection—not performance. Each guided step asks for an honest answer."
+        title: "Begin as you are."
       };
     }
     if (mode === "reset") {
@@ -99,9 +97,7 @@ function AuthForm() {
     }
     return {
       eyebrow: "Welcome back",
-      title: "Return to your reflection.",
-      description:
-        "Your quiet space is waiting, with no feed to catch up on and no numbers to chase."
+      title: "Return to your reflection."
     };
   }, [mode]);
 
@@ -267,9 +263,11 @@ function AuthForm() {
           <h1 className="mt-3 font-serif text-4xl font-bold tracking-tight sm:text-5xl">
             {copy.title}
           </h1>
-          <p className="mt-4 text-base leading-7 text-muted">
-            {copy.description}
-          </p>
+          {copy.description && (
+            <p className="mt-4 text-base leading-7 text-muted">
+              {copy.description}
+            </p>
+          )}
 
           {!authMethod && mode !== "reset" && (
             <div className="mt-8 space-y-3" role="group" aria-label="Choose authentication method">

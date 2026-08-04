@@ -7,7 +7,7 @@ export default function ReflectPage() {
     <RouteGuard requireProfile>
       <AppShell
         title="Reflect"
-        description="A private place to notice moments that mattered—even when no one applauded."
+        description="A private place for meaningful moments."
       >
         <ReflectionManager />
       </AppShell>

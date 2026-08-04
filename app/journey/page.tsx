@@ -7,7 +7,7 @@ export default function JourneyPage() {
     <RouteGuard requireProfile>
       <AppShell
         title="Spiritual Journey"
-        description="Look back with compassion at how your reflections and profile have grown."
+        description="See how your profile and reflections have grown."
       >
         <JourneyTimeline />
       </AppShell>

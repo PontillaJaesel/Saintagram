@@ -143,8 +143,7 @@ export function JourneyTimeline() {
             Your spiritual timeline
           </h2>
           <p className="mt-2 text-sm leading-6 text-muted">
-            Newest first. There are no streaks to protect and no missed days to
-            make up.
+            Your newest moments first.
           </p>
         </div>
         <ol className="relative ml-4 border-l-2 border-sage-100 pl-8">

@@ -1,7 +1,6 @@
 "use client";
 
 import { useRef, useState } from "react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
   ArrowRight,
@@ -49,21 +48,21 @@ function PrivacyContent() {
   const points = [
     {
       icon: ShieldCheck,
-      title: "Personal spiritual reflection",
+      title: "You may enter sensitive personal information",
       description:
-        "Saintagram is a private space for honest prayer and reflection, not public posting."
+        "Your profile and reflections may include details about your faith, identity, relationships, struggles, hopes, private experiences, and any profile image you choose to upload."
     },
     {
       icon: LockKeyhole,
-      title: "You control what is saved",
+      title: "Your answers will not be used against you",
       description:
-        "Each profile question must be answered before moving forward, and you may return to revise an earlier answer."
+        "Saintagram uses what you save only to provide your personal profile and reflection experience. Your answers are not scored, ranked, diagnosed, used to punish you, or used to make decisions about your access to the app."
     },
     {
       icon: EyeOff,
-      title: "Hidden means private",
+      title: "Your saved data is account-only",
       description:
-        "Hidden Stories and private reflections are kept out of your normal profile, previews, and any public view."
+        "Your profile, drafts, Hidden Story, images, and reflections are available only to your signed-in account. Hidden and private entries are also kept out of your normal profile view."
     }
   ];
 
@@ -71,12 +70,7 @@ function PrivacyContent() {
     <main className="min-h-screen px-5 py-5 sm:px-8 sm:py-7">
       <header className="mx-auto flex max-w-5xl items-center justify-between">
         <Logo />
-        <div className="flex items-center gap-2">
-          <ThemeToggle />
-          <Link href="/settings" className="btn-quiet">
-            Account
-          </Link>
-        </div>
+        <ThemeToggle />
       </header>
       <div className="mx-auto grid max-w-5xl gap-8 py-10 lg:grid-cols-[.72fr_1.28fr] lg:py-16">
         <div>
@@ -122,13 +116,15 @@ function PrivacyContent() {
           </div>
 
           <div className="mt-6 rounded-2xl border border-clay-200 bg-clay-50 p-5">
-            <p className="text-sm font-bold text-clay-600">Please remember</p>
+            <p className="text-sm font-bold text-clay-600">
+              Please read before sharing
+            </p>
             <ul className="mt-3 space-y-2 text-sm leading-6 text-ink">
               {[
-                "Each profile step explains what answer is needed to continue.",
-                "You can return to an earlier step and revise your response.",
-                "Private content must never appear in a public or shareable view.",
-                "You can export or delete your personal data in Settings."
+                "Share only information you are comfortable storing in the app.",
+                "Do not enter passwords, financial details, government identification numbers, or information that could put you or someone else at risk.",
+                "Anyone with access to your signed-in account, device, or exported archive may be able to read your saved information.",
+                "You can export your data or permanently delete your account and saved information in Settings."
               ].map((item) => (
                 <li key={item} className="flex gap-2">
                   <Check

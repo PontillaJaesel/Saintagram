@@ -339,9 +339,13 @@ body {
     @apply translate-x-4 bg-sage-900 text-gold-300 sm:translate-x-5;
   }
 
-  :root[data-theme="dark"] .btn-primary,
-  :root[data-theme="dark"] .chip-selected {
+  :root[data-theme="dark"] .btn-primary {
     color: #2d312f;
+  }
+
+  :root[data-theme="dark"] .chip-selected {
+    background-color: rgb(var(--sage-800));
+    color: rgb(var(--ink));
   }
 
   :root[data-theme="dark"] .bg-white {

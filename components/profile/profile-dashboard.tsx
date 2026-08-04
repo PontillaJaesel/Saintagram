@@ -794,7 +794,15 @@ export function ProfileDashboard() {
                     <button
                       type="button"
                       className="btn-primary mt-5"
-                      onClick={() => setPrivacyDialog(true)}
+                      onClick={() => {
+                        if (
+                          user?.privacyPreferences?.requirePrivateCheck ?? true
+                        ) {
+                          setPrivacyDialog(true);
+                        } else {
+                          void unlockPrivate();
+                        }
+                      }}
                     >
                       <ShieldCheck className="size-4" aria-hidden="true" />
                       Privacy check
@@ -879,20 +887,11 @@ export function ProfileDashboard() {
       <ConfirmDialog
         open={privacyDialog}
         title="Is this a private moment?"
-        description="Private content may be sensitive. Confirm that you are in a place where only you can read the screen."
+        description="Make sure only you can see your screen."
         confirmLabel="Open private reflections"
         onClose={() => setPrivacyDialog(false)}
         onConfirm={() => void unlockPrivate()}
-      >
-        <div className="flex items-start gap-3 rounded-2xl bg-clay-50 p-4 text-sm leading-6 text-muted">
-          <ShieldCheck
-            className="mt-0.5 size-5 shrink-0 text-clay-600"
-            aria-hidden="true"
-          />
-          This confirmation adds visual privacy. Your account ownership remains
-          protected separately by database rules and storage policies.
-        </div>
-      </ConfirmDialog>
+      />
     </div>
   );
 }
