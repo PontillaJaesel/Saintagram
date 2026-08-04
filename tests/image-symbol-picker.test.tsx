@@ -113,6 +113,25 @@ describe("ImageSymbolPicker upload lifecycle", () => {
     expect(mocks.uploadProfileImage).not.toHaveBeenCalled();
   });
 
+  it("clears and deletes the selected uploaded image", async () => {
+    const user = userEvent.setup();
+    const onChange = vi.fn<PickerChange>();
+    renderPicker({ imagePath: IMAGE_PATH, onChange });
+
+    await user.click(screen.getByRole("button", { name: "Delete image" }));
+
+    expect(onChange).toHaveBeenCalledWith({
+      imagePath: "",
+      selectedSymbol: ""
+    });
+    await waitFor(() => {
+      expect(mocks.deleteProfileImage).toHaveBeenCalledWith(
+        "user-1",
+        IMAGE_PATH
+      );
+    });
+  });
+
   it("deletes a late upload result instead of updating an unmounted form", async () => {
     const user = userEvent.setup();
     const onChange = vi.fn<PickerChange>();

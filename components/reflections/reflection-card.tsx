@@ -46,7 +46,7 @@ export function ReflectionCard({
                 Private
               </span>
             )}
-            {post.updatedAt !== post.createdAt && (
+            {post.editedAt && (
               <span aria-label="This reflection was edited">Edited</span>
             )}
           </div>

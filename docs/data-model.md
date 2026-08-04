@@ -115,7 +115,8 @@ following:
   `role: "authenticated"`.
 - The JWT issuer is Firebase and matches its Firebase project audience.
 - The second path segment equals that `sub`.
-- Supabase's `owner_id` equals that `sub`.
+- The object path's user segment equals that `sub`; Storage may populate its
+  own ownership metadata after the insert policy is evaluated.
 - The object is inside the exact three-folder owner prefix and has a UUID file
   name with a JPG, PNG, or WebP extension.
 

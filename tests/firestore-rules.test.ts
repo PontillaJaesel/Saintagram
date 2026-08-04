@@ -100,6 +100,7 @@ const aliceDraft = {
 const aliceReflection = {
   id: "alice-reflection",
   userId: ALICE_ID,
+  title: "A quiet kindness",
   content: "I noticed a quiet kindness today.",
   isPrivate: false,
   createdAt: NOW,
@@ -401,6 +402,12 @@ describe("Saintagram Firestore ownership rules", () => {
     await assertSucceeds(
       updateDoc(aliceRef, {
         content: "I noticed another quiet kindness today.",
+        updatedAt: NOW
+      })
+    );
+    await assertSucceeds(
+      updateDoc(aliceRef, {
+        createdAt: "2026-06-15T12:00:00.000Z",
         updatedAt: NOW
       })
     );

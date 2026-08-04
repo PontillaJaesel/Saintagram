@@ -54,6 +54,7 @@ export interface ReflectionPost {
   isPrivate: boolean;
   createdAt: string;
   updatedAt: string;
+  editedAt?: string;
 }
 
 export interface ProfileDraftData {
