@@ -45,6 +45,9 @@ export default function RootLayout({ children }: { children: ReactNode }) {
       </head>
       <body className="font-sans antialiased">
         <AppProviders>{children}</AppProviders>
+        <footer className="pointer-events-none fixed inset-x-0 bottom-2 z-40 text-center text-[10px] font-medium tracking-wide text-muted/60">
+          &copy; 2026 Saintagram. All rights reserved.
+        </footer>
       </body>
     </html>
   );
