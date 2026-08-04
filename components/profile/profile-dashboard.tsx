@@ -205,6 +205,9 @@ export function ProfileDashboard() {
     setDateStart(draftDateStart);
     setDateEnd(draftDateEnd || draftDateStart);
     setTab("posts");
+    Object.values(filterDetailsRefs.current).forEach((details) => {
+      if (details?.open) details.open = false;
+    });
   };
 
   const calendarDays = calendarCells(calendarMonth);
