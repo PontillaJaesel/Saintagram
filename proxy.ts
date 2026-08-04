@@ -19,12 +19,7 @@ function isFrameworkAsset(pathname: string): boolean {
 }
 
 export function proxy(request: NextRequest) {
-  void request;
-
-  // Access-code security is temporarily disabled.
-  // Restore it by uncommenting the following line and removing the bypass.
-  // return enforceAccessGate(request);
-  return NextResponse.next();
+  return enforceAccessGate(request);
 }
 
 export async function enforceAccessGate(request: NextRequest) {

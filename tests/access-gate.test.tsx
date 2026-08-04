@@ -38,29 +38,22 @@ describe("AccessGate", () => {
     vi.stubGlobal("fetch", mocks.fetch);
   });
 
-  it("presents an accessible, concealed code field and reveal control", async () => {
-    const user = userEvent.setup();
+  it("presents a simple, accessible, visible code field", () => {
     render(<AccessGate />);
 
     const code = screen.getByLabelText("Access code");
     const submit = screen.getByRole("button", { name: "Enter Saintagram" });
 
     expect(
-      screen.getByRole("heading", { name: "Enter this quiet space." })
+      screen.getByRole("heading", { name: "Access code" })
     ).toBeInTheDocument();
-    expect(code).toHaveAttribute("type", "password");
-    expect(code).toHaveAttribute("aria-describedby", "access-note");
+    expect(code).toHaveAttribute("type", "text");
+    expect(code).toHaveAttribute(
+      "aria-describedby",
+      "access-renewal-note"
+    );
     expect(code).toHaveFocus();
     expect(submit).toBeEnabled();
-
-    await user.click(
-      screen.getByRole("button", { name: "Show access code" })
-    );
-
-    expect(code).toHaveAttribute("type", "text");
-    expect(
-      screen.getByRole("button", { name: "Hide access code" })
-    ).toHaveAttribute("aria-pressed", "true");
   });
 
   it("shows and focuses an accessible error for a whitespace-only code", async () => {
@@ -109,7 +102,7 @@ describe("AccessGate", () => {
 
     const alert = await screen.findByRole("alert");
     expect(alert).toHaveTextContent(
-      "That access code was not recognized. Please try again."
+      "Wrong access code. Try again."
     );
     expect(code).toHaveAttribute("aria-invalid", "true");
     expect(code).toHaveAttribute("aria-describedby", "access-code-error");
@@ -119,7 +112,10 @@ describe("AccessGate", () => {
 
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
     expect(code).toHaveAttribute("aria-invalid", "false");
-    expect(code).toHaveAttribute("aria-describedby", "access-note");
+    expect(code).toHaveAttribute(
+      "aria-describedby",
+      "access-renewal-note"
+    );
   });
 
   it("disables the form while checking and prevents duplicate submissions", async () => {

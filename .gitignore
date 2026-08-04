@@ -41,3 +41,5 @@ ui-debug.log
 
 # coverage
 coverage/
+.vinext/
+.wrangler/
