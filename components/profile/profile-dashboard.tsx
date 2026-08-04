@@ -130,6 +130,7 @@ export function ProfileDashboard() {
   const [privateStory, setPrivateStory] = useState("");
   const [privatePosts, setPrivatePosts] = useState<ReflectionPost[]>([]);
   const tabRefs = useRef<Array<HTMLButtonElement | null>>([]);
+  const filterDetailsRefs = useRef<Record<string, HTMLDetailsElement | null>>({});
   const notified = useRef(false);
 
   const filteredPosts = useMemo(() => {
@@ -244,7 +245,12 @@ export function ProfileDashboard() {
             </button>
           )}
         </div>
-        <details className="group relative shrink-0">
+        <details
+          ref={(node) => {
+            filterDetailsRefs.current[idSuffix] = node;
+          }}
+          className="group relative shrink-0"
+        >
           <summary
             className={`relative grid size-11 cursor-pointer list-none place-items-center rounded-md transition hover:bg-sage-100 focus-visible:ring-2 [&::-webkit-details-marker]:hidden ${
               dateStart || dateEnd ? "text-sage-700" : "text-muted"
@@ -256,7 +262,7 @@ export function ProfileDashboard() {
               <span className="absolute right-0.5 top-0.5 size-2.5 rounded-full border-2 border-paper bg-sage-500" aria-hidden="true" />
             )}
           </summary>
-          <div className="fixed inset-x-4 top-1/2 z-50 max-h-[calc(100dvh-2rem)] -translate-y-1/2 overflow-x-hidden overflow-y-auto rounded-2xl border border-sage-100 bg-paper shadow-lift sm:left-1/2 sm:right-auto sm:grid sm:w-[min(34rem,calc(100vw-2rem))] sm:-translate-x-1/2 sm:grid-cols-[9.5rem_1fr]">
+          <div className="absolute right-0 top-full z-50 mt-2 max-h-[calc(100dvh-2rem)] w-[min(34rem,calc(100vw-2rem))] overflow-x-hidden overflow-y-auto rounded-2xl border border-sage-100 bg-paper shadow-lift sm:grid sm:grid-cols-[9.5rem_1fr]">
             <div className="flex flex-col border-b border-sage-100 p-3 sm:border-b-0 sm:border-r">
               <div className="grid grid-cols-2 gap-1 sm:grid-cols-1">
                 {([['week', 'Last Week'], ['month', 'Last Month'], ['year', 'Last Year'], ['custom', 'Custom']] as const).map(([value, label]) => (
@@ -365,6 +371,28 @@ export function ProfileDashboard() {
       notify("Your profile changes were saved.");
     }
   }, [notify, searchParams]);
+
+  useEffect(() => {
+    const closeFilters = (event: PointerEvent) => {
+      Object.values(filterDetailsRefs.current).forEach((details) => {
+        if (details?.open && !details.contains(event.target as Node)) {
+          details.open = false;
+        }
+      });
+    };
+    const closeOnEscape = (event: globalThis.KeyboardEvent) => {
+      if (event.key !== "Escape") return;
+      Object.values(filterDetailsRefs.current).forEach((details) => {
+        if (details?.open) details.open = false;
+      });
+    };
+    document.addEventListener("pointerdown", closeFilters);
+    document.addEventListener("keydown", closeOnEscape);
+    return () => {
+      document.removeEventListener("pointerdown", closeFilters);
+      document.removeEventListener("keydown", closeOnEscape);
+    };
+  }, []);
 
   const chooseTab = (nextTab: ProfileTab) => {
     setTab(nextTab);
@@ -823,9 +851,11 @@ export function ProfileDashboard() {
         </aside>
       </div>
 
-      <aside className="hidden space-y-4 px-6 py-6 xl:block xl:sticky xl:top-0 xl:h-screen xl:overflow-y-auto xl:self-start">
+      <aside className="relative hidden px-6 py-6 xl:block xl:sticky xl:top-0 xl:h-screen xl:overflow-visible xl:self-start">
         {searchControls("desktop")}
-        {profileInsights}
+        <div className="profile-scroll mt-4 max-h-[calc(100vh-7rem)] space-y-4 overflow-y-auto pr-1">
+          {profileInsights}
+        </div>
       </aside>
 
       <ConfirmDialog
