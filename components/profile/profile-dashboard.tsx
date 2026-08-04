@@ -13,6 +13,8 @@ import {
   ArrowRight,
   BookHeart,
   CalendarDays,
+  ChevronLeft,
+  ChevronRight,
   EyeOff,
   Footprints,
   Heart,
@@ -61,6 +63,24 @@ function shortDate(value: string) {
   }).format(new Date(`${value}T12:00:00`));
 }
 
+function dateInputValue(date: Date) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+function calendarCells(month: Date) {
+  const first = new Date(month.getFullYear(), month.getMonth(), 1);
+  const gridStart = new Date(first);
+  gridStart.setDate(first.getDate() - first.getDay());
+  return Array.from({ length: 42 }, (_, index) => {
+    const date = new Date(gridStart);
+    date.setDate(gridStart.getDate() + index);
+    return date;
+  });
+}
+
 function ValueList({
   values,
   emptyText
@@ -98,6 +118,12 @@ export function ProfileDashboard() {
   const [searchQuery, setSearchQuery] = useState("");
   const [dateStart, setDateStart] = useState("");
   const [dateEnd, setDateEnd] = useState("");
+  const [draftDateStart, setDraftDateStart] = useState("");
+  const [draftDateEnd, setDraftDateEnd] = useState("");
+  const [datePreset, setDatePreset] = useState<"week" | "month" | "year" | "custom">("custom");
+  const [calendarMonth, setCalendarMonth] = useState(
+    () => new Date(new Date().getFullYear(), new Date().getMonth(), 1)
+  );
   const [privacyDialog, setPrivacyDialog] = useState(false);
   const [privateUnlocked, setPrivateUnlocked] = useState(false);
   const [privateLoading, setPrivateLoading] = useState(false);
@@ -136,6 +162,8 @@ export function ProfileDashboard() {
     clearSearch();
     setDateStart("");
     setDateEnd("");
+    setDraftDateStart("");
+    setDraftDateEnd("");
   };
 
   const dateFilterLabel = dateStart && dateEnd
@@ -145,6 +173,40 @@ export function ProfileDashboard() {
       : dateEnd
         ? `Until ${shortDate(dateEnd)}`
         : "Date";
+
+  const choosePreset = (preset: "week" | "month" | "year") => {
+    const end = new Date();
+    const start = new Date(end);
+    if (preset === "week") start.setDate(end.getDate() - 6);
+    if (preset === "month") start.setMonth(end.getMonth() - 1);
+    if (preset === "year") start.setFullYear(end.getFullYear() - 1);
+    setDatePreset(preset);
+    setDraftDateStart(dateInputValue(start));
+    setDraftDateEnd(dateInputValue(end));
+    setCalendarMonth(new Date(end.getFullYear(), end.getMonth(), 1));
+  };
+
+  const chooseCalendarDate = (date: Date) => {
+    const value = dateInputValue(date);
+    setDatePreset("custom");
+    if (!draftDateStart || draftDateEnd) {
+      setDraftDateStart(value);
+      setDraftDateEnd("");
+    } else if (value < draftDateStart) {
+      setDraftDateEnd(draftDateStart);
+      setDraftDateStart(value);
+    } else {
+      setDraftDateEnd(value);
+    }
+  };
+
+  const applyDateFilter = () => {
+    setDateStart(draftDateStart);
+    setDateEnd(draftDateEnd || draftDateStart);
+    setTab("posts");
+  };
+
+  const calendarDays = calendarCells(calendarMonth);
 
   const searchControls = (idSuffix: string) => (
     <div
@@ -194,48 +256,61 @@ export function ProfileDashboard() {
               <span className="absolute right-0.5 top-0.5 size-2.5 rounded-full border-2 border-paper bg-sage-500" aria-hidden="true" />
             )}
           </summary>
-          <div className="absolute right-0 z-30 mt-2 w-72 rounded-2xl border border-sage-100 bg-paper p-4 shadow-lift">
-            <p className="text-sm font-bold text-ink">Filter by date</p>
-            <div className="mt-3 grid grid-cols-2 gap-3">
-              <label className="text-xs font-semibold text-muted">
-                From
-                <input
-                  type="date"
-                  className="field mt-1 min-h-10 px-3 py-2 text-sm"
-                  value={dateStart}
-                  max={dateEnd || undefined}
-                  onChange={(event) => {
-                    setDateStart(event.target.value);
-                    setTab("posts");
-                  }}
-                />
-              </label>
-              <label className="text-xs font-semibold text-muted">
-                To
-                <input
-                  type="date"
-                  className="field mt-1 min-h-10 px-3 py-2 text-sm"
-                  value={dateEnd}
-                  min={dateStart || undefined}
-                  onChange={(event) => {
-                    setDateEnd(event.target.value);
-                    setTab("posts");
-                  }}
-                />
-              </label>
-            </div>
-            {(dateStart || dateEnd) && (
-              <button
-                type="button"
-                className="btn-quiet mt-3 min-h-9 w-full"
-                onClick={() => {
-                  setDateStart("");
-                  setDateEnd("");
-                }}
-              >
-                Clear date filter
+          <div className="absolute right-0 z-30 mt-2 w-[min(34rem,calc(100vw-2rem))] overflow-hidden rounded-2xl border border-sage-100 bg-paper shadow-lift sm:grid sm:grid-cols-[9.5rem_1fr]">
+            <div className="flex flex-col border-b border-sage-100 p-3 sm:border-b-0 sm:border-r">
+              <div className="grid grid-cols-2 gap-1 sm:grid-cols-1">
+                {([['week', 'Last Week'], ['month', 'Last Month'], ['year', 'Last Year'], ['custom', 'Custom']] as const).map(([value, label]) => (
+                  <button
+                    key={value}
+                    type="button"
+                    className={`rounded-lg px-3 py-2 text-left text-sm transition ${datePreset === value ? "bg-sage-100 font-semibold text-ink" : "text-muted hover:bg-sage-50 hover:text-ink"}`}
+                    onClick={() => value === "custom" ? setDatePreset("custom") : choosePreset(value)}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+              <button type="button" className="btn-primary mt-3 min-h-10 rounded-lg px-4 sm:mt-auto" onClick={applyDateFilter}>
+                Apply
               </button>
-            )}
+            </div>
+            <div className="p-4">
+              <div className="flex items-center justify-between">
+                <button type="button" className="grid size-9 place-items-center rounded-full text-muted hover:bg-sage-100 hover:text-ink" onClick={() => setCalendarMonth(new Date(calendarMonth.getFullYear(), calendarMonth.getMonth() - 1, 1))} aria-label="Previous month">
+                  <ChevronLeft className="size-5" aria-hidden="true" />
+                </button>
+                <p className="text-sm font-semibold text-ink">{new Intl.DateTimeFormat(undefined, { month: "long", year: "numeric" }).format(calendarMonth)}</p>
+                <button type="button" className="grid size-9 place-items-center rounded-full text-muted hover:bg-sage-100 hover:text-ink" onClick={() => setCalendarMonth(new Date(calendarMonth.getFullYear(), calendarMonth.getMonth() + 1, 1))} aria-label="Next month">
+                  <ChevronRight className="size-5" aria-hidden="true" />
+                </button>
+              </div>
+              <div className="mt-2 grid grid-cols-7 text-center text-[11px] text-muted" aria-hidden="true">
+                {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((day) => <span key={day} className="py-2">{day}</span>)}
+              </div>
+              <div className="grid grid-cols-7 gap-y-1" aria-label="Choose a date range">
+                {calendarDays.map((date) => {
+                  const value = dateInputValue(date);
+                  const inMonth = date.getMonth() === calendarMonth.getMonth();
+                  const selected = value === draftDateStart || value === draftDateEnd;
+                  const inRange = Boolean(draftDateStart && draftDateEnd && value > draftDateStart && value < draftDateEnd);
+                  return (
+                    <button
+                      key={value}
+                      type="button"
+                      className={`min-h-9 text-xs transition ${selected ? "rounded-lg bg-sage-600 font-bold text-paper" : inRange ? "bg-sage-100 text-ink" : inMonth ? "rounded-lg text-ink hover:bg-sage-50" : "rounded-lg text-muted/45 hover:bg-sage-50"}`}
+                      onClick={() => chooseCalendarDate(date)}
+                      aria-label={shortDate(value)}
+                      aria-pressed={selected}
+                    >
+                      {date.getDate()}
+                    </button>
+                  );
+                })}
+              </div>
+              <p className="mt-3 min-h-5 text-center text-xs text-muted">
+                {draftDateStart ? `${shortDate(draftDateStart)}${draftDateEnd ? ` – ${shortDate(draftDateEnd)}` : " – Select end date"}` : "Select a start date"}
+              </p>
+            </div>
           </div>
         </details>
       </div>
@@ -395,6 +470,47 @@ export function ProfileDashboard() {
       />
     );
   }
+
+  const profileInsights = (
+    <>
+      <section className="surface p-5">
+        <h2 className="flex items-center gap-2 font-serif text-xl font-bold">
+          <MessageCircleHeart className="size-5 text-gold-600" aria-hidden="true" />
+          God’s Comment
+        </h2>
+        <div className="mt-4 rounded-2xl bg-gold-50 p-4">
+          <p className="font-secondary whitespace-pre-wrap text-sm leading-7 text-ink">
+            {profile.godsComment || <span className="italic text-muted">This space is open for a word of grace.</span>}
+          </p>
+        </div>
+      </section>
+      <section className="surface p-5">
+        <h2 className="flex items-center gap-2 text-sm font-bold">
+          <UsersRound className="size-4 text-sage-600" aria-hidden="true" />
+          Followers
+        </h2>
+        <div className="mt-3"><ValueList values={profile.followers} emptyText="No followers named yet." /></div>
+        <div className="my-5 h-px bg-sage-100" />
+        <h2 className="flex items-center gap-2 text-sm font-bold">
+          <Footprints className="size-4 text-sage-600" aria-hidden="true" />
+          Following
+        </h2>
+        <div className="mt-3"><ValueList values={profile.following} emptyText="Nothing followed yet." /></div>
+      </section>
+      <section className="surface p-5">
+        <h2 className="flex items-center gap-2 text-sm font-bold">
+          <Heart className="size-4 text-clay-600" aria-hidden="true" />
+          Likes
+        </h2>
+        <p className="mt-1 text-xs leading-5 text-muted">What my heart usually seeks.</p>
+        <div className="mt-3"><ValueList values={profile.heartSeeks} emptyText="This reflection is still open." /></div>
+      </section>
+      <p className="flex items-center gap-2 px-2 text-xs leading-5 text-muted">
+        <CalendarDays className="size-4 shrink-0" aria-hidden="true" />
+        Profile last updated {formatFriendlyDate(profile.updatedAt)}
+      </p>
+    </>
+  );
 
   return (
     <div className="grid min-h-screen xl:grid-cols-[minmax(0,42rem)_minmax(19rem,1fr)]">
@@ -702,73 +818,14 @@ export function ProfileDashboard() {
             )}
           </div>
         </section>
+        <aside className="grid gap-4 border-t border-sage-100 p-5 sm:grid-cols-2 sm:p-7 xl:hidden" aria-label="Profile details">
+          {profileInsights}
+        </aside>
       </div>
 
       <aside className="hidden space-y-4 px-6 py-6 xl:block xl:sticky xl:top-0 xl:h-screen xl:overflow-y-auto xl:self-start">
         {searchControls("desktop")}
-        <section className="surface p-5">
-          <h2 className="flex items-center gap-2 font-serif text-xl font-bold">
-            <MessageCircleHeart
-              className="size-5 text-gold-600"
-              aria-hidden="true"
-            />
-            God’s Comment
-          </h2>
-          <div className="mt-4 rounded-2xl bg-gold-50 p-4">
-            <p className="font-secondary whitespace-pre-wrap text-sm leading-7 text-ink">
-              {profile.godsComment || (
-                <span className="italic text-muted">
-                  This space is open for a word of grace.
-                </span>
-              )}
-            </p>
-          </div>
-        </section>
-
-        <section className="surface p-5">
-          <h2 className="flex items-center gap-2 text-sm font-bold">
-            <UsersRound className="size-4 text-sage-600" aria-hidden="true" />
-            Followers
-          </h2>
-          <div className="mt-3">
-            <ValueList
-              values={profile.followers}
-              emptyText="No followers named yet."
-            />
-          </div>
-          <div className="my-5 h-px bg-sage-100" />
-          <h2 className="flex items-center gap-2 text-sm font-bold">
-            <Footprints className="size-4 text-sage-600" aria-hidden="true" />
-            Following
-          </h2>
-          <div className="mt-3">
-            <ValueList
-              values={profile.following}
-              emptyText="Nothing followed yet."
-            />
-          </div>
-        </section>
-
-        <section className="surface p-5">
-          <h2 className="flex items-center gap-2 text-sm font-bold">
-            <Heart className="size-4 text-clay-600" aria-hidden="true" />
-            Likes
-          </h2>
-          <p className="mt-1 text-xs leading-5 text-muted">
-            What my heart usually seeks.
-          </p>
-          <div className="mt-3">
-            <ValueList
-              values={profile.heartSeeks}
-              emptyText="This reflection is still open."
-            />
-          </div>
-        </section>
-
-        <p className="flex items-center gap-2 px-2 text-xs leading-5 text-muted">
-          <CalendarDays className="size-4 shrink-0" aria-hidden="true" />
-          Profile last updated {formatFriendlyDate(profile.updatedAt)}
-        </p>
+        {profileInsights}
       </aside>
 
       <ConfirmDialog
