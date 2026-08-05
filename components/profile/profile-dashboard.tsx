@@ -525,7 +525,7 @@ export function ProfileDashboard() {
           God’s Comment
         </h2>
         <div className="mt-4 rounded-2xl bg-gold-50 p-4">
-          <p className="font-secondary whitespace-pre-wrap text-sm leading-7 text-ink">
+          <p className="user-content font-secondary whitespace-pre-wrap text-sm leading-7 text-ink">
             {profile.godsComment || <span className="italic text-muted">This space is open for a word of grace.</span>}
           </p>
         </div>

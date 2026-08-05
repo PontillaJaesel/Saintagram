@@ -142,7 +142,9 @@ function ReviewSection({
           Edit
         </button>
       </div>
-      <div className="mt-3 text-sm leading-6 text-muted">{children}</div>
+      <div className="mt-3 text-sm leading-6 text-muted">
+        <div className="user-content whitespace-pre-wrap">{children}</div>
+      </div>
     </section>
   );
 }

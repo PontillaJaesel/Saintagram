@@ -148,6 +148,7 @@ body {
   background-attachment: fixed;
   font-family: "Montserrat", Arial, sans-serif;
   transition: background-color 180ms ease, color 180ms ease;
+  padding-bottom: 3rem;
 }
 
 ::selection {
