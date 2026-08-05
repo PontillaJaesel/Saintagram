@@ -10,6 +10,12 @@ export default {
     env: Parameters<VinextFetch>[1],
     context: Parameters<VinextFetch>[2]
   ): Promise<Response> {
+    const pathname = new URL(request.url).pathname;
+    if (pathname.startsWith("/_next/static/")) {
+      const response = await env.ASSETS.fetch(request);
+      return applyResponseCachePolicy(request, response);
+    }
+
     const response = await vinextHandler.fetch(request, env, context);
     return applyResponseCachePolicy(request, response);
   }

@@ -30,7 +30,7 @@ describe("Cloudflare Worker configuration", () => {
     expect(config.main).toBe("worker.ts");
   });
 
-  it("runs the Worker before static assets so the access gate cannot be bypassed", () => {
+  it("runs hashed static assets through the cache-policy Worker", () => {
     const configPath = join(process.cwd(), "wrangler.jsonc");
     const config = JSON.parse(
       readFileSync(configPath, "utf8")
@@ -38,7 +38,6 @@ describe("Cloudflare Worker configuration", () => {
 
     expect(config.assets?.run_worker_first).toEqual([
       "/*",
-      "!/_next/static/*",
       "!/favicon.ico",
       "!/robots.txt"
     ]);
