@@ -50,17 +50,33 @@ describe("Cloudflare response cache policy", () => {
 
     const result = applyResponseCachePolicy(request, response);
 
-    expect(result).toBe(response);
     expect(result.headers.get("cache-control")).toBe("no-store");
   });
 
-  it("leaves non-HTML application responses unchanged", () => {
+  it("disables caching for non-HTML API responses", () => {
     const request = new Request("https://saintagram.example/api/access");
     const response = Response.json(
       { ok: true },
-      { headers: { "Cache-Control": "no-store" } }
+      { headers: { "Cache-Control": "public, max-age=60" } }
     );
 
-    expect(applyResponseCachePolicy(request, response)).toBe(response);
+    expect(
+      applyResponseCachePolicy(request, response).headers.get("cache-control")
+    ).toBe("no-store");
+  });
+
+  it("disables caching for Next.js RSC payloads", () => {
+    const request = new Request("https://saintagram.example/profile?_rsc=abc");
+    const response = new Response("rsc payload", {
+      headers: {
+        "Content-Type": "text/x-component",
+        "CDN-Cache-Control": "public, max-age=300"
+      }
+    });
+
+    const result = applyResponseCachePolicy(request, response);
+
+    expect(result.headers.get("cache-control")).toBe("no-store");
+    expect(result.headers.get("cdn-cache-control")).toBeNull();
   });
 });

@@ -9,12 +9,8 @@ export function applyResponseCachePolicy(
   response: Response
 ): Response {
   const pathname = new URL(request.url).pathname;
-  const contentType = response.headers.get("content-type")?.toLowerCase() ?? "";
   const isSuccessfulStaticAsset =
     pathname.startsWith(NEXT_STATIC_PREFIX) && response.ok;
-  const isHtml = contentType.includes("text/html");
-
-  if (!isSuccessfulStaticAsset && !isHtml) return response;
 
   const headers = new Headers(response.headers);
   headers.set(
@@ -22,9 +18,10 @@ export function applyResponseCachePolicy(
     isSuccessfulStaticAsset ? STATIC_CACHE_CONTROL : HTML_CACHE_CONTROL
   );
 
-  // These Cloudflare-specific headers take precedence over Cache-Control when
-  // present. Removing them keeps one unambiguous policy for HTML responses.
-  if (isHtml) {
+  // These Cloudflare-specific headers take precedence over Cache-Control.
+  // Remove them for every dynamic, HTML, RSC, API, redirect, and error response
+  // so nothing can override the no-store policy.
+  if (!isSuccessfulStaticAsset) {
     headers.delete("Cloudflare-CDN-Cache-Control");
     headers.delete("CDN-Cache-Control");
   }
