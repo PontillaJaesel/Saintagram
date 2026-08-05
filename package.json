@@ -8,7 +8,7 @@
   },
   "scripts": {
     "dev": "next dev",
-    "build": "node scripts/run-vinext-build.mjs && node scripts/prepare-sites.mjs",
+    "build": "node scripts/run-vinext-build.mjs && node scripts/prepare-sites.mjs && node scripts/validate-deployment-artifacts.mjs",
     "start": "vinext start",
     "lint": "vinext lint",
     "typecheck": "tsc --noEmit",
@@ -16,7 +16,7 @@
     "test:watch": "vitest",
     "test:rules": "npx firebase-tools emulators:exec --only firestore \"vitest run --config vitest.rules.config.ts\"",
     "dev:vinext": "vinext dev --port 3001",
-    "build:vinext": "node scripts/run-vinext-build.mjs",
+    "build:vinext": "node scripts/run-vinext-build.mjs && node scripts/validate-deployment-artifacts.mjs",
     "start:vinext": "wrangler dev --config dist/server/wrangler.json",
     "deploy:vinext": "npm run build && vinext-cloudflare deploy --config dist/server/wrangler.json"
   },

@@ -10,6 +10,17 @@ interface WranglerConfig {
 }
 
 describe("Cloudflare Worker configuration", () => {
+  it("rebuilds and validates artifacts before every direct deployment", () => {
+    const packageJson = JSON.parse(
+      readFileSync(join(process.cwd(), "package.json"), "utf8")
+    ) as { scripts?: Record<string, string> };
+
+    expect(packageJson.scripts?.["deploy:vinext"]).toContain("npm run build");
+    expect(packageJson.scripts?.build).toContain(
+      "scripts/validate-deployment-artifacts.mjs"
+    );
+  });
+
   it("uses the cache-policy Worker entrypoint", () => {
     const configPath = join(process.cwd(), "wrangler.jsonc");
     const config = JSON.parse(
