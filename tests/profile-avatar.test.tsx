@@ -6,12 +6,16 @@ const mocks = vi.hoisted(() => ({
   download: vi.fn()
 }));
 
-vi.mock("@/lib/firebase", () => ({
-  isFirebaseConfigured: true
+vi.mock("@/components/providers/auth-provider", () => ({
+  useAuth: () => ({
+    loading: false,
+    mode: "firebase",
+    user: { id: "alice" }
+  })
 }));
 
 vi.mock("@/lib/profile-images", () => ({
-  downloadSupabaseProfileImage: mocks.download,
+  downloadFirebaseProfileImage: mocks.download,
   isLocalProfileImageSource: (value: string) =>
     value.startsWith("data:image/")
 }));
@@ -23,20 +27,12 @@ const IMAGE_PATH =
 
 describe("ProfileAvatar private image resolution", () => {
   beforeEach(() => {
-    Object.defineProperty(URL, "createObjectURL", {
-      configurable: true,
-      value: vi.fn(() => "blob:private-profile-image")
-    });
-    Object.defineProperty(URL, "revokeObjectURL", {
-      configurable: true,
-      value: vi.fn()
-    });
     mocks.download.mockResolvedValue(
-      new Blob(["image"], { type: "image/png" })
+      "https://firebase.example/profile-image.png"
     );
   });
 
-  it("renders an authenticated Blob URL and revokes it on unmount", async () => {
+  it("renders a Firebase download URL after auth is ready", async () => {
     const view = render(
       <ProfileAvatar
         imagePath={IMAGE_PATH}
@@ -48,13 +44,13 @@ describe("ProfileAvatar private image resolution", () => {
     const image = await screen.findByRole("img", {
       name: "Alice profile"
     });
-    expect(image).toHaveAttribute("src", "blob:private-profile-image");
+    expect(image).toHaveAttribute(
+      "src",
+      "https://firebase.example/profile-image.png"
+    );
     expect(mocks.download).toHaveBeenCalledWith(IMAGE_PATH);
 
     view.unmount();
-    expect(URL.revokeObjectURL).toHaveBeenCalledWith(
-      "blob:private-profile-image"
-    );
   });
 
   it("does not render legacy inline image data in hosted mode", async () => {

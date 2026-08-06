@@ -15,6 +15,7 @@ import {
   CalendarDays,
   ChevronLeft,
   ChevronRight,
+  Image as ImageIcon,
   EyeOff,
   Footprints,
   Heart,
@@ -36,8 +37,10 @@ import { LoadingState } from "@/components/ui/loading-state";
 import { ProfileAvatar } from "@/components/ui/profile-avatar";
 import { ReflectionCard } from "@/components/reflections/reflection-card";
 import { appService } from "@/lib/app-service";
+import { downloadFirebaseProfileImage, isLocalProfileImageSource } from "@/lib/profile-images";
 import { formatFriendlyDate } from "@/lib/validation";
 import type {
+  ProfileImageHistoryEntry,
   PublicSpiritualProfile,
   ReflectionPost
 } from "@/types";
@@ -105,6 +108,52 @@ function ValueList({
   );
 }
 
+function JourneyImagePreview({ imagePath }: { imagePath: string }) {
+  const { loading, mode, user } = useAuth();
+  const [src, setSrc] = useState(imagePath.startsWith("data:image/") ? imagePath : "");
+
+  useEffect(() => {
+    let active = true;
+    if (!imagePath) {
+      setSrc("");
+      return () => undefined;
+    }
+    if (isLocalProfileImageSource(imagePath)) {
+      setSrc(mode === "local" ? imagePath : "");
+      return () => undefined;
+    }
+    if (loading || !user) {
+      setSrc("");
+      return () => undefined;
+    }
+
+    void downloadFirebaseProfileImage(imagePath)
+      .then((downloadUrl) => {
+        if (active) setSrc(downloadUrl);
+      })
+      .catch(() => {
+        if (active) setSrc("");
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [imagePath, loading, mode, user?.id]);
+
+  if (!src) return null;
+  return (
+    <div className="mt-3 overflow-hidden rounded-2xl border border-sage-100 bg-paper p-2 shadow-sm">
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        src={src}
+        alt="Profile picture history"
+        className="max-h-48 w-full rounded-xl object-contain"
+        loading="lazy"
+      />
+    </div>
+  );
+}
+
 export function ProfileDashboard() {
   const { user, updateUser } = useAuth();
   const { notify } = useToast();
@@ -112,6 +161,7 @@ export function ProfileDashboard() {
   const searchParams = useSearchParams();
   const [profile, setProfile] = useState<PublicSpiritualProfile | null>(null);
   const [posts, setPosts] = useState<ReflectionPost[]>([]);
+  const [imageHistory, setImageHistory] = useState<ProfileImageHistoryEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [tab, setTab] = useState<ProfileTab>("posts");
@@ -373,9 +423,17 @@ export function ProfileDashboard() {
       },
       fail
     );
+    const unsubscribeImageHistory = appService.subscribeProfileImageHistory(
+      user.id,
+      (nextHistory) => {
+        setImageHistory(nextHistory);
+      },
+      fail
+    );
     return () => {
       unsubscribeProfile();
       unsubscribePosts();
+      unsubscribeImageHistory();
     };
   }, [user]);
 
@@ -737,6 +795,27 @@ export function ProfileDashboard() {
                   </p>
                 </div>
                 <ol className="relative ml-3 border-l border-sage-200 pl-7">
+                  {[...imageHistory]
+                    .sort(
+                      (a, b) =>
+                        new Date(b.createdAt).getTime() -
+                        new Date(a.createdAt).getTime()
+                    )
+                    .map((entry) => (
+                      <li key={entry.id} className="relative pb-7 last:pb-0">
+                        <span className="absolute -left-[2.15rem] top-1 grid size-4 place-items-center rounded-full border-4 border-paper bg-gold-500" />
+                        <time
+                          dateTime={entry.createdAt}
+                          className="text-xs font-bold uppercase tracking-wider text-gold-700"
+                        >
+                          {formatFriendlyDate(entry.createdAt)}
+                        </time>
+                        <p className="font-secondary mt-2 text-sm font-semibold leading-6 text-ink">
+                          Profile picture updated
+                        </p>
+                        <JourneyImagePreview imagePath={entry.imagePath} />
+                      </li>
+                    ))}
                   {[...posts]
                     .sort(
                       (a, b) =>

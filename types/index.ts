@@ -57,6 +57,14 @@ export interface ReflectionPost {
   editedAt?: string;
 }
 
+export interface ProfileImageHistoryEntry {
+  id: string;
+  userId: string;
+  imagePath: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface ProfileDraftData {
   profileName: string;
   imagePath: string;

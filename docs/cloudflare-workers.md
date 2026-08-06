@@ -1,8 +1,8 @@
 # Deploying Saintagram to Cloudflare Workers
 
 Saintagram uses Vinext's native Cloudflare Workers adapter. Firebase remains the
-authentication/database provider and Supabase remains the profile-image storage
-provider; deploying the web application does not migrate either service.
+authentication/database provider and Firebase Storage now stores profile
+images; deploying the web application does not migrate either service.
 
 ## 1. Install and verify locally
 
@@ -49,8 +49,7 @@ NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=...
 NEXT_PUBLIC_FIREBASE_PROJECT_ID=...
 NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=...
 NEXT_PUBLIC_FIREBASE_APP_ID=...
-NEXT_PUBLIC_SUPABASE_URL=...
-NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=...
+NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=...
 ```
 
 These values are embedded into the browser bundle and must be present during
@@ -95,9 +94,9 @@ saintagram > Deployments**.
 Add the exact workers.dev hostname (and any custom domain) to **Firebase Console
 > Authentication > Settings > Authorized domains** before testing sign-in.
 
-Also verify that Supabase's Firebase Third-Party Auth integration and the
-`profile-images` storage policies described in the main README are configured.
-Those settings are not created by a Workers deployment.
+Also verify that Firebase Storage is enabled and the `storage.rules` policy
+described in the main README is configured. Those settings are not created by a
+Workers deployment.
 
 ## 7. Optional custom domain
 

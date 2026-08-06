@@ -18,7 +18,4 @@
       "!/robots.txt"
     ]
   },
-  "cache": {
-    "enabled": true
-  }
 }

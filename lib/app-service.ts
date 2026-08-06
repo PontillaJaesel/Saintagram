@@ -35,10 +35,10 @@ import {
 import { DEMO_EMAIL, DEMO_PASSWORD, LIMITS } from "@/lib/constants";
 import { getFirebaseServices, isFirebaseConfigured } from "@/lib/firebase";
 import {
-  deleteAllSupabaseProfileImages,
-  deleteSupabaseProfileImage,
+  deleteAllFirebaseProfileImages,
+  deleteFirebaseProfileImage,
   isOwnedProfileImagePath,
-  uploadSupabaseProfileImage
+  uploadFirebaseProfileImage
 } from "@/lib/profile-images";
 import {
   normalizeDraft,
@@ -57,6 +57,7 @@ import {
   EMPTY_DRAFT,
   type AppUser,
   type PersonalDataExport,
+  type ProfileImageHistoryEntry,
   type ProfileDraft,
   type ProfileDraftData,
   type PublicSpiritualProfile,
@@ -73,7 +74,8 @@ const LOCAL_KEYS = {
   coverColors: `${STORAGE_PREFIX}:coverColors`,
   privateProfiles: `${STORAGE_PREFIX}:privateProfiles`,
   drafts: `${STORAGE_PREFIX}:drafts`,
-  reflections: `${STORAGE_PREFIX}:reflectionPosts`
+  reflections: `${STORAGE_PREFIX}:reflectionPosts`,
+  profileImageHistory: `${STORAGE_PREFIX}:profileImageHistory`
 } as const;
 
 interface LocalAccount {
@@ -84,6 +86,14 @@ interface LocalAccount {
 interface PrivateProfileRecord {
   userId: string;
   hiddenStory: string;
+  updatedAt: string;
+}
+
+interface LocalProfileImageHistoryEntry {
+  id: string;
+  userId: string;
+  imagePath: string;
+  createdAt: string;
   updatedAt: string;
 }
 
@@ -348,6 +358,15 @@ function newestFirst(posts: ReflectionPost[]): ReflectionPost[] {
   );
 }
 
+function newestImageHistoryFirst(
+  entries: ProfileImageHistoryEntry[]
+): ProfileImageHistoryEntry[] {
+  return entries.sort(
+    (a, b) =>
+      new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+  );
+}
+
 function assertStoredProfileImagePath(userId: string, imagePath: string): void {
   if (imagePath && !isOwnedProfileImagePath(imagePath, userId)) {
     throw new Error("The selected image path is not valid for this account.");
@@ -360,13 +379,57 @@ async function cleanupReplacedProfileImage(
   nextPath: string
 ): Promise<void> {
   if (!previousPath || previousPath === nextPath) return;
-  try {
-    await deleteSupabaseProfileImage(userId, previousPath);
-  } catch {
-    // The profile write is already durable. Account deletion scans the entire
-    // owner folder, so a failed best-effort replacement cleanup remains
-    // recoverable without rolling the profile back to a stale image.
+  // Keep older profile images so the journey timeline can show every change.
+  // Account deletion removes the full owner image set in one pass.
+  return;
+}
+
+function localProfileImageHistoryKey(userId: string): string {
+  return `${STORAGE_PREFIX}:profileImageHistory:${userId}`;
+}
+
+function readLocalProfileImageHistory(
+  userId: string
+): LocalProfileImageHistoryEntry[] {
+  return Object.values(
+    readJson<Record<string, LocalProfileImageHistoryEntry>>(
+      localProfileImageHistoryKey(userId),
+      {}
+    )
+  );
+}
+
+function writeLocalProfileImageHistoryEntry(
+  entry: LocalProfileImageHistoryEntry
+): void {
+  const entries = readJson<Record<string, LocalProfileImageHistoryEntry>>(
+    localProfileImageHistoryKey(entry.userId),
+    {}
+  );
+  entries[entry.id] = entry;
+  writeJson(localProfileImageHistoryKey(entry.userId), entries);
+}
+
+function storedProfileImageHistoryEntry(
+  id: string,
+  value: unknown,
+  expectedUserId: string
+): ProfileImageHistoryEntry | null {
+  if (typeof value !== "object" || !value) return null;
+  const data = value as Record<string, unknown>;
+  const userId = stringValue(data.userId);
+  const imagePath = stringValue(data.imagePath);
+  const createdAt = dateValue(data.createdAt);
+  const updatedAt = dateValue(data.updatedAt);
+  if (
+    userId !== expectedUserId ||
+    !isOwnedProfileImagePath(imagePath, userId) ||
+    Number.isNaN(Date.parse(createdAt)) ||
+    Number.isNaN(Date.parse(updatedAt))
+  ) {
+    return null;
   }
+  return { id, userId, imagePath, createdAt, updatedAt };
 }
 
 async function ensureLocalSeed(): Promise<void> {
@@ -453,6 +516,10 @@ async function ensureLocalSeed(): Promise<void> {
   writeJson<JsonMap<ReflectionPost>>(LOCAL_KEYS.reflections, Object.fromEntries(
     posts.map((post) => [post.id, post])
   ));
+  writeJson<Record<string, LocalProfileImageHistoryEntry>>(
+    localProfileImageHistoryKey(userId),
+    {}
+  );
 }
 
 function friendlyAuthError(error: unknown): Error {
@@ -511,9 +578,15 @@ function friendlyAuthError(error: unknown): Error {
 async function hasStoredProfileImageReference(userId: string): Promise<boolean> {
   const services = getFirebaseServices();
   if (!services) return false;
-  const [profileSnapshot, draftSnapshot] = await Promise.all([
+  const [profileSnapshot, draftSnapshot, historySnapshot] = await Promise.all([
     getDoc(doc(services.db, "profiles", userId)),
-    getDoc(doc(services.db, "drafts", userId))
+    getDoc(doc(services.db, "drafts", userId)),
+    getDocs(
+      query(
+        collection(services.db, "profileImageHistory"),
+        where("userId", "==", userId)
+      )
+    )
   ]);
   const profilePath = profileSnapshot.exists()
     ? stringValue(profileSnapshot.data().imagePath)
@@ -527,7 +600,47 @@ async function hasStoredProfileImageReference(userId: string): Promise<boolean> 
       : "";
   return (
     isOwnedProfileImagePath(profilePath, userId) ||
-    isOwnedProfileImagePath(draftPath, userId)
+    isOwnedProfileImagePath(draftPath, userId) ||
+    historySnapshot.docs.length > 0
+  );
+}
+
+async function hasFirebaseProfileImageReference(
+  userId: string,
+  imagePath: string
+): Promise<boolean> {
+  const services = getFirebaseServices();
+  if (!services) return false;
+  if (!imagePath || !isOwnedProfileImagePath(imagePath, userId)) return false;
+
+  const [profileSnapshot, draftSnapshot, historySnapshot] = await Promise.all([
+    getDoc(doc(services.db, "profiles", userId)),
+    getDoc(doc(services.db, "drafts", userId)),
+    getDocs(
+      query(
+        collection(services.db, "profileImageHistory"),
+        where("userId", "==", userId)
+      )
+    )
+  ]);
+
+  const profilePath = profileSnapshot.exists()
+    ? stringValue(profileSnapshot.data().imagePath)
+    : "";
+  const draftData = draftSnapshot.exists()
+    ? draftSnapshot.data().draftData
+    : null;
+  const draftPath =
+    typeof draftData === "object" && draftData
+      ? stringValue((draftData as Record<string, unknown>).imagePath)
+      : "";
+
+  if (profilePath === imagePath || draftPath === imagePath) {
+    return true;
+  }
+
+  return historySnapshot.docs.some(
+    (item) => stringValue(item.data().imagePath) === imagePath
   );
 }
 
@@ -1398,23 +1511,162 @@ export const appService = {
   async uploadProfileImage(userId: string, file: File): Promise<string> {
     if (isFirebaseConfigured) {
       assertFirebaseOwner(userId);
-      return uploadSupabaseProfileImage(userId, file);
+      const imagePath = await uploadFirebaseProfileImage(userId, file);
+      await this.recordProfileImageHistory(userId, imagePath);
+      return imagePath;
     }
 
     assertLocalOwner(userId);
-    return new Promise<string>((resolve, reject) => {
+    const now = nowIso();
+    const imagePath = await new Promise<string>((resolve, reject) => {
       const reader = new FileReader();
       reader.onload = () => resolve(String(reader.result ?? ""));
       reader.onerror = () => reject(new Error("The image could not be read."));
       reader.readAsDataURL(file);
     });
+    writeLocalProfileImageHistoryEntry({
+      id: newId("profile-image-"),
+      userId,
+      imagePath,
+      createdAt: now,
+      updatedAt: now
+    });
+    return imagePath;
   },
 
   async deleteProfileImage(userId: string, imagePath: string): Promise<void> {
+    if (!imagePath) return;
     if (isFirebaseConfigured) {
       assertFirebaseOwner(userId);
-      await deleteSupabaseProfileImage(userId, imagePath);
+      if (await hasFirebaseProfileImageReference(userId, imagePath)) return;
+      await deleteFirebaseProfileImage(userId, imagePath);
     }
+  },
+
+  async recordProfileImageHistory(
+    userId: string,
+    imagePath: string
+  ): Promise<void> {
+    const now = nowIso();
+
+    if (isFirebaseConfigured) {
+      assertFirebaseOwner(userId);
+
+      const services = getFirebaseServices();
+      if (!services) {
+        throw new Error("Firebase is not available.");
+      }
+
+      const historyRef = doc(
+        collection(services.db, "profileImageHistory")
+      );
+
+      await setDoc(historyRef, {
+        id: historyRef.id,
+        userId,
+        imagePath,
+        createdAt: now,
+        updatedAt: now
+      });
+
+      return;
+    }
+
+    assertLocalOwner(userId);
+
+    const historyId = newId("profile-image-");
+
+    writeLocalProfileImageHistoryEntry({
+      id: historyId,
+      userId,
+      imagePath,
+      createdAt: now,
+      updatedAt: now
+    });
+  },
+
+  async getProfileImageHistory(
+    userId: string
+  ): Promise<ProfileImageHistoryEntry[]> {
+    if (isFirebaseConfigured) {
+      assertFirebaseOwner(userId);
+      const services = getFirebaseServices();
+      if (!services) return [];
+      const snapshot = await getDocs(
+        query(
+          collection(services.db, "profileImageHistory"),
+          where("userId", "==", userId)
+        )
+      );
+      return newestImageHistoryFirst(
+        snapshot.docs
+          .map((item) =>
+            storedProfileImageHistoryEntry(item.id, item.data(), userId)
+          )
+          .filter((entry): entry is ProfileImageHistoryEntry => Boolean(entry))
+      );
+    }
+
+    assertLocalOwner(userId);
+    return newestImageHistoryFirst(
+      readLocalProfileImageHistory(userId)
+        .filter((entry) => entry.userId === userId)
+        .map((entry) => ({ ...entry }))
+    );
+  },
+
+  subscribeProfileImageHistory(
+    userId: string,
+    callback: (entries: ProfileImageHistoryEntry[]) => void,
+    onError: (message: string) => void
+  ): Unsubscribe {
+    if (isFirebaseConfigured) {
+      assertFirebaseOwner(userId);
+      const services = getFirebaseServices();
+      if (!services) {
+        onError("Firebase is not available.");
+        return () => undefined;
+      }
+      return onSnapshot(
+        query(
+          collection(services.db, "profileImageHistory"),
+          where("userId", "==", userId)
+        ),
+        (snapshot) => {
+          callback(
+            newestImageHistoryFirst(
+              snapshot.docs
+                .map((item) =>
+                  storedProfileImageHistoryEntry(item.id, item.data(), userId)
+                )
+                .filter((entry): entry is ProfileImageHistoryEntry => Boolean(entry))
+            )
+          );
+        },
+        (error) => {
+          onError(
+            error.code === "permission-denied"
+              ? "You do not have permission to read this history."
+              : "Live profile picture updates were interrupted. Check your connection."
+          );
+        }
+      );
+    }
+
+    assertLocalOwner(userId);
+    const read = () => {
+      callback(
+        newestImageHistoryFirst(
+          readLocalProfileImageHistory(userId).filter((entry) => entry.userId === userId)
+        )
+      );
+    };
+    read();
+    const listener = (event: StorageEvent) => {
+      if (event.key === localProfileImageHistoryKey(userId)) read();
+    };
+    window.addEventListener("storage", listener);
+    return () => window.removeEventListener("storage", listener);
   },
 
   async getReflections(userId: string): Promise<ReflectionPost[]> {
@@ -1661,7 +1913,7 @@ export const appService = {
       }
 
       try {
-        await deleteAllSupabaseProfileImages(userId);
+        await deleteAllFirebaseProfileImages(userId);
       } catch (imageCleanupError) {
         if (await hasStoredProfileImageReference(userId)) {
           console.error("Private image cleanup failed during cancellation.", imageCleanupError);
@@ -1742,10 +1994,10 @@ export const appService = {
           throw friendlyAuthError(error);
         }
       }
-      // Remove Supabase Storage first. If this fails, retain the account and
+      // Remove Firebase Storage first. If this fails, retain the account and
       // Firestore records so the owner can retry without orphaning image data.
       try {
-        await deleteAllSupabaseProfileImages(userId);
+        await deleteAllFirebaseProfileImages(userId);
       } catch (imageCleanupError) {
         if (await hasStoredProfileImageReference(userId)) {
           console.error("Private image cleanup failed during account deletion.", imageCleanupError);
@@ -1781,6 +2033,20 @@ export const appService = {
       accountBatch.delete(doc(services.db, "drafts", userId));
       accountBatch.delete(doc(services.db, "users", userId));
       await accountBatch.commit();
+
+      while (true) {
+        const historyPage = await getDocs(
+          query(
+            collection(services.db, "profileImageHistory"),
+            where("userId", "==", userId),
+            firestoreLimit(400)
+          )
+        );
+        if (historyPage.empty) break;
+        const historyBatch = writeBatch(services.db);
+        historyPage.docs.forEach((item) => historyBatch.delete(item.ref));
+        await historyBatch.commit();
+      }
       await deleteUser(firebaseUser);
       return;
     }
@@ -1812,6 +2078,9 @@ export const appService = {
     removeUserEntry<PrivateProfileRecord>(LOCAL_KEYS.privateProfiles);
     removeUserEntry<ProfileDraft>(LOCAL_KEYS.drafts);
     removeUserEntry<ReflectionPost>(LOCAL_KEYS.reflections);
+    removeUserEntry<LocalProfileImageHistoryEntry>(
+      LOCAL_KEYS.profileImageHistory
+    );
     writeSessionUid(null);
   }
 };

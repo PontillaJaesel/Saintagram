@@ -5,6 +5,7 @@ import {
   BookHeart,
   CalendarDays,
   Edit3,
+  Image as ImageIcon,
   NotebookPen,
   Sparkles
 } from "lucide-react";
@@ -12,8 +13,10 @@ import { useAuth } from "@/components/providers/auth-provider";
 import { EmptyState } from "@/components/ui/empty-state";
 import { LoadingState } from "@/components/ui/loading-state";
 import { appService } from "@/lib/app-service";
+import { downloadFirebaseProfileImage, isLocalProfileImageSource } from "@/lib/profile-images";
 import { formatFriendlyDate } from "@/lib/validation";
 import type {
+  ProfileImageHistoryEntry,
   PublicSpiritualProfile,
   ReflectionPost
 } from "@/types";
@@ -23,13 +26,68 @@ interface JourneyItem {
   date: string;
   title: string;
   description: string;
-  type: "profile" | "reflection" | "update";
+  type: "current-profile" | "profile" | "reflection" | "update" | "image";
+  imagePath?: string;
+  profile?: PublicSpiritualProfile;
+}
+
+function JourneyImagePreview({
+  imagePath,
+  profileName
+}: {
+  imagePath: string;
+  profileName: string;
+}) {
+  const { loading, mode, user } = useAuth();
+  const [src, setSrc] = useState(imagePath.startsWith("data:image/") ? imagePath : "");
+
+  useEffect(() => {
+    let active = true;
+    if (!imagePath) {
+      setSrc("");
+      return () => undefined;
+    }
+    if (isLocalProfileImageSource(imagePath)) {
+      setSrc(mode === "local" ? imagePath : "");
+      return () => undefined;
+    }
+    if (loading || !user) {
+      setSrc("");
+      return () => undefined;
+    }
+
+    void downloadFirebaseProfileImage(imagePath)
+      .then((downloadUrl) => {
+        if (active) setSrc(downloadUrl);
+      })
+      .catch(() => {
+        if (active) setSrc("");
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [imagePath, loading, mode, user?.id]);
+
+  if (!src) return null;
+  return (
+    <div className="mt-4 overflow-hidden rounded-3xl border border-sage-100 bg-paper p-3 shadow-sm">
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        src={src}
+        alt={`${profileName || "Saintagram"} profile picture history`}
+        className="max-h-64 w-full rounded-2xl object-contain"
+        loading="lazy"
+      />
+    </div>
+  );
 }
 
 export function JourneyTimeline() {
   const { user } = useAuth();
   const [profile, setProfile] = useState<PublicSpiritualProfile | null>(null);
   const [posts, setPosts] = useState<ReflectionPost[]>([]);
+  const [imageHistory, setImageHistory] = useState<ProfileImageHistoryEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
@@ -64,9 +122,17 @@ export function JourneyTimeline() {
       },
       fail
     );
+    const unsubscribeImageHistory = appService.subscribeProfileImageHistory(
+      user.id,
+      (nextHistory) => {
+        setImageHistory(nextHistory);
+      },
+      fail
+    );
     return () => {
       unsubscribeProfile();
       unsubscribePosts();
+      unsubscribeImageHistory();
     };
   }, [user]);
 
@@ -79,6 +145,26 @@ export function JourneyTimeline() {
       description: post.content,
       type: "reflection"
     }));
+    journey.push({
+      id: "current-profile",
+      date: profile.updatedAt,
+      title: "Your current Profile Before God",
+      description: "This is who you currently are in your spiritual journey.",
+      type: "current-profile",
+      imagePath: profile.imagePath,
+      profile
+    });
+    imageHistory.forEach((entry) => {
+      journey.push({
+        id: entry.id,
+        date: entry.createdAt,
+        title: "Profile picture updated",
+        description:
+          "Your profile picture changed and this version remains in your journey.",
+        type: "image",
+        imagePath: entry.imagePath
+      });
+    });
     journey.push({
       id: "profile-created",
       date: profile.createdAt,
@@ -105,7 +191,7 @@ export function JourneyTimeline() {
     return journey.sort(
       (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
     );
-  }, [posts, profile]);
+  }, [imageHistory, posts, profile]);
 
   if (loading) return <LoadingState label="Tracing your journey…" />;
 
@@ -129,7 +215,7 @@ export function JourneyTimeline() {
       <EmptyState
         icon={BookHeart}
         title="Your journey is just beginning"
-        description="Profile updates and non-private reflections will form a gentle timeline here."
+        description="Profile picture changes, profile updates, and non-private reflections will form a gentle timeline here."
       />
     );
   }
@@ -149,11 +235,15 @@ export function JourneyTimeline() {
         <ol className="relative ml-4 border-l-2 border-sage-100 pl-8">
           {items.map((item) => {
             const Icon =
-              item.type === "reflection"
-                ? Sparkles
+            item.type === "reflection"
+              ? Sparkles
+              : item.type === "image"
+                ? ImageIcon
                 : item.type === "update"
                   ? Edit3
-                  : BookHeart;
+                  : item.type === "current-profile"
+                    ? BookHeart
+                    : BookHeart;
             return (
               <li key={item.id} className="relative pb-9 last:pb-0">
                 <span
@@ -162,7 +252,9 @@ export function JourneyTimeline() {
                       ? "bg-sage-600 text-white"
                       : item.type === "update"
                         ? "bg-gold-100 text-gold-700"
-                        : "bg-clay-50 text-clay-600"
+                        : item.type === "current-profile"
+                          ? "bg-violet-600 text-white"
+                          : "bg-clay-50 text-clay-600"
                   }`}
                 >
                   <Icon className="size-3.5" aria-hidden="true" />
@@ -178,6 +270,78 @@ export function JourneyTimeline() {
                 <p className="user-content mt-2 whitespace-pre-wrap text-sm leading-7 text-muted">
                   {item.description}
                 </p>
+                {item.type === "current-profile" && item.profile && (
+                <div className="mt-4 rounded-3xl border border-sage-100 bg-paper p-5 shadow-sm">
+                  {item.imagePath && (
+                    <JourneyImagePreview
+                      imagePath={item.imagePath}
+                      profileName={item.profile.profileName}
+                    />
+                  )}
+
+                  <div className="mt-5">
+                    <p className="text-xs font-bold uppercase tracking-wider text-sage-600">
+                      Profile name
+                    </p>
+                    <p className="mt-1 font-serif text-xl font-bold">
+                      {item.profile.profileName}
+                    </p>
+                  </div>
+
+                  {item.profile.spiritualBio && (
+                    <div className="mt-4">
+                      <p className="text-xs font-bold uppercase tracking-wider text-sage-600">
+                        Before God, I am
+                      </p>
+                      <p className="user-content mt-1 whitespace-pre-wrap text-sm leading-7 text-muted">
+                        {item.profile.spiritualBio}
+                      </p>
+                    </div>
+                  )}
+
+                  {item.profile.heartSeeks.length > 0 && (
+                    <div className="mt-4">
+                      <p className="text-xs font-bold uppercase tracking-wider text-sage-600">
+                        My heart seeks
+                      </p>
+
+                      <div className="mt-2 flex flex-wrap gap-2">
+                        {item.profile.heartSeeks.map((value) => (
+                          <span
+                            key={value}
+                            className="rounded-full bg-sage-100 px-3 py-1 text-xs font-semibold text-sage-700"
+                          >
+                            {value}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {item.profile.godsComment && (
+                    <div className="mt-4">
+                      <p className="text-xs font-bold uppercase tracking-wider text-sage-600">
+                        Word of grace
+                      </p>
+                      <p className="user-content mt-1 whitespace-pre-wrap text-sm italic leading-7 text-muted">
+                        “{item.profile.godsComment}”
+                      </p>
+                    </div>
+                  )}
+
+                  {item.profile.heavenlyHashtag && (
+                    <p className="mt-4 text-sm font-bold text-sage-600">
+                      {item.profile.heavenlyHashtag}
+                    </p>
+                  )}
+                </div>
+              )}
+                {item.type === "image" && item.imagePath && (
+                  <JourneyImagePreview
+                    imagePath={item.imagePath}
+                    profileName={profile?.profileName ?? "Saintagram"}
+                  />
+                )}
               </li>
             );
           })}

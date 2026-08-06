@@ -197,6 +197,28 @@ service cloud.firestore {
         && isIsoDate(data.updatedAt);
     }
 
+    function hasValidProfileImageHistoryShape(data) {
+      return data.keys().hasOnly([
+          'id',
+          'userId',
+          'imagePath',
+          'createdAt',
+          'updatedAt'
+        ])
+        && data.keys().hasAll([
+          'id',
+          'userId',
+          'imagePath',
+          'createdAt',
+          'updatedAt'
+        ])
+        && data.id is string
+        && data.userId is string
+        && hasValidProfileImagePath(data.imagePath, data.userId)
+        && isIsoDate(data.createdAt)
+        && isIsoDate(data.updatedAt);
+    }
+
     function hasValidDraftData(value, userId) {
       return value is map
         && value.keys().hasOnly([
@@ -388,6 +410,24 @@ service cloud.firestore {
         && hasValidPrivateProfileShape(request.resource.data);
 
       allow delete: if isCurrentUser(userId);
+    }
+
+    match /profileImageHistory/{entryId} {
+      allow get: if ownsExistingDocument();
+      allow list: if false;
+
+      allow create: if ownsIncomingDocument()
+        && request.resource.data.id == entryId
+        && hasValidProfileImageHistoryShape(request.resource.data);
+
+      allow update: if ownsExistingDocument()
+        && ownsIncomingDocument()
+        && request.resource.data.id == resource.data.id
+        && request.resource.data.userId == resource.data.userId
+        && request.resource.data.createdAt == resource.data.createdAt
+        && hasValidProfileImageHistoryShape(request.resource.data);
+
+      allow delete: if ownsExistingDocument();
     }
 
     match /drafts/{draftId} {
