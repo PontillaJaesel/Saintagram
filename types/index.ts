@@ -33,8 +33,8 @@ export interface PublicSpiritualProfile {
   imagePath: string;
   selectedSymbol: SpiritualSymbol;
   spiritualBio: string;
-  followers: string[];
-  following: string[];
+  spiritualGuides: string[];
+  lifeDirections: string[];
   heartSeeks: string[];
   godsComment: string;
   heavenlyHashtag: string;
@@ -57,6 +57,28 @@ export interface ReflectionPost {
   editedAt?: string;
 }
 
+export interface SocialProfile {
+  id: string;
+  userId: string;
+  profileName: string;
+  imagePath: string;
+  spiritualBio: string;
+  heavenlyHashtag: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface FollowRelationship {
+  id: string;
+  followerId: string;
+  followingId: string;
+  createdAt: string;
+}
+
+export interface SocialFeedPost extends ReflectionPost {
+  author: SocialProfile;
+}
+
 export interface ProfileImageHistoryEntry {
   id: string;
   userId: string;
@@ -70,8 +92,8 @@ export interface ProfileDraftData {
   imagePath: string;
   selectedSymbol: SpiritualSymbol;
   spiritualBio: string;
-  followers: string[];
-  following: string[];
+  spiritualGuides: string[];
+  lifeDirections: string[];
   onboardingPostTitles?: string[];
   onboardingPosts: string[];
   heartSeeks: string[];
@@ -102,8 +124,8 @@ export const EMPTY_DRAFT: ProfileDraftData = {
   imagePath: "",
   selectedSymbol: "",
   spiritualBio: "",
-  followers: [],
-  following: [],
+  spiritualGuides: string[];
+  lifeDirections: string[];
   onboardingPostTitles: [""],
   onboardingPosts: [""],
   heartSeeks: [],
