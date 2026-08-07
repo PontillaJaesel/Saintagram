@@ -33,8 +33,8 @@ export interface PublicSpiritualProfile {
   imagePath: string;
   selectedSymbol: SpiritualSymbol;
   spiritualBio: string;
-  followers: string[];
-  following: string[];
+  spiritualGuides: string[];
+  lifeDirections: string[];
   heartSeeks: string[];
   godsComment: string;
   heavenlyHashtag: string;
@@ -57,13 +57,86 @@ export interface ReflectionPost {
   editedAt?: string;
 }
 
+export interface SocialProfile {
+  id: string;
+  userId: string;
+  profileName: string;
+  imagePath: string;
+  spiritualBio: string;
+  heavenlyHashtag: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface FollowRelationship {
+  id: string;
+  followerId: string;
+  followingId: string;
+  createdAt: string;
+}
+
+export interface SocialFeedPost extends ReflectionPost {
+  author: SocialProfile;
+}
+
+export interface ReflectionLike {
+  id: string;
+  reflectionId: string;
+  postOwnerId: string;
+  userId: string;
+  createdAt: string;
+}
+
+export interface ReflectionComment {
+  id: string;
+  reflectionId: string;
+  postOwnerId: string;
+  userId: string;
+
+  /*
+   * Present only when this comment
+   * is a reply.
+   */
+  parentCommentId?: string;
+  replyToUserId?: string;
+
+  content: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type SocialNotificationType =
+  | "follow"
+  | "like"
+  | "comment"
+  | "reply";
+
+export interface SocialNotification {
+  id: string;
+  userId: string;
+  actorUserId: string;
+  type: SocialNotificationType;
+  reflectionId?: string;
+  commentId?: string;
+  createdAt: string;
+  readAt: string | null;
+}
+
+export interface ProfileImageHistoryEntry {
+  id: string;
+  userId: string;
+  imagePath: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface ProfileDraftData {
   profileName: string;
   imagePath: string;
   selectedSymbol: SpiritualSymbol;
   spiritualBio: string;
-  followers: string[];
-  following: string[];
+  spiritualGuides: string[];
+  lifeDirections: string[];
   onboardingPostTitles?: string[];
   onboardingPosts: string[];
   heartSeeks: string[];
@@ -94,8 +167,8 @@ export const EMPTY_DRAFT: ProfileDraftData = {
   imagePath: "",
   selectedSymbol: "",
   spiritualBio: "",
-  followers: [],
-  following: [],
+  spiritualGuides: [],
+  lifeDirections: [],
   onboardingPostTitles: [""],
   onboardingPosts: [""],
   heartSeeks: [],

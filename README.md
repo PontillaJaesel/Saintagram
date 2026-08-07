@@ -29,9 +29,9 @@ controls.
 - Owner reflection create, edit, delete, privacy, and creation-date controls
 - Profile editing, privacy preferences, private personal export, and
   destructive-action confirmations
-- Firebase Authentication and Firestore, with private Supabase image storage
+- Firebase Authentication and Firestore, with private Firebase Storage image uploads
 - A fully functional browser-local demonstration mode when Firebase is absent
-- Strict Firestore ownership rules and Supabase row-level storage policies
+- Strict Firestore ownership rules and Firebase Storage security rules
 - Vitest coverage for route guards, redirects, profile saving, validation, and
   private-field projection
 
@@ -125,8 +125,9 @@ password-reset emails return to the origin that requested them.
 
 Firebase-mode registrations are signed out after the verification message is
 sent. Unverified accounts cannot log in, read or write Firestore data, or gain
-Supabase image access. A login attempt for an unverified account sends a fresh
-verification message. The local demo mode intentionally skips email delivery.
+Firebase Storage access. A login attempt for an unverified account sends a
+fresh verification message. The local demo mode intentionally skips email
+delivery.
 
 Deploy the supplied rules and indexes after selecting the project:
 
@@ -148,79 +149,49 @@ The application uses these collections:
 See [docs/data-model.md](docs/data-model.md) for exact fields and privacy
 boundaries.
 
-## Supabase image-storage setup
+## Firebase image-storage setup
 
-Firebase remains the identity provider and Firestore remains the database.
-Only profile-image files move to Supabase.
+Firebase remains the identity provider, Firestore remains the database, and
+Firebase Storage now holds profile images directly.
 
-1. Create or open the Supabase project that will store this environment's
-   images.
-2. Open the project's **Connect** dialog and copy its **Project URL** and
-   **Publishable key** into `.env.local`. You can also find or create the
-   publishable key under **Settings → API Keys**:
+1. In **Firebase Console → Build → Storage**, enable Cloud Storage if it is not
+  already enabled for this project. The default bucket is usually
+  `<project-id>.appspot.com`.
+2. Open `storage.rules` in this repo and deploy it to Firebase Storage, or paste
+  the same rules into the Console rules editor. The rules allow only the signed
+  in owner to read, upload, or delete files under
+  `users/{uid}/profile/{uuid}.{jpg|png|webp}` and cap uploads at 2 MiB.
+3. If your project uses a non-default bucket, set
+  `NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET` in `.env.local` to that bucket name.
+  Otherwise the app uses the default bucket automatically.
+4. Keep the Firebase Admin service-account values in `.env.local` as before for
+  server-only account-management operations:
 
-   ```dotenv
-   NEXT_PUBLIC_SUPABASE_URL=https://your-project-ref.supabase.co
-   NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=sb_publishable_...
-   ```
+  ```dotenv
+  FIREBASE_ADMIN_PROJECT_ID=your-firebase-project-id
+  FIREBASE_ADMIN_CLIENT_EMAIL=firebase-adminsdk-...@your-project.iam.gserviceaccount.com
+  FIREBASE_ADMIN_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----\n"
+  ```
 
-   These two browser values are expected to be public. Never put a Supabase
-   secret key or service-role key in a `NEXT_PUBLIC_` variable.
-3. In **Authentication → Third-Party Auth**, add **Firebase** and enter the
-   same Firebase Project ID used by `NEXT_PUBLIC_FIREBASE_PROJECT_ID`.
-4. Open the Supabase **SQL Editor**, paste
-   `supabase/migrations/20260729000000_profile_images.sql`, and run it once.
-   It creates or corrects the private `profile-images` bucket, applies the
-   2 MiB and JPEG/PNG/WebP limits, grants owner-only read/upload/delete, and
-   explicitly denies overwrites.
-5. In **Storage**, verify that `profile-images` exists and is marked private.
-   Do not add public or broad bucket policies.
-6. Let the server automatically give signed-in Firebase users the custom claim
-   `role: "authenticated"`. Supabase uses this claim to select its
-   authenticated database role. In **Firebase Console → Project settings →
-   Service accounts**, generate a private key for this environment. Copy only
-   these three matching values from the downloaded JSON into `.env.local`:
-
-   ```dotenv
-   FIREBASE_ADMIN_PROJECT_ID=your-firebase-project-id
-   FIREBASE_ADMIN_CLIENT_EMAIL=firebase-adminsdk-...@your-project.iam.gserviceaccount.com
-   FIREBASE_ADMIN_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----\n"
-   ```
-
-   Keep these values server-only: never add `NEXT_PUBLIC_`, never commit
-   `.env.local`, and never paste them into client code. Restart the development
-   server after changing environment variables.
-
-   On the first image request, `/api/image-access` verifies the caller's
-   Firebase ID token, assigns the claim only to that verified UID, preserves
-   its other custom claims, and forces a fresh browser token. Existing and new
-   app users therefore do not need a manual claim command or a sign-out cycle.
-   This route runs in the Next.js server and does not require Firebase Cloud
-   Functions or the Blaze plan.
-
-   `node scripts/grant-supabase-role.mjs --all` remains available as an
-   optional administrative backfill/recovery tool when Application Default
-   Credentials are configured, but it is not part of normal registration.
+  Never add `NEXT_PUBLIC_` to those Admin values, never commit `.env.local`,
+  and restart the development server after changing environment variables.
 
 The application stores only a private object path such as
-`users/{firebaseUid}/profile/{uuid}.jpg` in Firestore. It sends the current
-Firebase ID token to Supabase, downloads the object as a Blob, and revokes the
-temporary browser URL when it is no longer needed. No image file or permanent
-download URL is stored in Firestore.
+`users/{firebaseUid}/profile/{uuid}.jpg` in Firestore. The browser reads and
+writes the file through Firebase Storage using the signed-in Firebase user, so
+there is no access-claim step, no server image-access route, and no per-user
+role setup.
 
-This is an intentional hard cutover. If an older environment already has
-profile files in a Firebase image bucket, first re-upload each wanted image to
-`profile-images` and save its new private path. Then remove the obsolete URL
-fields and old bucket objects in the Firebase console. The application does
-not read old download URLs, so verify that no legacy image data remains before
-retiring that bucket.
+If an older environment still has profile images in Supabase, re-upload the
+images you want to keep into Firebase Storage, update the stored paths, and
+then delete the obsolete Supabase bucket and migration artifacts.
 
 ## Security model
 
 - Every page is behind the server-side invitation gate except the code-entry
   route and its verification endpoint.
-- Firestore and the private Supabase bucket require an authenticated Firebase
-  UID that matches the document or object owner.
+- Firestore and Firebase Storage require an authenticated Firebase UID that
+  matches the document or object owner.
 - Standard profile reads query only `profiles/{uid}`. Hidden Story content is
   stored separately and is not fetched until the user passes an additional
   privacy check.
@@ -231,9 +202,9 @@ retiring that bucket.
 - Personal export is explicitly an owner-requested private archive, never a
   public profile export.
 - Account deletion reauthenticates, removes all images beneath the user's
-  Supabase prefix in bounded pages, deletes Firestore content in bounded
-  batches, and then deletes the Authentication user. Cleanup failures stop the
-  process with a visible error.
+  Firebase Storage prefix, deletes Firestore content in bounded batches, and
+  then deletes the Authentication user. Cleanup failures stop the process with
+  a visible error.
 
 The shared entrance code proves possession of an invitation, not a person's
 identity, and can be forwarded. Firebase Authentication and owner-only rules
@@ -264,14 +235,13 @@ app/                 Next.js routes
 components/          Reusable UI, forms, providers, and feature components
 lib/app-service.ts   Firebase/local repository and authentication adapters
 lib/firebase-admin.ts Server-only Firebase token verification and claim setup
-lib/profile-images.ts Private Supabase image upload/download/deletion
-lib/supabase.ts       Browser client using the current Firebase ID token
+lib/profile-images.ts Private Firebase Storage image upload/download/deletion
 lib/profile.ts       Private-safe profile projections and normalization
 types/               Application data models
 tests/               Guard, redirect, storage, and privacy tests
 scripts/             Production-host package preparation
-supabase/migrations/ Private bucket and row-level storage policies
-docs/data-model.md   Firestore and Supabase Storage contract
+storage.rules        Firebase Storage access policy for profile images
+docs/data-model.md   Firestore and Firebase Storage contract
 firestore.rules      Owner-only database rules
 data/demo-seed.json  Fictional demonstration data
 ```
@@ -280,8 +250,8 @@ data/demo-seed.json  Fictional demonstration data
 
 The local fallback is intentionally scoped to demonstration. A production
 launch should also add server-side retryable account cleanup (including a
-second Supabase cleanup after old Firebase ID tokens expire), Firebase App
-Check, abuse monitoring, and an approved pastoral/privacy review of prompts and
-copy. Deleting a Firebase user prevents token refresh but an already-issued ID
-token can remain valid until it expires, so high-assurance deletion needs that
-delayed privileged cleanup.
+second Firebase Storage cleanup after old Firebase ID tokens expire), Firebase
+App Check, abuse monitoring, and an approved pastoral/privacy review of prompts
+and copy. Deleting a Firebase user prevents token refresh but an already-issued
+ID token can remain valid until it expires, so high-assurance deletion needs
+that delayed privileged cleanup.

@@ -1,25 +1,77 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import {
+  useEffect,
+  useState
+} from "react";
+
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+
 import {
   Footprints,
   Home,
   NotebookPen,
-  Settings as SettingsIcon
+  Settings as SettingsIcon,
+  UsersRound
 } from "lucide-react";
+
 import { Logo } from "@/components/brand/logo";
+import { NotificationBell } from "@/components/social/notification-bell";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
 
 const NAV_ITEMS = [
-  { href: "/profile", label: "Profile", icon: Home },
-  { href: "/reflect", label: "Reflect", icon: NotebookPen },
-  { href: "/journey", label: "Journey", icon: Footprints },
-  { href: "/settings", label: "Settings", icon: SettingsIcon }
+  {
+    href: "/profile",
+    label: "Profile",
+    icon: Home
+  },
+  {
+    href: "/community",
+    label: "Community",
+    icon: UsersRound
+  },
+  {
+    href: "/reflect",
+    label: "Reflect",
+    icon: NotebookPen
+  },
+  {
+    href: "/journey",
+    label: "Journey",
+    icon: Footprints
+  },
+  {
+    href: "/settings",
+    label: "Settings",
+    icon: SettingsIcon
+  }
 ] as const;
 
-let lastPrimaryNavIndex: number | null = null;
+let lastPrimaryNavIndex:
+  number | null = null;
+
+function isNavItemActive(
+  pathname: string,
+  href:
+    (typeof NAV_ITEMS)[number]["href"]
+) {
+  return (
+    pathname === href ||
+    (
+      href === "/profile" &&
+      pathname.startsWith(
+        "/profile/"
+      )
+    ) ||
+    (
+      href === "/community" &&
+      pathname.startsWith(
+        "/users/"
+      )
+    )
+  );
+}
 
 export function AppShell({
   children,
@@ -32,26 +84,53 @@ export function AppShell({
   description?: string;
   action?: React.ReactNode;
 }) {
-  const pathname = usePathname();
-  const isProfile = pathname === "/profile";
-  const activeNavIndex = Math.max(
-    0,
+  const pathname =
+    usePathname();
+
+  const isProfile =
+    pathname === "/profile";
+
+  const foundNavIndex =
     NAV_ITEMS.findIndex(
       ({ href }) =>
-        pathname === href ||
-        (href === "/profile" && pathname.startsWith("/profile/"))
-    )
-  );
-  const [indicatorIndex, setIndicatorIndex] = useState(
-    () => lastPrimaryNavIndex ?? activeNavIndex
+        isNavItemActive(
+          pathname,
+          href
+        )
+    );
+
+  const activeNavIndex =
+    Math.max(
+      0,
+      foundNavIndex
+    );
+
+  const [
+    indicatorIndex,
+    setIndicatorIndex
+  ] = useState(
+    () =>
+      lastPrimaryNavIndex ??
+      activeNavIndex
   );
 
   useEffect(() => {
-    const frame = window.requestAnimationFrame(() => {
-      setIndicatorIndex(activeNavIndex);
-      lastPrimaryNavIndex = activeNavIndex;
-    });
-    return () => window.cancelAnimationFrame(frame);
+    const frame =
+      window.requestAnimationFrame(
+        () => {
+          setIndicatorIndex(
+            activeNavIndex
+          );
+
+          lastPrimaryNavIndex =
+            activeNavIndex;
+        }
+      );
+
+    return () =>
+      window.cancelAnimationFrame(
+        frame
+      );
   }, [activeNavIndex]);
 
   return (
@@ -62,23 +141,38 @@ export function AppShell({
       >
         Skip to main content
       </a>
-      <header
-        className="sticky top-0 z-40 border-b border-sage-100/70 bg-canvas/80 backdrop-blur-2xl lg:hidden"
-      >
+
+      <header className="sticky top-0 z-40 border-b border-sage-100/70 bg-canvas/80 backdrop-blur-2xl lg:hidden">
         <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6">
           <Logo href="/profile" />
-          <ThemeToggle />
+
+          <div className="flex items-center gap-2">
+            <NotificationBell />
+            <ThemeToggle />
+          </div>
         </div>
       </header>
 
       <div className="mx-auto w-full max-w-[92rem] lg:grid lg:grid-cols-[15rem_minmax(0,1fr)] xl:grid-cols-[16rem_minmax(0,1fr)]">
-          <aside className="sticky top-0 hidden h-screen border-r border-sage-100 bg-paper/55 px-3 py-6 backdrop-blur-xl lg:flex lg:flex-col xl:px-4">
-            <Logo href="/profile" />
-            <nav className="mt-10 space-y-2" aria-label="Primary navigation">
-              {NAV_ITEMS.map(({ href, label, icon: Icon }) => {
+        <aside className="sticky top-0 hidden h-screen border-r border-sage-100 bg-paper/55 px-3 py-6 backdrop-blur-xl lg:flex lg:flex-col xl:px-4">
+          <Logo href="/profile" />
+
+          <nav
+            className="mt-10 space-y-2"
+            aria-label="Primary navigation"
+          >
+            {NAV_ITEMS.map(
+              ({
+                href,
+                label,
+                icon: Icon
+              }) => {
                 const active =
-                  pathname === href ||
-                  (href === "/profile" && pathname.startsWith("/profile/"));
+                  isNavItemActive(
+                    pathname,
+                    href
+                  );
+
                 return (
                   <Link
                     key={href}
@@ -88,28 +182,53 @@ export function AppShell({
                         ? "bg-sage-100 text-sage-800"
                         : "text-ink hover:bg-sage-50"
                     }`}
-                    aria-current={active ? "page" : undefined}
+                    aria-current={
+                      active
+                        ? "page"
+                        : undefined
+                    }
                   >
-                    <Icon className="size-6" aria-hidden="true" />
+                    <Icon
+                      className="size-6"
+                      aria-hidden="true"
+                    />
+
                     {label}
                   </Link>
                 );
-              })}
-            </nav>
-            {pathname === "/reflect" && (
-              <a href="#reflection-editor" className="btn-primary mt-6 w-full">
-                <NotebookPen className="size-5" aria-hidden="true" />
-                New reflection
-              </a>
+              }
             )}
-            <div className="mt-auto">
-              <ThemeToggle />
-              <p className="font-secondary mt-4 text-xs leading-5 text-muted">
-                A private space for the parts of your story that matter beyond
-                numbers.
-              </p>
+          </nav>
+
+          {pathname ===
+            "/reflect" && (
+            <a
+              href="#reflection-editor"
+              className="btn-primary mt-6 w-full"
+            >
+              <NotebookPen
+                className="size-5"
+                aria-hidden="true"
+              />
+
+              New reflection
+            </a>
+          )}
+
+          <div className="mt-auto">
+            <div className="mb-4">
+              <NotificationBell />
             </div>
-          </aside>
+
+            <ThemeToggle />
+
+            <p className="font-secondary mt-4 text-xs leading-5 text-muted">
+              A private space for the
+              parts of your story that
+              matter beyond numbers.
+            </p>
+          </div>
+        </aside>
 
         <main
           key={pathname}
@@ -120,57 +239,124 @@ export function AppShell({
               : "mx-auto min-w-0 max-w-6xl px-4 py-7 sm:px-8 sm:py-12"
           }`}
         >
-        {(title || description || action) && (
-          <div className="mb-7 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-            <div>
-              {title && (
-                <h1 className="font-serif text-3xl font-semibold tracking-tight text-ink sm:text-4xl">
-                  {title}
-                </h1>
-              )}
-              {description && (
-                <p className="mt-2 max-w-2xl text-sm leading-6 text-muted sm:text-base">
-                  {description}
-                </p>
-              )}
+          {(title ||
+            description ||
+            action) && (
+            <div className="mb-7 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+              <div>
+                {title && (
+                  <h1 className="font-serif text-3xl font-semibold tracking-tight text-ink sm:text-4xl">
+                    {title}
+                  </h1>
+                )}
+
+                {description && (
+                  <p className="mt-2 max-w-2xl text-sm leading-6 text-muted sm:text-base">
+                    {description}
+                  </p>
+                )}
+              </div>
+
+              {action}
             </div>
-            {action}
-          </div>
-        )}
+          )}
+
           {children}
         </main>
       </div>
 
       <nav
-        className="fixed inset-x-0 bottom-0 z-50 border-t border-sage-100/80 bg-paper/95 pb-[max(.9rem,env(safe-area-inset-bottom))] pt-2 backdrop-blur-2xl lg:hidden"
+        className="fixed inset-x-3 bottom-3 z-50 overflow-visible rounded-[1.6rem] border border-sage-100/80 bg-paper/90 px-2 pb-[max(.5rem,env(safe-area-inset-bottom))] pt-2 shadow-lift backdrop-blur-2xl lg:hidden"
         aria-label="Mobile navigation"
       >
-        <div className="relative grid w-full grid-cols-4">
+        <div
+          className="relative mx-auto grid max-w-2xl"
+          style={{
+            gridTemplateColumns:
+              `repeat(${NAV_ITEMS.length}, minmax(0, 1fr))`
+          }}
+        >
           <span
-            className="primary-nav-indicator pointer-events-none absolute bottom-0 left-0 h-[3px] w-1/4"
+            className="primary-nav-indicator pointer-events-none absolute bottom-0 left-0 h-[3px] rounded-t-full"
             style={{
-              transform: `translateX(${indicatorIndex * 100}%)`
+              width:
+                `${100 / NAV_ITEMS.length}%`,
+              transform:
+                `translateX(${indicatorIndex * 100}%)`
             }}
             aria-hidden="true"
           />
-          {NAV_ITEMS.map(({ href, label, icon: Icon }) => {
-            const active =
-              pathname === href ||
-              (href === "/profile" && pathname.startsWith("/profile/"));
-            return (
-              <Link
-                key={href}
-                href={href}
-                className={`relative z-10 flex min-h-16 min-w-0 flex-col items-center justify-center gap-1 px-0 text-[11px] font-medium transition-colors duration-150 ${
-                  active ? "app-nav-active" : "text-muted"
-                }`}
-                aria-current={active ? "page" : undefined}
-              >
-                <Icon className="size-5" aria-hidden="true" />
-                {label}
-              </Link>
-            );
-          })}
+
+          {NAV_ITEMS.map(
+            ({
+              href,
+              label,
+              icon: Icon
+            }) => {
+              const active =
+                isNavItemActive(
+                  pathname,
+                  href
+                );
+
+              const isReflect =
+                href === "/reflect";
+
+              if (isReflect) {
+                return (
+                  <Link
+                    key={href}
+                    href={href}
+                    className="relative z-20 flex min-h-14 min-w-0 -translate-y-2 items-center justify-center"
+                    aria-label="Reflect"
+                    aria-current={
+                      active
+                        ? "page"
+                        : undefined
+                    }
+                    title="Reflect"
+                  >
+                    <span
+                      className={`grid size-12 place-items-center rounded-full bg-gold-500 text-ink shadow-lift transition-transform ${
+                        active
+                          ? "scale-105"
+                          : "hover:-translate-y-0.5"
+                      }`}
+                    >
+                      <Icon
+                        className="size-6"
+                        aria-hidden="true"
+                      />
+                    </span>
+                  </Link>
+                );
+              }
+
+              return (
+                <Link
+                  key={href}
+                  href={href}
+                  className={`relative z-10 flex min-h-14 min-w-0 flex-col items-center justify-center gap-1 px-1 text-[11px] font-medium transition-colors duration-150 ${
+                    active
+                      ? "app-nav-active"
+                      : "text-muted"
+                  }`}
+                  aria-current={
+                    active
+                      ? "page"
+                      : undefined
+                  }
+                >
+                  <Icon
+                    className="size-5"
+                    aria-hidden="true"
+                  />
+
+                  {label}
+                </Link>
+              );
+            }
+          )}
         </div>
       </nav>
     </div>

@@ -41,5 +41,6 @@ ui-debug.log
 
 # coverage
 coverage/
-.vinext/
-.wrangler/
+
+*-firebase-adminsdk-*.json
+service-account*.json

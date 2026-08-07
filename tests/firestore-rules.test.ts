@@ -248,7 +248,7 @@ describe("Saintagram Firestore ownership rules", () => {
     await assertSucceeds(deleteDoc(aliceRef));
   });
 
-  it("accepts only the owner's exact Supabase image path on profiles", async () => {
+  it("accepts only the owner's exact Firebase Storage image path on profiles", async () => {
     const aliceDb = testEnv.authenticatedContext(ALICE_ID, VERIFIED_EMAIL).firestore();
     const aliceRef = doc(aliceDb, "profiles", ALICE_ID);
 
@@ -309,6 +309,40 @@ describe("Saintagram Firestore ownership rules", () => {
     await assertSucceeds(deleteDoc(aliceRef));
   });
 
+  it("allows only the owner to access profile image history", async () => {
+    const aliceDb = testEnv.authenticatedContext(ALICE_ID, VERIFIED_EMAIL).firestore();
+    const bobDb = testEnv.authenticatedContext(BOB_ID, VERIFIED_EMAIL).firestore();
+    const historyRef = doc(aliceDb, "profileImageHistory", "history-1");
+
+    await assertSucceeds(
+      setDoc(historyRef, {
+        id: "history-1",
+        userId: ALICE_ID,
+        imagePath: ALICE_IMAGE_PATH,
+        createdAt: NOW,
+        updatedAt: NOW
+      })
+    );
+    await assertSucceeds(getDoc(historyRef));
+    await assertFails(getDoc(doc(bobDb, "profileImageHistory", "history-1")));
+    await assertFails(
+      setDoc(doc(bobDb, "profileImageHistory", "history-1"), {
+        id: "history-1",
+        userId: ALICE_ID,
+        imagePath: ALICE_IMAGE_PATH,
+        createdAt: NOW,
+        updatedAt: NOW
+      })
+    );
+    await assertFails(
+      updateDoc(historyRef, {
+        imagePath: BOB_IMAGE_PATH,
+        updatedAt: NOW
+      })
+    );
+    await assertSucceeds(deleteDoc(historyRef));
+  });
+
   it("allows only the owner to access a profile draft", async () => {
     const aliceDb = testEnv.authenticatedContext(ALICE_ID, VERIFIED_EMAIL).firestore();
     const bobDb = testEnv.authenticatedContext(BOB_ID, VERIFIED_EMAIL).firestore();
@@ -333,7 +367,7 @@ describe("Saintagram Firestore ownership rules", () => {
     await assertSucceeds(deleteDoc(aliceRef));
   });
 
-  it("accepts only the owner's exact Supabase image path in drafts", async () => {
+  it("accepts only the owner's exact Firebase Storage image path in drafts", async () => {
     const aliceDb = testEnv.authenticatedContext(ALICE_ID, VERIFIED_EMAIL).firestore();
     const aliceRef = doc(aliceDb, "drafts", ALICE_ID);
 

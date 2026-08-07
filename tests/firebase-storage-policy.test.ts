@@ -1,0 +1,18 @@
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
+import { describe, expect, it } from "vitest";
+
+const rules = readFileSync(resolve(process.cwd(), "storage.rules"), "utf8");
+
+describe("Firebase Storage policy", () => {
+  it("limits profile-image access to the owner and a bounded upload shape", () => {
+    expect(rules).toContain("match /users/{userId}/profile/{imageName}");
+    expect(rules).toContain("allow read: if isOwner(userId);");
+    expect(rules).toContain("allow create: if isOwner(userId)");
+    expect(rules).toContain("imageName.matches('^[A-Za-z0-9_-]+\\\\.(jpg|png|webp)$')");
+    expect(rules).toContain("request.resource.size < 2097152");
+    expect(rules).toContain("request.resource.contentType.matches('image/(jpeg|png|webp)')");
+    expect(rules).toContain("allow delete: if isOwner(userId);");
+    expect(rules).toContain("allow update: if false;");
+  });
+});

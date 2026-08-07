@@ -1,12 +1,12 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useAuth } from "@/components/providers/auth-provider";
 import { SymbolIcon } from "@/components/ui/symbol-icon";
 import {
-  downloadSupabaseProfileImage,
+  downloadFirebaseProfileImage,
   isLocalProfileImageSource
 } from "@/lib/profile-images";
-import { isFirebaseConfigured } from "@/lib/firebase";
 import type { SpiritualSymbol } from "@/types";
 
 export function ProfileAvatar({
@@ -20,31 +20,31 @@ export function ProfileAvatar({
   profileName: string;
   size?: "small" | "medium" | "large";
 }) {
-  const [imageSource, setImageSource] = useState(() =>
-    !isFirebaseConfigured && isLocalProfileImageSource(imagePath)
-      ? imagePath
-      : ""
-  );
+  const { loading, mode, user } = useAuth();
+  const [imageSource, setImageSource] = useState("");
 
   useEffect(() => {
     let active = true;
-    let objectUrl = "";
 
     if (!imagePath) {
       setImageSource("");
       return () => undefined;
     }
     if (isLocalProfileImageSource(imagePath)) {
-      setImageSource(isFirebaseConfigured ? "" : imagePath);
+      setImageSource(mode === "local" ? imagePath : "");
+      return () => undefined;
+    }
+
+    if (loading || !user) {
+      setImageSource("");
       return () => undefined;
     }
 
     setImageSource("");
-    void downloadSupabaseProfileImage(imagePath)
-      .then((image) => {
+    void downloadFirebaseProfileImage(imagePath)
+      .then((downloadUrl) => {
         if (!active) return;
-        objectUrl = URL.createObjectURL(image);
-        setImageSource(objectUrl);
+        setImageSource(downloadUrl);
       })
       .catch(() => {
         if (active) setImageSource("");
@@ -52,9 +52,8 @@ export function ProfileAvatar({
 
     return () => {
       active = false;
-      if (objectUrl) URL.revokeObjectURL(objectUrl);
     };
-  }, [imagePath]);
+  }, [imagePath, loading, mode, user?.id]);
 
   const sizes = {
     small: "size-11 rounded-[var(--radius-base)]",
@@ -71,7 +70,7 @@ export function ProfileAvatar({
       className={`grid shrink-0 place-items-center overflow-hidden border-4 border-paper bg-sage-100 text-sage-700 shadow-lift ${sizes[size]}`}
     >
       {imageSource ? (
-        // Private Supabase images are resolved to an authenticated, in-memory URL.
+        // Firebase Storage images are resolved to a runtime download URL.
         // eslint-disable-next-line @next/next/no-img-element
         <img
           src={imageSource}
