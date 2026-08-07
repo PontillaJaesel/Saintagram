@@ -233,7 +233,7 @@ export function ProfileEditor() {
   }
 
   return (
-    <form onSubmit={submit} noValidate className="pb-40 sm:pb-36">
+    <form onSubmit={submit} noValidate className="pb-8 sm:pb-6">
       {error && (
         <div
           ref={errorRef}

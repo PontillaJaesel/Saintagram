@@ -563,7 +563,7 @@ export function ProfileDashboard() {
   );
 
   return (
-    <div className="grid min-h-screen pb-24 sm:pb-28 xl:grid-cols-[minmax(0,42rem)_minmax(19rem,1fr)]">
+    <div className="grid min-h-screen pb-6 sm:pb-8 xl:grid-cols-[minmax(0,42rem)_minmax(19rem,1fr)]">
       <div className="min-w-0 border-r border-sage-100 bg-paper/55">
         <div className="sticky top-0 z-20 flex min-h-16 items-center border-b border-sage-100 bg-paper/85 px-5 backdrop-blur-xl">
           <div>
