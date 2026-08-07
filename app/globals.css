@@ -256,15 +256,15 @@ body {
   }
 
   .profile-tab-indicator {
-    background: rgb(var(--sage-500));
-    box-shadow: 0 2px 8px rgb(var(--sage-500) / 0.28);
+    background: rgb(var(--brand-300));
+    box-shadow: 0 2px 8px rgb(var(--brand-300) / 0.28);
     transition:
       transform 240ms cubic-bezier(0.22, 1, 0.36, 1),
       background-color 160ms ease;
   }
 
   .profile-tab-selected {
-    color: rgb(var(--sage-600));
+    color: rgb(var(--brand-400));
     font-weight: 600;
   }
 
@@ -346,8 +346,42 @@ body {
     border-bottom: 1px solid rgb(var(--line) / 0.55);
   }
 
-  .profile-edit-button {
-    border-color: rgb(var(--sage-300));
+  .profile-edit-button.btn-secondary {
+    border-color: rgb(var(--brand-200));
+    color: rgb(var(--brand-400));
+  }
+
+  .profile-edit-button.btn-secondary:hover {
+    border-color: rgb(var(--brand-300));
+    background: rgb(var(--brand-50));
+  }
+
+  a.profile-view-link {
+    color: rgb(var(--brand-400));
+  }
+
+  a.profile-view-link:hover {
+    background: rgb(var(--brand-50));
+    color: rgb(var(--brand-500));
+  }
+
+  :root[data-theme="dark"] .profile-edit-button.btn-secondary {
+    border-color: rgb(var(--gold-500) / 0.72);
+    color: rgb(var(--gold-600));
+  }
+
+  :root[data-theme="dark"] .profile-edit-button.btn-secondary:hover {
+    border-color: rgb(var(--gold-600));
+    background: rgb(var(--gold-50));
+  }
+
+  :root[data-theme="dark"] a.profile-view-link {
+    color: rgb(var(--gold-600));
+  }
+
+  :root[data-theme="dark"] a.profile-view-link:hover {
+    background: rgb(var(--gold-50));
+    color: rgb(var(--gold-700));
   }
 
   .profile-insight-card {

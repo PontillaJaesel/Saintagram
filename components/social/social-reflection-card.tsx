@@ -1055,7 +1055,7 @@ export function SocialReflectionCard({
 
         <Link
           href={`/users/${post.author.userId}`}
-          className="shrink-0 rounded-full px-3 py-2 text-xs font-bold text-sage-700 transition hover:bg-sage-50"
+          className="profile-view-link shrink-0 rounded-full px-3 py-2 text-xs font-bold text-sage-700 transition hover:bg-sage-50"
         >
           View profile
         </Link>
