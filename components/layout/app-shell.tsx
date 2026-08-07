@@ -55,7 +55,7 @@ export function AppShell({
   }, [activeNavIndex]);
 
   return (
-    <div className="min-h-screen pb-24 lg:pb-0">
+    <div className="min-h-screen pb-28 sm:pb-24">
       <a
         href="#main-content"
         className="fixed left-4 top-3 z-[80] -translate-y-20 rounded-full bg-sage-800 px-4 py-3 text-sm font-bold text-white shadow-lift transition-transform focus:translate-y-0"
@@ -142,12 +142,12 @@ export function AppShell({
       </div>
 
       <nav
-        className="fixed inset-x-3 bottom-3 z-50 overflow-hidden rounded-[1.6rem] border border-sage-100/80 bg-paper/90 px-2 pb-[max(.5rem,env(safe-area-inset-bottom))] pt-2 shadow-lift backdrop-blur-2xl lg:hidden"
+        className="fixed inset-x-0 bottom-0 z-50 border-t border-sage-100/80 bg-paper/95 pb-[max(.9rem,env(safe-area-inset-bottom))] pt-2 backdrop-blur-2xl lg:hidden"
         aria-label="Mobile navigation"
       >
-        <div className="relative mx-auto grid max-w-lg grid-cols-4">
+        <div className="relative grid w-full grid-cols-4">
           <span
-            className="primary-nav-indicator pointer-events-none absolute bottom-0 left-0 h-[3px] w-1/4 rounded-t-full"
+            className="primary-nav-indicator pointer-events-none absolute bottom-0 left-0 h-[3px] w-1/4"
             style={{
               transform: `translateX(${indicatorIndex * 100}%)`
             }}
@@ -161,7 +161,7 @@ export function AppShell({
               <Link
                 key={href}
                 href={href}
-                className={`relative z-10 flex min-h-14 min-w-0 flex-col items-center justify-center gap-1 px-1 text-[11px] font-medium transition-colors duration-150 ${
+                className={`relative z-10 flex min-h-16 min-w-0 flex-col items-center justify-center gap-1 px-0 text-[11px] font-medium transition-colors duration-150 ${
                   active ? "app-nav-active" : "text-muted"
                 }`}
                 aria-current={active ? "page" : undefined}

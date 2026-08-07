@@ -50,7 +50,7 @@ export default function WelcomePage() {
 
   return (
     <main
-      className={`relative grid min-h-screen min-h-[100svh] place-items-center overflow-hidden px-5 py-20 sm:px-8 ${
+      className={`relative grid min-h-[100svh] place-items-center overflow-hidden px-5 py-20 sm:px-8 ${
         leaving ? "welcome-exit pointer-events-none" : ""
       }`}
       aria-busy={leaving}
@@ -99,6 +99,11 @@ export default function WelcomePage() {
           )}
         </div>
       </section>
+      <footer className="mx-auto mt-12 w-full max-w-3xl text-center text-[10px] font-medium tracking-wide text-muted/70">
+        <span className="inline-flex rounded-full border border-white/30 bg-paper/80 px-3 py-1 shadow-sm backdrop-blur">
+          &copy; 2026 Saintagram. All rights reserved.
+        </span>
+      </footer>
     </main>
   );
 }

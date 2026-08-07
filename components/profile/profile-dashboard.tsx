@@ -89,14 +89,18 @@ function ValueList({
   emptyText: string;
 }) {
   if (!values.length) {
-    return <p className="text-sm italic text-muted">{emptyText}</p>;
+    return (
+      <p className="rounded-[var(--radius-base)] border border-dashed border-sage-200 bg-sage-50/60 px-3 py-3 text-sm italic text-muted">
+        {emptyText}
+      </p>
+    );
   }
   return (
-    <ul className="flex flex-wrap gap-2">
+    <ul className="grid gap-2 sm:grid-cols-2">
       {values.map((value) => (
         <li
           key={value}
-          className="rounded-full bg-sage-50 px-3 py-2 text-xs font-bold text-sage-700"
+          className="rounded-[var(--radius-base)] border border-sage-200 bg-sage-50/80 px-3 py-2 text-xs font-semibold text-sage-700"
         >
           {value}
         </li>
@@ -280,7 +284,7 @@ export function ProfileDashboard() {
               <span className="absolute right-0.5 top-0.5 size-2.5 rounded-full border-2 border-paper bg-sage-500" aria-hidden="true" />
             )}
           </summary>
-          <div className="absolute right-0 top-full z-50 mt-2 max-h-[calc(100dvh-2rem)] w-[min(34rem,calc(100vw-2rem))] overflow-x-hidden overflow-y-auto rounded-2xl border border-sage-100 bg-paper shadow-lift sm:grid sm:grid-cols-[9.5rem_1fr]">
+          <div className="absolute right-0 top-full z-50 mt-2 max-h-[calc(100dvh-2rem)] w-[min(34rem,calc(100vw-2rem))] overflow-x-hidden overflow-y-auto rounded-[var(--radius-base)] border border-sage-100 bg-paper shadow-lift sm:grid sm:grid-cols-[9.5rem_1fr]">
             <div className="flex flex-col border-b border-sage-100 p-3 sm:border-b-0 sm:border-r">
               <div className="grid grid-cols-2 gap-1 sm:grid-cols-1">
                 {([['week', 'Last Week'], ['month', 'Last Month'], ['year', 'Last Year'], ['custom', 'Custom']] as const).map(([value, label]) => (
@@ -524,7 +528,7 @@ export function ProfileDashboard() {
           <MessageCircleHeart className="size-5 text-gold-600" aria-hidden="true" />
           God’s Comment
         </h2>
-        <div className="mt-4 rounded-2xl bg-gold-50 p-4">
+        <div className="mt-4 rounded-[var(--radius-base)] bg-gold-50 p-4">
           <p className="font-secondary whitespace-pre-wrap text-sm leading-7 text-ink">
             {profile.godsComment || <span className="italic text-muted">This space is open for a word of grace.</span>}
           </p>
@@ -559,7 +563,7 @@ export function ProfileDashboard() {
   );
 
   return (
-    <div className="grid min-h-screen xl:grid-cols-[minmax(0,42rem)_minmax(19rem,1fr)]">
+    <div className="grid min-h-screen pb-24 sm:pb-28 xl:grid-cols-[minmax(0,42rem)_minmax(19rem,1fr)]">
       <div className="min-w-0 border-r border-sage-100 bg-paper/55">
         <div className="sticky top-0 z-20 flex min-h-16 items-center border-b border-sage-100 bg-paper/85 px-5 backdrop-blur-xl">
           <div>
@@ -584,19 +588,21 @@ export function ProfileDashboard() {
                   profileName={profile.profileName}
                 />
               </div>
-              <div className="translate-y-2 sm:translate-y-3">
+            </div>
+
+            <div className="mt-4 max-w-2xl">
+              <div className="flex flex-wrap items-end justify-between gap-3">
+                <div>
+                  <p className="eyebrow">Profile before God</p>
+                  <h1 className="mt-1 font-serif text-3xl font-bold tracking-tight sm:text-4xl">
+                    {profile.profileName}
+                  </h1>
+                </div>
                 <Link href="/profile/edit" className="btn-secondary">
                   <Pencil className="size-4" aria-hidden="true" />
                   Edit Profile
                 </Link>
               </div>
-            </div>
-
-            <div className="mt-5 max-w-2xl">
-              <p className="eyebrow">Profile before God</p>
-              <h1 className="mt-1 font-serif text-3xl font-bold tracking-tight sm:text-4xl">
-                {profile.profileName}
-              </h1>
               {profile.heavenlyHashtag && (
                 <p className="mt-1 font-bold text-gold-700">
                   {profile.heavenlyHashtag}
@@ -622,7 +628,7 @@ export function ProfileDashboard() {
 
         <section className="overflow-visible">
           <div
-            className="relative grid grid-cols-3 border-b border-sage-100"
+            className="sticky top-0 z-20 grid grid-cols-3 border-b border-sage-100 bg-paper/95 backdrop-blur-xl"
             role="tablist"
             aria-label="Profile sections"
           >
@@ -780,8 +786,8 @@ export function ProfileDashboard() {
             {tab === "private" && (
               <div>
                 {!privateUnlocked && !privateLoading && (
-                  <div className="rounded-3xl border border-clay-200 bg-clay-50 p-6 text-center sm:p-8">
-                    <div className="mx-auto grid size-14 place-items-center rounded-2xl bg-white text-clay-600 shadow-sm">
+                  <div className="rounded-[var(--radius-card)] border border-clay-200 bg-clay-50 p-6 text-center sm:p-8">
+                    <div className="mx-auto grid size-14 place-items-center rounded-[var(--radius-base)] bg-white text-clay-600 shadow-sm">
                       <LockKeyhole className="size-6" aria-hidden="true" />
                     </div>
                     <h2 className="mt-5 font-serif text-2xl font-bold">
@@ -828,7 +834,7 @@ export function ProfileDashboard() {
                         aria-hidden="true"
                       />
                     </div>
-                    <section className="rounded-3xl border border-clay-200 bg-clay-50 p-5">
+                    <section className="rounded-[var(--radius-card)] border border-clay-200 bg-clay-50 p-5">
                       <p className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-clay-600">
                         <EyeOff className="size-4" aria-hidden="true" />
                         Hidden Story
@@ -896,6 +902,11 @@ export function ProfileDashboard() {
         title="Is this a private moment?"
         description="Make sure only you can see your screen."
         confirmLabel="Open private reflections"
+        headerIcon={
+          <div className="flex h-16 w-16 items-center justify-center rounded-full border border-sage-100 bg-sage-50 text-sage-700 shadow-sm">
+            <ShieldCheck className="size-6" aria-hidden="true" />
+          </div>
+        }
         onClose={() => setPrivacyDialog(false)}
         onConfirm={() => void unlockPrivate()}
       />

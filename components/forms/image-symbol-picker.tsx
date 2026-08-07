@@ -111,7 +111,7 @@ export function ImageSymbolPicker({
 
   return (
     <div>
-      <div className="mb-6 flex flex-col items-center gap-4 rounded-3xl bg-sage-50 p-6 sm:flex-row sm:items-center">
+      <div className="mb-6 flex flex-col items-center gap-4 rounded-[var(--radius-card)] bg-sage-50 p-6 sm:flex-row sm:items-center">
         <ProfileAvatar
           imagePath={imagePath}
           symbol={selectedSymbol}
@@ -135,7 +135,7 @@ export function ImageSymbolPicker({
               <button
                 key={symbol.id}
                 type="button"
-                className={`min-h-28 rounded-2xl border p-4 text-left transition ${
+                className={`min-h-28 rounded-[var(--radius-base)] border p-4 text-left transition ${
                   selected
                     ? "border-sage-600 bg-sage-700 text-white"
                     : "border-sage-200 bg-white text-ink hover:border-sage-400"
@@ -200,7 +200,7 @@ export function ImageSymbolPicker({
         </button>
         <button
           type="button"
-          className="btn-quiet flex-1"
+          className="btn-quiet flex-1 border border-clay-500 text-clay-600 hover:bg-clay-50 disabled:border-sage-200 disabled:text-muted"
           onClick={() => {
             onChange({ imagePath: "", selectedSymbol: "" });
             void removePendingImage(imagePath);
@@ -211,7 +211,7 @@ export function ImageSymbolPicker({
           Delete image
         </button>
       </div>
-      <p className="mt-3 text-xs leading-5 text-muted">
+      <p className="mt-3 text-center text-xs leading-5 text-muted">
         JPG, PNG, or WebP. Maximum 2 MB. Avoid uploading highly sensitive images.
       </p>
       {error && (

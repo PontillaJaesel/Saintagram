@@ -254,7 +254,7 @@ function AuthForm() {
         <div className="mx-auto flex w-full max-w-md flex-1 flex-col justify-center py-10">
           <Link
             href="/"
-            className="mb-7 inline-flex min-h-11 w-fit items-center gap-2 rounded-full text-sm font-bold text-sage-700 hover:bg-sage-100 px-3"
+            className="mb-7 inline-flex min-h-11 w-fit items-center gap-2 self-start rounded-[var(--radius-base)] border border-sage-200 bg-paper px-3 text-sm font-bold text-sage-700 shadow-sm transition hover:bg-sage-50"
           >
             <ArrowLeft className="size-4" aria-hidden="true" />
             Back to welcome
@@ -270,7 +270,7 @@ function AuthForm() {
           )}
 
           {!authMethod && mode !== "reset" && (
-            <div className="mt-8 space-y-3" role="group" aria-label="Choose authentication method">
+            <div className="mt-8 space-y-4" role="group" aria-label="Choose authentication method">
               <p className="text-sm font-bold text-ink">
                 How would you like to {mode === "signup" ? "create your account" : "log in"}?
               </p>
@@ -304,7 +304,7 @@ function AuthForm() {
                 </>
               )}
               {error && (
-                <div className="rounded-2xl border border-clay-200 bg-clay-50 px-4 py-3 text-sm font-semibold text-clay-600" role="alert">
+                <div className="rounded-[var(--radius-base)] border border-clay-200 bg-clay-50 px-4 py-3 text-sm font-semibold text-clay-600" role="alert">
                   {error}
                 </div>
               )}
@@ -473,7 +473,7 @@ function AuthForm() {
             {error && (
               <div
                 id="auth-error"
-                className="rounded-2xl border border-clay-200 bg-clay-50 px-4 py-3 text-sm font-semibold text-clay-600"
+                className="rounded-[var(--radius-base)] border border-clay-200 bg-clay-50 px-4 py-3 text-sm font-semibold text-clay-600"
                 role="alert"
               >
                 {error}
@@ -481,7 +481,7 @@ function AuthForm() {
             )}
             {message && (
               <div
-                className="rounded-2xl border border-sage-200 bg-sage-50 px-4 py-3 text-sm font-semibold text-sage-700"
+                className="rounded-[var(--radius-base)] border border-sage-200 bg-sage-50 px-4 py-3 text-sm font-semibold text-sage-700"
                 role="status"
               >
                 {message}
@@ -516,7 +516,7 @@ function AuthForm() {
           )}
 
           {auth.mode === "local" && mode === "login" && (
-            <div className="mt-5 rounded-2xl border border-gold-200 bg-gold-50 p-4">
+            <div className="mt-5 rounded-[var(--radius-base)] border border-gold-200 bg-gold-50 p-4">
               <p className="text-sm font-bold text-gold-700">
                 Try the completed sample profile
               </p>
@@ -525,7 +525,7 @@ function AuthForm() {
               </p>
               <button
                 type="button"
-                className="mt-3 min-h-11 rounded-full bg-white px-4 text-xs font-bold text-sage-700 shadow-sm hover:bg-sage-50"
+                className="mt-3 min-h-11 rounded-[var(--radius-base)] bg-white px-4 text-xs font-bold text-sage-700 shadow-sm transition hover:bg-sage-50"
                 onClick={useDemoAccount}
               >
                 Fill demo credentials
@@ -596,7 +596,7 @@ function AuthForm() {
             for God are welcome.
           </p>
         </div>
-        <div className="relative rounded-3xl border border-sage-600 bg-sage-700/60 p-6">
+        <div className="relative rounded-[var(--radius-card)] border border-sage-600 bg-sage-700/60 p-6">
           <p className="text-sm font-bold text-[#f6c5df]">
             Your reflections belong to you.
           </p>

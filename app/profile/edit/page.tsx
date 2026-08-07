@@ -5,10 +5,7 @@ import { ProfileEditor } from "@/components/profile/profile-editor";
 export default function EditProfilePage() {
   return (
     <RouteGuard requireProfile>
-      <AppShell
-        title="Edit Profile"
-        description="Your answers can grow with you. Only the profile name is required."
-      >
+      <AppShell>
         <div className="mx-auto max-w-3xl">
           <ProfileEditor />
         </div>

@@ -5,10 +5,7 @@ import { ReflectionManager } from "@/components/reflections/reflection-manager";
 export default function ReflectPage() {
   return (
     <RouteGuard requireProfile>
-      <AppShell
-        title="Reflect"
-        description="A private place for meaningful moments."
-      >
+      <AppShell>
         <ReflectionManager />
       </AppShell>
     </RouteGuard>

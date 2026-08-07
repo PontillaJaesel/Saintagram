@@ -29,7 +29,8 @@ import {
   FOLLOWING_IDEAS,
   HASHTAG_IDEAS,
   HEART_SEEKS_IDEAS,
-  LIMITS
+  LIMITS,
+  PROFILE_NAME_IDEAS
 } from "@/lib/constants";
 import { normalizeHashtag } from "@/lib/validation";
 import type { SpiritualProfile } from "@/types";
@@ -50,26 +51,30 @@ function EditorSection({
   return (
     <section
       className={`surface overflow-hidden ${
-        privateSection ? "border-clay-200" : ""
+        privateSection ? "border-amber-300/80" : ""
       }`}
     >
       <div
         className={`flex items-start gap-4 border-b p-5 sm:p-6 ${
           privateSection
-            ? "border-clay-200 bg-clay-50"
+            ? "border-amber-300/80 bg-amber-50/90 dark:border-violet-400/60 dark:bg-violet-500/15"
             : "border-sage-100 bg-sage-50/60"
         }`}
       >
         <div
-          className={`grid size-11 shrink-0 place-items-center rounded-2xl bg-white shadow-sm ${
-            privateSection ? "text-clay-600" : "text-sage-600"
+          className={`grid size-11 shrink-0 place-items-center rounded-[var(--radius-base)] bg-white shadow-sm ${
+            privateSection ? "text-amber-700 dark:text-violet-200" : "text-sage-600"
           }`}
         >
           <Icon className="size-5" aria-hidden="true" />
         </div>
         <div>
-          <h2 className="font-serif text-xl font-bold">{title}</h2>
-          <p className="mt-1 text-sm leading-6 text-muted">{description}</p>
+          <h2 className={`font-serif text-xl font-bold ${privateSection ? "text-amber-700 dark:text-violet-200" : "text-ink dark:text-slate-100"}`}>
+            {title}
+          </h2>
+          <p className={`mt-1 text-sm leading-6 ${privateSection ? "text-amber-700 dark:text-violet-200" : "text-muted dark:text-slate-300"}`}>
+            {description}
+          </p>
         </div>
       </div>
       <div className="p-5 sm:p-6">{children}</div>
@@ -183,10 +188,15 @@ export function ProfileEditor() {
         description="This editor includes your Hidden Story. Confirm that you are in a place where only you can read the screen before it is loaded."
         confirmLabel="I’m ready to edit privately"
         cancelLabel="Back to profile"
+        headerIcon={
+          <div className="flex h-16 w-16 items-center justify-center rounded-full border border-sage-100 bg-sage-50 text-sage-700 shadow-sm">
+            <ShieldCheck className="size-6" aria-hidden="true" />
+          </div>
+        }
         onClose={() => router.replace("/profile")}
         onConfirm={() => setPrivacyConfirmed(true)}
       >
-        <div className="flex items-start gap-3 rounded-2xl bg-clay-50 p-4 text-sm leading-6 text-muted">
+        <div className="flex items-start gap-3 rounded-[var(--radius-base)] bg-clay-50 p-4 text-sm leading-6 text-muted">
           <ShieldCheck
             className="mt-0.5 size-5 shrink-0 text-clay-600"
             aria-hidden="true"
@@ -223,12 +233,12 @@ export function ProfileEditor() {
   }
 
   return (
-    <form onSubmit={submit} noValidate>
+    <form onSubmit={submit} noValidate className="pb-40 sm:pb-36">
       {error && (
         <div
           ref={errorRef}
           tabIndex={-1}
-          className="mb-5 rounded-2xl border border-clay-200 bg-clay-50 p-4 text-sm font-semibold text-clay-600"
+          className="mb-5 rounded-[var(--radius-base)] border border-clay-200 bg-clay-50 p-4 text-sm font-semibold text-clay-600"
           role="alert"
         >
           <div className="flex items-start gap-3">
@@ -277,7 +287,28 @@ export function ProfileEditor() {
               A profile name is required.
             </p>
           )}
-          <p className="mt-2 text-right text-xs text-muted">
+          <div className="mt-4 rounded-[var(--radius-base)] border border-sage-100 bg-sage-50/80 p-4">
+            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-sage-600">
+              A few gentle ideas
+            </p>
+            <div className="mt-3 flex flex-wrap gap-3">
+              {PROFILE_NAME_IDEAS.map((idea) => (
+                <button
+                  key={idea}
+                  type="button"
+                  className={`rounded-full border px-4 py-2 text-sm font-semibold transition ${
+                    profile.profileName === idea
+                      ? "border-sage-500 bg-sage-500 text-ink"
+                      : "border-sage-100 bg-white text-ink hover:border-sage-300"
+                  }`}
+                  onClick={() => setField("profileName", idea)}
+                >
+                  {idea}
+                </button>
+              ))}
+            </div>
+          </div>
+          <p className="mt-4 text-right text-xs text-muted">
             {profile.profileName.length} / {LIMITS.profileName}
           </p>
         </EditorSection>
@@ -288,7 +319,7 @@ export function ProfileEditor() {
           icon={Palette}
         >
           <div
-            className="mb-5 h-28 rounded-2xl border border-sage-100"
+            className="mb-5 h-28 rounded-[var(--radius-base)] border border-sage-100"
             style={{ backgroundColor: profile.coverColor ?? "#DDD2F6" }}
             aria-hidden="true"
           />
@@ -396,7 +427,7 @@ export function ProfileEditor() {
           </label>
           <textarea
             id="edit-gods-comment"
-            className="field min-h-36 resize-y border-gold-200 bg-gold-50/30"
+            className="field min-h-40 resize-y"
             value={profile.godsComment}
             onChange={(event) => setField("godsComment", event.target.value)}
             maxLength={LIMITS.godsComment}
@@ -465,7 +496,7 @@ export function ProfileEditor() {
           </label>
           <textarea
             id="edit-hidden-story"
-            className="field min-h-48 resize-y border-clay-200"
+            className="field min-h-48 resize-y"
             value={profile.hiddenStory}
             onChange={(event) => setField("hiddenStory", event.target.value)}
             maxLength={LIMITS.hiddenStory}
@@ -476,7 +507,7 @@ export function ProfileEditor() {
         </EditorSection>
       </div>
 
-      <div className="sticky bottom-20 z-30 mt-6 flex flex-col-reverse gap-3 rounded-3xl border border-sage-100 bg-paper/95 p-4 shadow-lift backdrop-blur-xl sm:flex-row sm:items-center sm:justify-between lg:bottom-4">
+      <div className="mx-auto mt-6 flex max-w-6xl flex-col-reverse gap-3 rounded-[var(--radius-card)] border border-sage-100 bg-paper/95 px-4 py-4 shadow-lift backdrop-blur-xl sm:flex-row sm:items-center sm:justify-between sm:px-6">
         <Link href="/profile" className="btn-secondary">
           <ArrowLeft className="size-4" aria-hidden="true" />
           Cancel

@@ -4,6 +4,7 @@ import {
   createContext,
   useCallback,
   useContext,
+  useEffect,
   useMemo,
   useRef,
   useState,
@@ -28,16 +29,49 @@ const ToastContext = createContext<ToastContextValue | null>(null);
 export function ToastProvider({ children }: { children: ReactNode }) {
   const [toasts, setToasts] = useState<ToastItem[]>([]);
   const nextId = useRef(0);
+  const activeToastKeys = useRef<Set<string>>(new Set());
+  const toastTimeouts = useRef<Map<number, number>>(new Map());
 
   const dismiss = useCallback((id: number) => {
-    setToasts((items) => items.filter((item) => item.id !== id));
+    const timeoutId = toastTimeouts.current.get(id);
+    if (timeoutId) {
+      window.clearTimeout(timeoutId);
+      toastTimeouts.current.delete(id);
+    }
+
+    setToasts((items) => {
+      const removed = items.find((item) => item.id === id);
+      if (removed) {
+        activeToastKeys.current.delete(`${removed.kind}:${removed.message}`);
+      }
+      return items.filter((item) => item.id !== id);
+    });
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      toastTimeouts.current.forEach((timeoutId) => window.clearTimeout(timeoutId));
+      toastTimeouts.current.clear();
+    };
   }, []);
 
   const notify = useCallback(
     (message: string, kind: ToastKind = "success") => {
-      const id = ++nextId.current;
-      setToasts((items) => [...items, { id, message, kind }]);
-      window.setTimeout(() => dismiss(id), 4500);
+      const key = `${kind}:${message}`;
+      setToasts((items) => {
+        if (activeToastKeys.current.has(key)) {
+          return items;
+        }
+
+        const id = ++nextId.current;
+        activeToastKeys.current.add(key);
+        const timeoutId = window.setTimeout(() => {
+          dismiss(id);
+        }, 4500);
+        toastTimeouts.current.set(id, timeoutId);
+
+        return [...items, { id, message, kind }];
+      });
     },
     [dismiss]
   );
@@ -55,7 +89,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
         {toasts.map((toast) => (
           <div
             key={toast.id}
-            className={`pointer-events-auto flex w-full max-w-sm items-start gap-3 rounded-2xl border p-4 text-sm font-semibold text-ink shadow-lift ${
+            className={`pointer-events-auto flex w-full max-w-sm items-start gap-3 rounded-[var(--radius-base)] border p-4 text-sm font-semibold text-ink shadow-lift ${
               toast.kind === "success"
                 ? "border-success-100 bg-success-50"
                 : "border-clay-200 bg-clay-50"

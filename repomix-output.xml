@@ -1,15 +1,60 @@
-@import url("https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@600;800&display=swap");
+This file is a merged representation of a subset of the codebase, containing specifically included files, combined into a single document by Repomix.
 
+<file_summary>
+This section contains a summary of this file.
+
+<purpose>
+This file contains a packed representation of a subset of the repository's contents that is considered the most important context.
+It is designed to be easily consumable by AI systems for analysis, code review,
+or other automated processes.
+</purpose>
+
+<file_format>
+The content is organized as follows:
+1. This summary section
+2. Repository information
+3. Directory structure
+4. Repository files (if enabled)
+5. Multiple file entries, each consisting of:
+  - File path as an attribute
+  - Full contents of the file
+</file_format>
+
+<usage_guidelines>
+- This file should be treated as read-only. Any changes should be made to the
+  original repository files, not this packed version.
+- When processing this file, use the file path to distinguish
+  between different files in the repository.
+- Be aware that this file may contain sensitive information. Handle it with
+  the same level of security as you would the original repository.
+</usage_guidelines>
+
+<notes>
+- Some files may have been excluded based on .gitignore rules and Repomix's configuration
+- Binary files are not included in this packed representation. Please refer to the Repository Structure section for a complete list of file paths, including binary files
+- Only files matching these patterns are included: src/ui/**, **/*.css
+- Files matching patterns in .gitignore are excluded
+- Files matching default ignore patterns are excluded
+- Files are sorted by Git change count (files with more changes are at the bottom)
+</notes>
+
+</file_summary>
+
+<directory_structure>
+app/
+  globals.css
+</directory_structure>
+
+<files>
+This section contains the contents of the repository's files.
+
+<file path="app/globals.css">
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 :root {
   color-scheme: light;
-  --font-heading: "Plus Jakarta Sans", Arial, sans-serif;
-  --font-body: Arial, system-ui, -apple-system, sans-serif;
-  --radius-base: 1rem;
-  --radius-card: 1.5rem;
   --canvas: 249 249 251;
   --paper: 255 255 255;
   --ink: 45 49 47;
@@ -139,7 +184,6 @@ html {
 body {
   min-height: 100vh;
   color: rgb(var(--ink));
-  font-family: var(--font-body);
   background:
     radial-gradient(
       circle at 15% 12%,
@@ -153,6 +197,7 @@ body {
     ),
     rgb(var(--canvas));
   background-attachment: fixed;
+  font-family: "Montserrat", Arial, sans-serif;
   transition: background-color 180ms ease, color 180ms ease;
 }
 
@@ -166,7 +211,7 @@ body {
   h2,
   h3 {
     text-wrap: balance;
-font-family: var(--font-heading);
+    font-family: "Montserrat", Arial, sans-serif;
     letter-spacing: -0.025em;
   }
 
@@ -266,7 +311,7 @@ font-family: var(--font-heading);
   }
 
   .surface {
-    @apply rounded-[var(--radius-card)] border border-sage-100/80 bg-paper shadow-soft;
+    @apply rounded-[1.75rem] border border-sage-100/80 bg-paper shadow-soft;
   }
 
   .font-secondary {
@@ -275,7 +320,6 @@ font-family: var(--font-heading);
 
   .warning-indicator {
     border: 1px solid rgb(226 178 51 / 0.7);
-    border-radius: var(--radius-base);
     background: rgb(255 246 184 / 0.9);
     color: rgb(158 42 48);
     font-family: "Roboto", Arial, sans-serif;
@@ -284,9 +328,9 @@ font-family: var(--font-heading);
   }
 
   :root[data-theme="dark"] .warning-indicator {
-    border-color: rgb(151 124 221 / 0.55);
-    background: rgb(94 72 160 / 0.18);
-    color: rgb(241 224 255);
+    border-color: rgb(226 178 51 / 0.55);
+    background: rgb(91 74 26 / 0.82);
+    color: rgb(255 176 181);
   }
 
   [aria-invalid="true"] {
@@ -294,7 +338,9 @@ font-family: var(--font-heading);
     box-shadow: 0 0 0 2px rgb(190 54 61 / 0.14);
   }
 
-  .field { @apply min-h-12 w-full rounded-[var(--radius-base)] border border-sage-200 bg-paper px-4 py-3 text-base text-ink placeholder:text-muted transition hover:border-sage-300 focus:border-sage-500 focus:outline-none focus:ring-2 focus:ring-sage-200; }
+  .field {
+    @apply min-h-12 w-full rounded-xl border border-sage-200 bg-paper px-4 py-3 text-base text-ink placeholder:text-muted transition hover:border-sage-300 focus:border-sage-500 focus:outline-none focus:ring-2 focus:ring-sage-200;
+  }
 
   .label {
     @apply mb-2 block text-sm font-semibold text-ink;
@@ -412,3 +458,6 @@ font-family: var(--font-heading);
     animation-iteration-count: 1 !important;
   }
 }
+</file>
+
+</files>

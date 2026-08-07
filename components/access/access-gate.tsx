@@ -125,7 +125,7 @@ export function AccessGate() {
 
             <div
               id="access-renewal-note"
-              className="mt-5 flex items-center justify-center gap-3 rounded-2xl border border-sage-200 bg-sage-50 px-4 py-4 text-center text-xs leading-5 text-muted"
+              className="mt-5 flex items-center justify-center gap-3 rounded-[var(--radius-base)] border border-sage-200 bg-sage-50 px-4 py-4 text-center text-xs leading-5 text-muted"
             >
               <RefreshCw
                 className="mt-0.5 size-4 shrink-0 text-sage-600"

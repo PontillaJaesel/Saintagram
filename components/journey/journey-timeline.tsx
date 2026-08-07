@@ -185,7 +185,7 @@ export function JourneyTimeline() {
       </section>
 
       <aside className="surface self-start p-5 lg:sticky lg:top-24">
-        <div className="grid size-11 place-items-center rounded-2xl bg-sage-100 text-sage-700">
+        <div className="grid size-11 place-items-center rounded-[var(--radius-base)] bg-sage-100 text-sage-700">
           <NotebookPen className="size-5" aria-hidden="true" />
         </div>
         <h2 className="mt-4 font-serif text-xl font-bold">Keep noticing.</h2>

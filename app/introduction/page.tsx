@@ -42,7 +42,7 @@ function IntroductionContent() {
         <ThemeToggle />
       </header>
       <section className="relative mx-auto flex min-h-[calc(100vh-5rem)] max-w-4xl flex-col items-center justify-center py-12 text-center">
-        <div className="grid size-14 place-items-center rounded-2xl bg-sage-700 text-gold-200 shadow-lift">
+        <div className="grid size-14 place-items-center rounded-[var(--radius-base)] bg-sage-700 text-gold-200 shadow-lift">
           <Sparkles className="size-6" aria-hidden="true" />
         </div>
         <p className="eyebrow mt-7">A word before your profile</p>
@@ -55,7 +55,7 @@ function IntroductionContent() {
 
         <div className="surface mt-9 max-w-2xl p-6 text-left sm:p-8">
           <div className="flex items-start gap-4">
-            <div className="grid size-11 shrink-0 place-items-center rounded-2xl bg-clay-50 text-clay-600">
+            <div className="grid size-11 shrink-0 place-items-center rounded-[var(--radius-base)] bg-clay-50 text-clay-600">
               <Heart className="size-5" aria-hidden="true" />
             </div>
             <div>

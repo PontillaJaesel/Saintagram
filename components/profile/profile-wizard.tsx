@@ -116,27 +116,27 @@ function ReviewSection({
 }) {
   return (
     <section
-      className={`rounded-2xl border p-5 ${
+      className={`rounded-[var(--radius-card)] border p-5 ${
         privateSection
-          ? "border-clay-200 bg-clay-50"
+          ? "border-amber-300/80 bg-amber-50/90 text-amber-950 dark:border-violet-400/40 dark:bg-violet-500/15 dark:text-violet-100"
           : "border-sage-100 bg-white"
       }`}
     >
       <div className="flex items-center justify-between gap-3">
-        <h3 className="flex items-center gap-2 text-sm font-bold text-ink">
+        <h3 className={`flex items-center gap-2 text-sm font-bold ${privateSection ? "text-amber-950 dark:text-violet-100" : "text-ink dark:text-slate-100"}`}>
           {privateSection && (
-            <ShieldCheck className="size-4 text-clay-600" aria-hidden="true" />
+            <ShieldCheck className="size-4 text-amber-700 dark:text-amber-300" aria-hidden="true" />
           )}
           {title}
           {privateSection && (
-            <span className="rounded-full bg-white px-2 py-1 text-[10px] uppercase tracking-wider text-clay-600">
+            <span className="rounded-full bg-white/80 px-2 py-1 text-[10px] uppercase tracking-wider text-amber-700 dark:bg-amber-500/20 dark:text-amber-200">
               Private
             </span>
           )}
         </h3>
         <button
           type="button"
-          className="min-h-11 rounded-full px-3 text-xs font-bold text-sage-700 hover:bg-sage-50"
+          className="min-h-11 rounded-[var(--radius-base)] px-3 text-xs font-bold text-sage-700 transition hover:bg-sage-50"
           onClick={() => onEdit(step)}
         >
           Edit
@@ -658,7 +658,7 @@ export function ProfileWizard() {
               {data.onboardingPosts.map((post, index) => (
                 <div
                   key={index}
-                  className="rounded-2xl border border-sage-100 bg-sage-50/60 p-4"
+                  className="rounded-[var(--radius-base)] border border-sage-100 bg-sage-50/60 p-4"
                 >
                   <div className="mb-2 flex items-center justify-between">
                     <span className="text-sm font-bold text-ink">
@@ -755,25 +755,27 @@ export function ProfileWizard() {
         );
       case 7:
         return (
-          <div className="rounded-3xl border border-clay-200 bg-clay-50 p-5 sm:p-6">
+          <div className="rounded-[var(--radius-card)] border border-amber-300/80 bg-amber-50/90 p-5 sm:p-6 dark:border-amber-500/40 dark:bg-amber-500/15">
             <div className="mb-5 flex items-start gap-3">
-              <div className="grid size-11 shrink-0 place-items-center rounded-2xl bg-white text-clay-600 shadow-sm">
+              <div className="grid size-11 shrink-0 place-items-center rounded-[var(--radius-base)] bg-white text-amber-700 shadow-sm dark:text-amber-300">
                 <ShieldCheck className="size-5" aria-hidden="true" />
               </div>
               <div>
-                <p className="font-bold text-clay-600">Owner-only · Required</p>
-                <p className="mt-1 text-sm leading-6 text-muted">
+                <p className="font-bold text-slate-300">
+                  Owner-only · Required
+                </p>
+                <p className="mt-1 text-sm leading-6 text-slate-400">
                   Your Hidden Story is stored separately and never loaded into
                   the standard profile, journey, preview, or public view.
                 </p>
               </div>
             </div>
-            <label htmlFor="hidden-story" className="label text-base">
+            <label htmlFor="hidden-story" className="label text-base text-slate-900 dark:text-slate-300">
               What is something God knows about you that others may not see?
             </label>
             <textarea
               id="hidden-story"
-              className="field min-h-48 resize-y border-clay-200"
+              className="field min-h-48 resize-y border-violet-400 dark:border-violet-400/40"
               value={data.hiddenStory}
               onChange={(event) =>
                 updateData("hiddenStory", event.target.value)
@@ -803,7 +805,7 @@ export function ProfileWizard() {
             <p className="mb-4 text-sm leading-6 text-muted">
               Write a short message grounded in God’s mercy, truth, and love.
             </p>
-            <div className="rounded-3xl border border-gold-100 bg-gold-50 p-5">
+            <div className="rounded-[var(--radius-card)] border border-gold-100 bg-gold-50 p-5">
               <div className="mb-3 flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-gold-700">
                 <Sparkles className="size-4" aria-hidden="true" />
                 A comment of grace
@@ -879,7 +881,7 @@ export function ProfileWizard() {
       default:
         return (
           <div>
-            <div className="mb-6 flex flex-col items-center gap-4 rounded-3xl bg-sage-50 p-6 text-center sm:flex-row sm:text-left">
+            <div className="mb-6 flex flex-col items-center gap-4 rounded-[var(--radius-card)] bg-sage-50 p-6 text-center sm:flex-row sm:text-left">
               <ProfileAvatar
                 imagePath={data.imagePath}
                 symbol={data.selectedSymbol}
@@ -943,7 +945,7 @@ export function ProfileWizard() {
                 {data.hiddenStory || <em>Not answered</em>}
               </ReviewSection>
             </div>
-            <div className="mt-5 rounded-2xl border border-sage-200 bg-sage-50 p-4 text-sm leading-6 text-muted">
+            <div className="mt-5 rounded-[var(--radius-base)] border border-sage-200 bg-sage-50 p-4 text-sm leading-6 text-muted">
               <strong className="text-ink">Privacy check:</strong> Your Hidden
               Story will not appear on the profile you are about to open. It is
               available only behind the Private Reflections confirmation.
@@ -958,39 +960,61 @@ export function ProfileWizard() {
       <header className="border-b border-sage-100 bg-paper/85 backdrop-blur-xl">
         <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6">
           <Logo />
-          <div className="flex items-center gap-2 sm:gap-3">
-            <ThemeToggle />
-            <button
-              type="button"
-              className="btn-quiet text-xs"
-              onClick={() => void persistDraft(true)}
-              disabled={saveStatus === "saving" || finishing}
-            >
-              {saveStatus === "saving" ? (
-                <LoaderCircle
-                  className="size-4 animate-spin"
-                  aria-hidden="true"
-                />
-              ) : (
-                <Save className="size-4" aria-hidden="true" />
-              )}
-              Save draft
-            </button>
-          </div>
+          <ThemeToggle />
         </div>
       </header>
 
-      <main className="mx-auto max-w-7xl px-4 py-6 sm:px-6 sm:py-10">
+      <main className="mx-auto max-w-7xl px-4 py-6 pb-28 sm:px-6 sm:py-10">
         <div className="grid gap-7 lg:grid-cols-[17rem_minmax(0,1fr)] lg:gap-10">
           <aside className="lg:sticky lg:top-8 lg:self-start">
             <div className="surface p-5">
-              <div className="flex items-center justify-between gap-3">
-                <p className="eyebrow">
-                  {step === STEPS.length - 1
-                    ? "Final review"
-                    : `Step ${step + 1} of 10`}
-                </p>
-                <span className="text-xs font-bold tabular-nums text-sage-600">
+              {restoredAt && (
+                <div
+                  className="mb-5 rounded-[var(--radius-base)] border border-sage-200 bg-sage-50 p-4 text-sm text-sage-800"
+                  role="status"
+                >
+                  <p>
+                    <strong>Welcome back.</strong> Your unfinished draft from {formatFriendlyDate(restoredAt, true)} was restored.
+                  </p>
+                </div>
+              )}
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="eyebrow">
+                    {step === STEPS.length - 1
+                      ? "Final review"
+                      : `Step ${step + 1} of 10`}
+                  </p>
+                  <div
+                    className={`mt-2 flex items-center gap-2 text-xs font-semibold ${
+                      saveStatus === "error" ? "text-clay-600" : "text-muted"
+                    }`}
+                    role="status"
+                    aria-live="polite"
+                  >
+                    {saveStatus === "saving" ? (
+                      <LoaderCircle
+                        className="size-3.5 animate-spin"
+                        aria-hidden="true"
+                      />
+                    ) : saveStatus === "error" ? (
+                      <CircleAlert className="size-3.5" aria-hidden="true" />
+                    ) : (
+                      <CheckCircle2
+                        className="size-3.5 text-sage-600"
+                        aria-hidden="true"
+                      />
+                    )}
+                    {saveStatus === "saving"
+                      ? "Saving changes…"
+                      : saveStatus === "error"
+                        ? "Draft save failed"
+                        : saveStatus === "saved"
+                          ? "Draft saved automatically"
+                          : "Ready to begin"}
+                  </div>
+                </div>
+                <span className="shrink-0 text-xs font-bold tabular-nums text-sage-600">
                   {Math.round(progress)}%
                 </span>
               </div>
@@ -1045,41 +1069,29 @@ export function ProfileWizard() {
                   );
                 })}
               </ol>
-              <div className="mt-5 border-t border-sage-100 pt-4">
-                <div
-                  className={`flex items-center gap-2 text-xs font-semibold ${
-                    saveStatus === "error" ? "text-clay-600" : "text-muted"
-                  }`}
-                  role="status"
-                  aria-live="polite"
+              <div className="mt-5 flex flex-col gap-2">
+                <button
+                  type="button"
+                  className="inline-flex min-h-10 items-center justify-center gap-2 rounded-full border border-sage-200 bg-paper px-3 text-[11px] font-bold text-sage-700 transition hover:bg-sage-50"
+                  onClick={() => void persistDraft(true)}
+                  disabled={saveStatus === "saving" || finishing}
                 >
                   {saveStatus === "saving" ? (
                     <LoaderCircle
                       className="size-3.5 animate-spin"
                       aria-hidden="true"
                     />
-                  ) : saveStatus === "error" ? (
-                    <CircleAlert className="size-3.5" aria-hidden="true" />
                   ) : (
-                    <CheckCircle2
-                      className="size-3.5 text-sage-600"
-                      aria-hidden="true"
-                    />
+                    <Save className="size-3.5" aria-hidden="true" />
                   )}
-                  {saveStatus === "saving"
-                    ? "Saving changes…"
-                    : saveStatus === "error"
-                      ? "Draft save failed"
-                      : saveStatus === "saved"
-                        ? "Draft saved automatically"
-                        : "Ready to begin"}
-                </div>
+                  Save draft
+                </button>
                 <button
                   type="button"
-                  className="mt-3 inline-flex min-h-11 items-center gap-2 rounded-full px-3 text-xs font-bold text-clay-600 hover:bg-clay-50"
+                  className="inline-flex min-h-10 items-center justify-center gap-2 rounded-full px-3 text-[11px] font-bold text-clay-600 transition hover:bg-clay-50"
                   onClick={() => setDiscardOpen(true)}
                 >
-                  <Trash2 className="size-4" aria-hidden="true" />
+                  <Trash2 className="size-3.5" aria-hidden="true" />
                   Cancel account creation
                 </button>
               </div>
@@ -1087,24 +1099,9 @@ export function ProfileWizard() {
           </aside>
 
           <div className="min-w-0">
-            {restoredAt && (
-              <div
-                className="mb-4 flex items-start gap-3 rounded-2xl border border-sage-200 bg-sage-50 p-4 text-sm text-sage-800"
-                role="status"
-              >
-                <CheckCircle2
-                  className="mt-0.5 size-5 shrink-0"
-                  aria-hidden="true"
-                />
-                <p>
-                  <strong>Welcome back.</strong> Your unfinished draft from{" "}
-                  {formatFriendlyDate(restoredAt, true)} was restored.
-                </p>
-              </div>
-            )}
             <section className="surface overflow-hidden">
               <div className="border-b border-sage-100 bg-gradient-to-r from-sage-50 to-gold-50/50 p-5 sm:p-8">
-                <div className="mb-4 grid size-11 place-items-center rounded-2xl bg-white text-sage-600 shadow-sm">
+                <div className="mb-4 grid size-11 place-items-center rounded-[var(--radius-base)] bg-white text-sage-600 shadow-sm">
                   <CurrentIcon className="size-5" aria-hidden="true" />
                 </div>
                 <p className="eyebrow">
@@ -1124,7 +1121,7 @@ export function ProfileWizard() {
                 {error && (
                   <div
                     id="wizard-error"
-                    className="warning-indicator mb-5 rounded-2xl px-4 py-3 text-sm"
+                    className="warning-indicator mb-5 px-4 py-3 text-sm"
                     role="alert"
                   >
                     {error}
@@ -1134,7 +1131,7 @@ export function ProfileWizard() {
                   ref={stepContentRef}
                   className={
                     stepError
-                      ? "rounded-2xl border border-clay-300 bg-clay-50/40 p-4"
+                      ? "rounded-[var(--radius-base)] border border-clay-300 bg-clay-50/40 p-4"
                       : ""
                   }
                   aria-describedby={
@@ -1146,7 +1143,7 @@ export function ProfileWizard() {
                 {stepError && (
                   <div
                     id="wizard-step-error"
-                    className="warning-indicator mt-4 flex items-start gap-2 rounded-2xl px-4 py-3 text-sm"
+                    className="warning-indicator mt-4 flex items-start gap-2 px-4 py-3 text-sm"
                     role="alert"
                   >
                     <CircleAlert
@@ -1157,7 +1154,7 @@ export function ProfileWizard() {
                   </div>
                 )}
               </div>
-              <div className="flex flex-col-reverse gap-3 border-t border-sage-100 bg-sage-50/50 p-5 sm:flex-row sm:items-center sm:justify-between sm:p-6">
+              <div className="sticky bottom-0 z-20 flex flex-col-reverse gap-3 border-t border-sage-100 bg-sage-50/95 p-5 backdrop-blur-xl sm:flex-row sm:items-center sm:justify-between sm:p-6">
                 <button
                   type="button"
                   className="btn-secondary"

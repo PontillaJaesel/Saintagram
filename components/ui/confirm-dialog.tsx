@@ -8,7 +8,6 @@ import {
   type ReactNode
 } from "react";
 import { createPortal } from "react-dom";
-import { X } from "lucide-react";
 
 export function ConfirmDialog({
   open,
@@ -17,6 +16,7 @@ export function ConfirmDialog({
   confirmLabel,
   cancelLabel = "Cancel",
   destructive = false,
+  headerIcon,
   children,
   onConfirm,
   onClose,
@@ -28,6 +28,7 @@ export function ConfirmDialog({
   confirmLabel: string;
   cancelLabel?: string;
   destructive?: boolean;
+  headerIcon?: ReactNode;
   children?: ReactNode;
   onConfirm: () => void;
   onClose: () => void;
@@ -75,7 +76,7 @@ export function ConfirmDialog({
 
   return createPortal(
     <div
-      className="fixed inset-0 z-[100] grid place-items-end bg-ink/45 p-0 backdrop-blur-sm sm:place-items-center sm:p-6"
+      className="fixed inset-0 z-[100] grid place-items-center bg-ink/45 p-6 backdrop-blur-sm"
       onMouseDown={(event) => {
         if (event.target === event.currentTarget && !busy) onClose();
       }}
@@ -87,53 +88,64 @@ export function ConfirmDialog({
         aria-labelledby={titleId}
         aria-describedby={descriptionId}
         onKeyDown={trapFocus}
-        className="w-full max-w-md rounded-t-4xl border border-sage-100 bg-paper p-6 shadow-lift sm:rounded-4xl"
+        className="relative w-full max-w-md rounded-4xl border border-sage-100 bg-paper p-6 shadow-lift"
       >
-        <div className="flex items-start gap-4">
-          <div className="flex-1">
+        <div className="flex flex-col items-center gap-4 text-center">
+          {headerIcon && <div>{headerIcon}</div>}
+          <div>
             <h2 id={titleId} className="font-serif text-2xl font-bold text-ink">
               {title}
             </h2>
-            <p
-              id={descriptionId}
-              className="mt-2 text-sm leading-6 text-muted"
-            >
+            <p id={descriptionId} className="mt-2 text-sm leading-6 text-muted">
               {description}
             </p>
           </div>
-          <button
-            type="button"
-            className="grid min-h-11 min-w-11 place-items-center rounded-full text-muted hover:bg-sage-50"
-            onClick={onClose}
-            disabled={busy}
-            aria-label="Close dialog"
-          >
-            <X className="size-5" aria-hidden="true" />
-          </button>
         </div>
-        {children && <div className="mt-5">{children}</div>}
-        <div className="mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
-          <button
-            ref={cancelRef}
-            type="button"
-            className="btn-secondary"
-            onClick={onClose}
-            disabled={busy}
-          >
-            {cancelLabel}
-          </button>
-          <button
-            type="button"
-            className={
-              destructive
-                ? "inline-flex min-h-12 items-center justify-center rounded-full bg-clay-600 px-6 py-3 text-sm font-bold text-white hover:bg-clay-500 disabled:opacity-50"
-                : "btn-primary"
-            }
-            onClick={onConfirm}
-            disabled={busy}
-          >
-            {busy ? "Please wait…" : confirmLabel}
-          </button>
+
+        {children && <div className="mt-6">{children}</div>}
+
+        <div className="mt-6 flex flex-col gap-3">
+          {destructive ? (
+            <>
+              <button
+                type="button"
+                className="inline-flex w-full min-h-12 items-center justify-center rounded-full bg-clay-600 px-6 py-3 text-sm font-bold text-white hover:bg-clay-500 disabled:opacity-50"
+                onClick={onConfirm}
+                disabled={busy}
+              >
+                {busy ? "Please wait…" : confirmLabel}
+              </button>
+              <button
+                ref={cancelRef}
+                type="button"
+                className="btn-secondary w-full"
+                onClick={onClose}
+                disabled={busy}
+              >
+                {cancelLabel}
+              </button>
+            </>
+          ) : (
+            <>
+              <button
+                type="button"
+                className="btn-primary w-full"
+                onClick={onConfirm}
+                disabled={busy}
+              >
+                {busy ? "Please wait…" : confirmLabel}
+              </button>
+              <button
+                ref={cancelRef}
+                type="button"
+                className="btn-secondary w-full"
+                onClick={onClose}
+                disabled={busy}
+              >
+                {cancelLabel}
+              </button>
+            </>
+          )}
         </div>
       </div>
     </div>,

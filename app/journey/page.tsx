@@ -5,10 +5,7 @@ import { AppShell } from "@/components/layout/app-shell";
 export default function JourneyPage() {
   return (
     <RouteGuard requireProfile>
-      <AppShell
-        title="Spiritual Journey"
-        description="See how your profile and reflections have grown."
-      >
+      <AppShell>
         <JourneyTimeline />
       </AppShell>
     </RouteGuard>

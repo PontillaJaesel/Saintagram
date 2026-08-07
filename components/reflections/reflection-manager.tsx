@@ -237,7 +237,7 @@ export function ReflectionManager() {
     <div className="grid gap-6 xl:grid-cols-[minmax(0,.92fr)_minmax(24rem,1.08fr)]">
       <section className="surface self-start overflow-hidden xl:sticky xl:top-24">
         <div className="border-b border-sage-100 bg-gradient-to-r from-sage-50 to-gold-50 p-5 sm:p-7">
-          <div className="mb-4 grid size-11 place-items-center rounded-2xl bg-white text-sage-600 shadow-sm">
+          <div className="mb-4 grid size-11 place-items-center rounded-[var(--radius-base)] bg-white text-sage-600 shadow-sm">
             <PenLine className="size-5" aria-hidden="true" />
           </div>
           <p className="eyebrow">
@@ -254,7 +254,7 @@ export function ReflectionManager() {
           noValidate
         >
           {editing && (
-            <div className="mb-4 flex items-center justify-between gap-3 rounded-2xl bg-sage-50 p-3">
+            <div className="mb-4 flex items-center justify-between gap-3 rounded-[var(--radius-base)] bg-sage-50 p-3">
               <span className="text-sm font-bold text-sage-700">
                 Editing your entry
               </span>
@@ -354,7 +354,7 @@ export function ReflectionManager() {
             </div>
           </div>
 
-          <label className="mt-5 flex cursor-pointer items-start gap-3 rounded-2xl border border-sage-200 p-4 transition hover:border-sage-400">
+          <label className="mt-5 flex cursor-pointer items-start gap-3 rounded-[var(--radius-base)] border border-sage-200 p-4 transition hover:border-sage-400">
             <input
               type="checkbox"
               className="mt-1 size-5 accent-sage-700"
@@ -376,7 +376,7 @@ export function ReflectionManager() {
           {error && (
             <div
               id="reflection-error"
-              className="mt-4 rounded-2xl border border-clay-200 bg-clay-50 p-3 text-sm font-semibold text-clay-600"
+              className="mt-4 rounded-[var(--radius-base)] border border-clay-200 bg-clay-50 p-3 text-sm font-semibold text-clay-600"
               role="alert"
             >
               {error}
@@ -399,72 +399,72 @@ export function ReflectionManager() {
       </section>
 
       <section aria-labelledby="reflection-list-title">
-        <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-          <div>
-            <p className="eyebrow">Your own entries</p>
-            <h2
-              id="reflection-list-title"
-              className="mt-1 font-serif text-2xl font-bold"
-            >
-              Reflections
-            </h2>
-            <p className="mt-1 text-sm text-muted">
-              Your newest reflections first.
-            </p>
+        <div className="mb-5 rounded-[var(--radius-card)] border border-sage-100 bg-white p-5 shadow-sm sm:p-6">
+          <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+            <div>
+              <p className="eyebrow">Your own entries</p>
+              <h2
+                id="reflection-list-title"
+                className="mt-1 font-serif text-2xl font-bold"
+              >
+                Reflections
+              </h2>
+              <p className="mt-1 text-sm text-muted">
+                Your newest reflections first.
+              </p>
+            </div>
+            {privateUnlocked ? (
+              <button type="button" className="btn-secondary" onClick={lockPrivate}>
+                <Lock className="size-4" aria-hidden="true" />
+                Hide private entries
+              </button>
+            ) : (
+              <button
+                type="button"
+                className="btn-secondary"
+                onClick={() => {
+                  if (user?.privacyPreferences?.requirePrivateCheck ?? true) {
+                    setPrivacyDialog(true);
+                  } else {
+                    void unlockPrivate();
+                  }
+                }}
+                disabled={privateLoading}
+              >
+                <ShieldCheck className="size-4" aria-hidden="true" />
+                {privateLoading ? "Opening…" : "Manage private entries"}
+              </button>
+            )}
           </div>
-          {privateUnlocked ? (
-            <button type="button" className="btn-secondary" onClick={lockPrivate}>
-              <Lock className="size-4" aria-hidden="true" />
-              Hide private entries
-            </button>
+          {privateUnlocked && (
+            <div className="mb-4 flex items-start gap-3 rounded-[var(--radius-base)] border border-clay-200 bg-clay-50 p-4 text-sm text-muted">
+              <LockKeyhole
+                className="mt-0.5 size-5 shrink-0 text-clay-600"
+                aria-hidden="true"
+              />
+              Private entries are temporarily visible for this page visit.
+            </div>
+          )}
+          {visiblePosts.length ? (
+            <div className="space-y-3">
+              {visiblePosts.map((post) => (
+                <ReflectionCard
+                  key={post.id}
+                  post={post}
+                  showActions
+                  onEdit={beginEdit}
+                  onDelete={setDeleteTarget}
+                />
+              ))}
+            </div>
           ) : (
-            <button
-              type="button"
-              className="btn-secondary"
-              onClick={() => {
-                if (user?.privacyPreferences?.requirePrivateCheck ?? true) {
-                  setPrivacyDialog(true);
-                } else {
-                  void unlockPrivate();
-                }
-              }}
-              disabled={privateLoading}
-            >
-              <ShieldCheck className="size-4" aria-hidden="true" />
-              {privateLoading ? "Opening…" : "Manage private entries"}
-            </button>
+            <EmptyState
+              icon={NotebookPen}
+              title="Your first reflection can be small"
+              description="God notices the moment you tried, listened, forgave, asked for help, or simply showed up."
+            />
           )}
         </div>
-
-        {privateUnlocked && (
-          <div className="mb-4 flex items-start gap-3 rounded-2xl border border-clay-200 bg-clay-50 p-4 text-sm text-muted">
-            <LockKeyhole
-              className="mt-0.5 size-5 shrink-0 text-clay-600"
-              aria-hidden="true"
-            />
-            Private entries are temporarily visible for this page visit.
-          </div>
-        )}
-
-        {visiblePosts.length ? (
-          <div className="space-y-3">
-            {visiblePosts.map((post) => (
-              <ReflectionCard
-                key={post.id}
-                post={post}
-                showActions
-                onEdit={beginEdit}
-                onDelete={setDeleteTarget}
-              />
-            ))}
-          </div>
-        ) : (
-          <EmptyState
-            icon={NotebookPen}
-            title="Your first reflection can be small"
-            description="God notices the moment you tried, listened, forgave, asked for help, or simply showed up."
-          />
-        )}
       </section>
 
       <ConfirmDialog
@@ -478,7 +478,7 @@ export function ReflectionManager() {
         onConfirm={() => void confirmDelete()}
       >
         {deleteTarget && (
-          <p className="line-clamp-3 rounded-2xl bg-sage-50 p-4 text-sm italic leading-6 text-muted">
+          <p className="line-clamp-3 rounded-[var(--radius-base)] bg-sage-50 p-4 text-sm italic leading-6 text-muted">
             “{deleteTarget.content}”
           </p>
         )}
@@ -489,10 +489,15 @@ export function ReflectionManager() {
         title="Open private entries?"
         description="Confirm that you are in a private place before sensitive journal entries are loaded."
         confirmLabel="I’m ready to view them"
+        headerIcon={
+          <div className="flex h-16 w-16 items-center justify-center rounded-full border border-sage-100 bg-sage-50 text-sage-700 shadow-sm">
+            <Sparkles className="size-6" aria-hidden="true" />
+          </div>
+        }
         onClose={() => setPrivacyDialog(false)}
         onConfirm={() => void unlockPrivate()}
       >
-        <div className="flex items-start gap-3 rounded-2xl bg-clay-50 p-4 text-sm leading-6 text-muted">
+        <div className="flex items-start gap-3 rounded-[var(--radius-base)] bg-clay-50 p-4 text-sm leading-6 text-muted">
           <Sparkles
             className="mt-0.5 size-5 shrink-0 text-clay-600"
             aria-hidden="true"

@@ -138,11 +138,8 @@ export function TagEditor({
           Add
         </button>
       </div>
-      <p className="mt-2 text-xs text-muted">
-        {values.length} of {maxItems} possible entries
-      </p>
-      <p className="mt-1 text-xs text-muted">
-        Duplicate entries are not allowed.
+      <p className="mt-2 text-center text-xs leading-5 text-muted">
+        {values.length} of {maxItems} possible entries. Duplicate entries are not allowed.
       </p>
       {values.length >= maxItems && (
         <p className="warning-indicator mt-2 rounded-xl px-3 py-2 text-xs" role="alert">

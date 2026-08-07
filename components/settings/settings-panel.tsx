@@ -51,7 +51,7 @@ function SettingsSection({
         }`}
       >
         <div
-          className={`grid size-11 shrink-0 place-items-center rounded-2xl bg-white shadow-sm ${
+          className={`grid size-11 shrink-0 place-items-center rounded-[var(--radius-base)] bg-white shadow-sm ${
             danger ? "text-clay-600" : "text-sage-600"
           }`}
         >
@@ -329,7 +329,7 @@ export function SettingsPanel() {
         icon={UserRound}
       >
         <dl className="grid gap-4 sm:grid-cols-2">
-          <div className="rounded-2xl bg-sage-50 p-4">
+          <div className="rounded-[var(--radius-base)] bg-sage-50 p-4">
             <dt className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-sage-600">
               {user.email ? <Mail className="size-4" aria-hidden="true" /> : <UserRound className="size-4" aria-hidden="true" />}
               {user.email ? "Email" : "Account"}
@@ -338,7 +338,7 @@ export function SettingsPanel() {
               {user.email || "Guest account on this browser"}
             </dd>
           </div>
-          <div className="rounded-2xl bg-sage-50 p-4">
+          <div className="rounded-[var(--radius-base)] bg-sage-50 p-4">
             <dt className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-sage-600">
               <CalendarDays className="size-4" aria-hidden="true" />
               Joined
@@ -349,7 +349,7 @@ export function SettingsPanel() {
           </div>
         </dl>
         {user.isGuest && (
-          <div className="mt-4 rounded-2xl border border-gold-200 bg-gold-50 p-4">
+          <div className="mt-4 rounded-[var(--radius-base)] border border-gold-200 bg-gold-50 p-4">
             <p className="text-sm font-bold text-gold-700">
               Keep this profile permanently
             </p>
@@ -570,7 +570,7 @@ export function SettingsPanel() {
       >
         <div className="space-y-3">
           <label
-            className={`flex cursor-pointer items-start justify-between gap-4 rounded-2xl border border-sage-100 p-4 transition hover:border-sage-300 ${
+            className={`flex cursor-pointer items-start justify-between gap-4 rounded-[var(--radius-base)] border border-sage-100 p-4 transition hover:border-sage-300 ${
               privacyPreferenceBusy === "requirePrivateCheck"
                 ? "cursor-wait opacity-70"
                 : ""
@@ -605,22 +605,14 @@ export function SettingsPanel() {
         description="Download a private archive or sign out of this device."
         icon={Database}
       >
-        <div className="grid gap-3 sm:grid-cols-2">
+        <div className="grid gap-3">
           <button
             type="button"
-            className="btn-secondary"
+            className="btn-secondary w-full justify-center"
             onClick={() => setExportOpen(true)}
           >
             <Download className="size-4" aria-hidden="true" />
             Export personal data
-          </button>
-          <button
-            type="button"
-            className="btn-secondary"
-            onClick={() => setLogoutOpen(true)}
-          >
-            <LogOut className="size-4" aria-hidden="true" />
-            Log out
           </button>
         </div>
         <p className="mt-3 flex items-start gap-2 text-xs leading-5 text-muted">
@@ -640,26 +632,44 @@ export function SettingsPanel() {
           This action cannot be undone. You will confirm the deletion before
           anything is removed.
         </p>
+        <div className="mt-6">
+          <button
+            type="button"
+            className="inline-flex w-full min-h-12 items-center justify-center gap-2 rounded-full bg-clay-600 px-5 py-3 text-sm font-bold text-white hover:bg-clay-500"
+            onClick={() => setDeleteOpen(true)}
+          >
+            <Trash2 className="size-4" aria-hidden="true" />
+            Delete my account
+          </button>
+        </div>
+      </SettingsSection>
+
+      <div className="mt-6">
         <button
           type="button"
-          className="mt-4 inline-flex min-h-12 items-center gap-2 rounded-full bg-clay-600 px-5 py-3 text-sm font-bold text-white hover:bg-clay-500"
-          onClick={() => setDeleteOpen(true)}
+          className="btn-primary w-full"
+          onClick={() => setLogoutOpen(true)}
         >
-          <Trash2 className="size-4" aria-hidden="true" />
-          Delete my account
+          <LogOut className="size-4" aria-hidden="true" />
+          Log out
         </button>
-      </SettingsSection>
+      </div>
 
       <ConfirmDialog
         open={exportOpen}
         title="Download your private archive?"
         description="The PDF contains all of your public and private reflections. Store it somewhere only you can access."
         confirmLabel="Download PDF"
+        headerIcon={
+          <div className="flex h-16 w-16 items-center justify-center rounded-full border border-sage-100 bg-sage-50 text-sage-700 shadow-sm">
+            <Download className="size-6" aria-hidden="true" />
+          </div>
+        }
         busy={exporting}
         onClose={() => setExportOpen(false)}
         onConfirm={() => void exportData()}
       >
-        <div className="rounded-2xl bg-gold-50 p-4 text-sm leading-6 text-gold-700">
+        <div className="rounded-[var(--radius-base)] bg-gold-50 p-4 text-sm leading-6 text-gold-700">
           This is a personal data export, not a public or shareable profile.
         </div>
       </ConfirmDialog>
@@ -673,6 +683,11 @@ export function SettingsPanel() {
             : "Your saved profile and reflections will remain. Sign in again to return."
         }
         confirmLabel="Log out"
+        headerIcon={
+          <div className="flex h-16 w-16 items-center justify-center rounded-full border border-sage-100 bg-sage-50 text-sage-700 shadow-sm">
+            <LogOut className="size-6" aria-hidden="true" />
+          </div>
+        }
         busy={loggingOut}
         onClose={() => setLogoutOpen(false)}
         onConfirm={() => void confirmLogout()}
@@ -684,6 +699,11 @@ export function SettingsPanel() {
         description="This removes your account and every saved profile field, reflection, private entry, image, and draft."
         confirmLabel="Delete everything"
         destructive
+        headerIcon={
+          <div className="flex h-16 w-16 items-center justify-center rounded-full border border-sage-200 bg-white text-clay-600 shadow-sm">
+            <Trash2 className="size-6" aria-hidden="true" />
+          </div>
+        }
         busy={deleteBusy}
         onClose={() => {
           if (deleteBusy) return;
@@ -694,7 +714,7 @@ export function SettingsPanel() {
         }}
         onConfirm={() => void confirmDelete()}
       >
-        <div className="space-y-4">
+        <div className="space-y-4 mt-8">
           {(user.authProvider === "password" || (!user.authProvider && user.email)) && <div>
             <label htmlFor="delete-password" className="label">
               Current password
@@ -711,7 +731,7 @@ export function SettingsPanel() {
               }}
             />
           </div>}
-          <div>
+          <div className="mt-6">
             <label htmlFor="delete-phrase" className="label">
               Type DELETE to confirm
             </label>

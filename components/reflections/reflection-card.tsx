@@ -20,9 +20,9 @@ export function ReflectionCard({
   onDelete?: (post: ReflectionPost) => void;
 }) {
   return (
-    <article className="rounded-3xl border border-sage-100 bg-white p-5 shadow-sm sm:p-6">
+    <article className="rounded-[var(--radius-card)] border border-sage-100 bg-white p-5 shadow-sm sm:p-6">
       <div className="flex items-start gap-4">
-        <div className="grid size-10 shrink-0 place-items-center rounded-2xl bg-sage-100 text-sage-700">
+        <div className="grid size-10 shrink-0 place-items-center rounded-[var(--radius-base)] bg-sage-100 text-sage-700">
           {post.isPrivate ? (
             <LockKeyhole className="size-4" aria-hidden="true" />
           ) : (

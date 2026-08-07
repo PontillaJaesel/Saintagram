@@ -83,7 +83,7 @@ function PrivacyContent() {
             space treats what you share.
           </p>
           {mode === "local" && (
-            <div className="mt-6 rounded-2xl border border-gold-200 bg-gold-50 p-4 text-sm leading-6 text-gold-700">
+            <div className="mt-6 rounded-[var(--radius-base)] border border-gold-200 bg-gold-50 p-4 text-sm leading-6 text-gold-700">
               <strong>Demo mode:</strong> Cloud sync is not configured, so your
               account and reflections stay in this browser’s local storage.
               This is useful for demonstration, but not a substitute for
@@ -100,9 +100,9 @@ function PrivacyContent() {
             {points.map(({ icon: Icon, title, description }) => (
               <div
                 key={title}
-                className="flex gap-4 rounded-2xl border border-sage-100 bg-sage-50/60 p-4 sm:p-5"
+                className="flex gap-4 rounded-[var(--radius-base)] border border-sage-100 bg-sage-50/60 p-4 sm:p-5"
               >
-                <div className="grid size-11 shrink-0 place-items-center rounded-2xl bg-white text-sage-600 shadow-sm">
+                <div className="grid size-11 shrink-0 place-items-center rounded-[var(--radius-base)] bg-white text-sage-600 shadow-sm">
                   <Icon className="size-5" aria-hidden="true" />
                 </div>
                 <div>
@@ -115,7 +115,7 @@ function PrivacyContent() {
             ))}
           </div>
 
-          <div className="mt-6 rounded-2xl border border-clay-200 bg-clay-50 p-5">
+          <div className="mt-6 rounded-[var(--radius-base)] border border-clay-200 bg-clay-50 p-5">
             <p className="text-sm font-bold text-clay-600">
               Please read before sharing
             </p>
@@ -138,7 +138,7 @@ function PrivacyContent() {
           </div>
 
           <label
-            className={`mt-6 flex cursor-pointer items-start gap-3 rounded-2xl bg-white p-4 transition ${
+            className={`mt-6 flex cursor-pointer items-start gap-3 rounded-[var(--radius-base)] bg-white p-4 transition ${
               error
                 ? "border border-clay-500 ring-2 ring-clay-100"
                 : "border border-sage-200 hover:border-sage-400"

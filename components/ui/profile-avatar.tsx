@@ -57,8 +57,8 @@ export function ProfileAvatar({
   }, [imagePath]);
 
   const sizes = {
-    small: "size-11 rounded-2xl",
-    medium: "size-16 rounded-3xl",
+    small: "size-11 rounded-[var(--radius-base)]",
+    medium: "size-16 rounded-[var(--radius-card)]",
     large: "size-24 rounded-[2rem] sm:size-28"
   };
   const iconSizes = {
