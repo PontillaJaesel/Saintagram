@@ -51,33 +51,33 @@ function EditorSection({
   return (
     <section
       className={`surface overflow-hidden ${
-              privateSection ? "border-gray-200/80" : ""
+        privateSection ? "border-clay-200/80" : "border-sage-100"
       }`}
     >
       <div
         className={`flex items-start gap-4 border-b p-5 sm:p-6 ${
           privateSection
-                  ? "border-gray-200/80 bg-white/90 dark:border-slate-700/60 dark:bg-slate-800/15"
-                  : "border-gray-100 bg-white/60"
+            ? "border-clay-200 bg-clay-50/80 dark:border-slate-700/60 dark:bg-slate-800/15"
+            : "border-sage-100 bg-sage-50/70"
         }`}
       >
         <div
           className={`grid size-11 shrink-0 place-items-center rounded-[var(--radius-base)] bg-white shadow-sm ${
-            privateSection ? "text-gold-700 dark:text-gold-300" : "text-gold-700"
+            privateSection ? "text-clay-600 dark:text-clay-300" : "text-sage-600"
           }`}
         >
           <Icon className="size-5" aria-hidden="true" />
         </div>
         <div>
-          <h2 className={`font-serif text-xl font-bold ${privateSection ? "text-gold-700 dark:text-gold-300" : "text-ink dark:text-ink"}`}>
+          <h2
+            className={`font-serif text-xl font-bold ${
+              privateSection ? "text-clay-600 dark:text-clay-200" : "text-ink"
+            }`}
+          >
             {title}
           </h2>
           {description && (
-            <p className={`mt-1 text-sm leading-6 ${privateSection ? "text-gold-700 dark:text-gold-300" : "text-muted"}`}>
-            
-              {description}
-            
-          </p>
+            <p className="mt-1 text-sm leading-6 text-muted">{description}</p>
           )}
         </div>
       </div>
@@ -291,8 +291,8 @@ export function ProfileEditor() {
               A profile name is required.
             </p>
           )}
-          <div className="mt-4 rounded-[var(--radius-base)] border border-gray-100 bg-white/80 p-4">
-            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gold-600">
+          <div className="mt-4 rounded-[var(--radius-base)] border border-sage-100 bg-sage-50/70 p-4">
+            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-sage-600">
               A few gentle ideas
             </p>
             <div className="mt-3 flex flex-wrap gap-3">
@@ -302,8 +302,8 @@ export function ProfileEditor() {
                   type="button"
                   className={`rounded-full border px-4 py-2 text-sm font-semibold transition ${
                     profile.profileName === idea
-                      ? "border-gray-300 bg-gray-100 text-ink"
-                                            : "border-gray-100 bg-white text-ink hover:border-gray-300"
+                      ? "border-sage-300 bg-sage-100 text-ink"
+                      : "border-gray-100 bg-white text-ink hover:border-gray-300"
                   }`}
                   onClick={() => setField("profileName", idea)}
                 >

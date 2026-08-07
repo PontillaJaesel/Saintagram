@@ -299,11 +299,31 @@ body {
   }
 
   .mobile-primary-nav {
-    border-color: rgb(var(--brand-100) / 0.9);
+    border-color: rgb(229 231 235);
   }
 
   :root[data-theme="dark"] .mobile-primary-nav {
-    border-color: rgb(var(--brand-500) / 0.46);
+    border-color: rgb(58 62 69);
+  }
+
+  .surface,
+  .profile-main-column,
+  .profile-tabs,
+  .profile-header-bar,
+  .profile-insight-card,
+  .saintagram-sidebar,
+  .mobile-primary-nav {
+    border-color: rgb(214 207 175) !important;
+  }
+
+  :root[data-theme="dark"] .surface,
+  :root[data-theme="dark"] .profile-main-column,
+  :root[data-theme="dark"] .profile-tabs,
+  :root[data-theme="dark"] .profile-header-bar,
+  :root[data-theme="dark"] .profile-insight-card,
+  :root[data-theme="dark"] .saintagram-sidebar,
+  :root[data-theme="dark"] .mobile-primary-nav {
+    border-color: rgb(79 78 74) !important;
   }
 
   .mobile-reflect-action,
@@ -362,12 +382,30 @@ body {
 
   .profile-edit-button.btn-secondary {
     border-color: rgb(var(--brand-200));
-    color: rgb(var(--brand-400));
+    background: linear-gradient(
+      135deg,
+      rgb(var(--brand-600)) 0%,
+      rgb(var(--brand-400)) 22%,
+      rgb(var(--brand-200)) 42%,
+      rgb(var(--gold-400)) 70%,
+      rgb(var(--gold-600)) 100%
+    );
+    color: rgb(var(--paper));
+    box-shadow: 0 4px 14px rgb(var(--brand-300) / 0.28), inset 0 1px 0 rgb(255 255 255 / 0.24);
   }
 
   .profile-edit-button.btn-secondary:hover {
     border-color: rgb(var(--brand-300));
-    background: rgb(var(--brand-50));
+    background: linear-gradient(
+      135deg,
+      rgb(var(--brand-700)) 0%,
+      rgb(var(--brand-500)) 18%,
+      rgb(var(--brand-300)) 38%,
+      rgb(var(--gold-300)) 72%,
+      rgb(var(--gold-600)) 100%
+    );
+    color: rgb(var(--paper));
+    box-shadow: 0 6px 20px rgb(var(--brand-400) / 0.48), inset 0 1px 0 rgb(255 255 255 / 0.35);
   }
 
   a.profile-view-link {
@@ -380,13 +418,29 @@ body {
   }
 
   :root[data-theme="dark"] .profile-edit-button.btn-secondary {
-    border-color: rgb(var(--gold-500) / 0.72);
-    color: rgb(var(--gold-600));
+    border-color: rgb(var(--brand-300) / 0.8);
+    background: linear-gradient(
+      135deg,
+      rgb(var(--brand-700)) 0%,
+      rgb(var(--brand-500)) 22%,
+      rgb(var(--brand-300)) 40%,
+      rgb(var(--gold-400)) 72%,
+      rgb(var(--gold-600)) 100%
+    );
+    color: rgb(var(--paper));
   }
 
   :root[data-theme="dark"] .profile-edit-button.btn-secondary:hover {
-    border-color: rgb(var(--gold-600));
-    background: rgb(var(--gold-50));
+    border-color: rgb(var(--brand-200));
+    background: linear-gradient(
+      135deg,
+      rgb(var(--brand-800)) 0%,
+      rgb(var(--brand-600)) 18%,
+      rgb(var(--brand-400)) 36%,
+      rgb(var(--gold-300)) 74%,
+      rgb(var(--gold-600)) 100%
+    );
+    color: rgb(var(--paper));
   }
 
   :root[data-theme="dark"] a.profile-view-link {
@@ -422,19 +476,19 @@ body {
   }
 
   .warning-indicator {
-    border: 1px solid rgb(239 191 4 / 0.7);
+    border: 1px solid rgb(220 38 38 / 0.9);
     border-radius: var(--radius-base);
-    background: rgb(255 246 184 / 0.9);
-    color: rgb(193, 12, 27);
+    background: rgb(255 251 235);
+    color: rgb(190 18 60);
     font-family: var(--font-secondary);
-    font-style: italic;
+    font-style: normal;
     font-weight: 600;
   }
 
   :root[data-theme="dark"] .warning-indicator {
-    border-color: rgb(239 191 4 / 0.55);
-    background: rgb(55, 38, 20 / 0.82);
-    color: rgb(255 190 200);
+    border-color: rgb(248 113 113 / 0.65);
+    background: rgb(83 17 33 / 0.7);
+    color: rgb(255 205 210);
   }
 
   [aria-invalid="true"] {
@@ -455,15 +509,17 @@ body {
   .btn-primary {
     @apply inline-flex min-h-12 items-center justify-center gap-2 rounded-full px-6 py-3 text-sm font-bold shadow-md transition-all active:scale-[.98] disabled:cursor-not-allowed disabled:opacity-50;
     
-    /* Real Metallic Gold Gradient & Shimmer Effect */
+    /* Strong red-dominant gradient with a subtle gold highlight */
     background: linear-gradient(
       135deg,
-      rgb(var(--gold-300)) 0%,
-      rgb(var(--gold-400)) 45%,
-      rgb(var(--gold-600)) 100%
+      rgb(var(--brand-600)) 0%,
+      rgb(var(--brand-400)) 20%,
+      rgb(var(--brand-200)) 38%,
+      rgb(var(--gold-400)) 65%,
+      rgb(var(--gold-500)) 100%
     );
     color: rgb(var(--paper));
-    box-shadow: 0 4px 14px rgb(var(--gold-400) / 0.35), inset 0 1px 0 rgb(255 255 255 / 0.4);
+    box-shadow: 0 4px 14px rgb(var(--brand-400) / 0.48), inset 0 1px 0 rgb(255 255 255 / 0.24);
     position: relative;
     overflow: hidden;
   }
@@ -490,11 +546,13 @@ body {
   .btn-primary:hover {
     background: linear-gradient(
       135deg,
-      rgb(var(--gold-200)) 0%,
-      rgb(var(--gold-300)) 45%,
-      rgb(var(--gold-500)) 100%
+      rgb(var(--brand-700)) 0%,
+      rgb(var(--brand-500)) 18%,
+      rgb(var(--brand-300)) 34%,
+      rgb(var(--gold-300)) 68%,
+      rgb(var(--gold-600)) 100%
     );
-    box-shadow: 0 6px 20px rgb(var(--gold-400) / 0.5), inset 0 1px 0 rgb(255 255 255 / 0.6);
+    box-shadow: 0 6px 20px rgb(var(--brand-500) / 0.58), inset 0 1px 0 rgb(255 255 255 / 0.35);
   }
 
   /* Metallic Gold Text Effect */
@@ -517,6 +575,10 @@ body {
     @apply inline-flex min-h-12 items-center justify-center gap-2 rounded-full border border-sage-200 bg-paper px-6 py-3 text-sm font-bold text-ink transition hover:border-sage-300 hover:bg-sage-50 active:scale-[.98] disabled:cursor-not-allowed disabled:opacity-50;
   }
 
+  .btn-destructive {
+    @apply inline-flex min-h-12 items-center justify-center gap-2 rounded-full border border-clay-500 bg-clay-50 px-5 py-3 text-sm font-bold text-clay-600 transition hover:border-clay-600 hover:bg-clay-100 active:scale-[.98] disabled:cursor-not-allowed disabled:opacity-50;
+  }
+
   .btn-quiet {
     @apply inline-flex min-h-11 items-center justify-center gap-2 rounded-full px-4 py-2 text-sm font-bold text-sage-700 transition hover:bg-sage-100;
   }
@@ -530,23 +592,41 @@ body {
   }
 
   .theme-toggle {
-    @apply relative z-10 inline-flex min-h-9 shrink-0 items-center gap-1.5 rounded-full border border-sage-200 bg-paper/80 p-1 text-ink backdrop-blur-xl transition hover:border-sage-300;
+    @apply relative z-10 inline-flex min-h-9 shrink-0 items-center gap-1.5 rounded-full border border-gold-300 bg-paper/80 p-1 text-ink backdrop-blur-xl transition hover:border-gold-400;
   }
 
   .theme-toggle-track {
-    @apply relative block h-7 w-11 rounded-full bg-sage-200 transition-colors sm:w-12;
+    @apply relative block h-7 w-11 rounded-full transition-colors sm:w-12;
+    background: linear-gradient(
+      135deg,
+      rgb(var(--gold-200)) 0%,
+      rgb(248 113 113 / 0.35) 25%,
+      rgb(var(--gold-400)) 55%,
+      rgb(var(--gold-600)) 100%
+    );
   }
 
   .theme-toggle-thumb {
-    @apply absolute left-1 top-1 grid size-5 place-items-center rounded-full bg-white text-gold-600 shadow-sm transition-transform;
+    @apply absolute left-1 top-1 grid size-5 place-items-center rounded-full bg-white shadow-sm transition-transform;
+    color: rgb(var(--gold-600));
   }
 
   :root[data-theme="dark"] .theme-toggle-track {
-    @apply bg-sage-700;
+    background: linear-gradient(
+      135deg,
+      rgb(153 27 27) 0%,
+      rgb(var(--gold-300) / 0.22) 30%,
+      rgb(190 24 93) 60%,
+      rgb(239 68 68) 100%
+    );
+  }
+
+  :root[data-theme="dark"] .theme-toggle-track {
+    background: linear-gradient(135deg, rgb(153 27 27) 0%, rgb(190 24 93) 50%, rgb(239 68 68) 100%);
   }
 
   :root[data-theme="dark"] .theme-toggle-thumb {
-    @apply translate-x-4 bg-paper text-gold-400 sm:translate-x-5;
+    @apply translate-x-4 bg-paper text-red-500 sm:translate-x-5;
   }
 
   :root[data-theme="dark"] .btn-primary {
@@ -620,6 +700,16 @@ body {
 
   .theme-toggle-label {
     @apply hidden pr-1 text-xs font-bold xl:inline;
+  }
+
+  :root[data-theme="dark"] .welcome-pill {
+    background: rgb(255 255 255);
+    color: rgb(55 65 81);
+  }
+
+  .welcome-pill {
+    background: rgb(255 255 255);
+    color: rgb(55 65 81);
   }
 }
 

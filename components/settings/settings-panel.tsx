@@ -635,7 +635,7 @@ export function SettingsPanel() {
         <div className="mt-6">
           <button
             type="button"
-            className="inline-flex w-full min-h-12 items-center justify-center gap-2 rounded-full bg-clay-600 px-5 py-3 text-sm font-bold text-white hover:bg-clay-500"
+            className="btn-destructive w-full"
             onClick={() => setDeleteOpen(true)}
           >
             <Trash2 className="size-4" aria-hidden="true" />

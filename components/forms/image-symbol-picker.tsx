@@ -200,7 +200,7 @@ export function ImageSymbolPicker({
         </button>
         <button
           type="button"
-          className="btn-quiet flex-1 border border-clay-500 text-clay-600 hover:bg-clay-50 disabled:border-sage-200 disabled:text-muted"
+          className="btn-destructive flex-1 disabled:border-sage-200 disabled:text-muted"
           onClick={() => {
             onChange({ imagePath: "", selectedSymbol: "" });
             void removePendingImage(imagePath);

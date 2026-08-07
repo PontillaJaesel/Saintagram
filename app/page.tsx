@@ -63,7 +63,7 @@ export default function WelcomePage() {
       </header>
 
       <section className="welcome-enter mx-auto flex w-full max-w-3xl flex-col items-center text-center">
-        <div className="mb-7 inline-flex items-center gap-2 rounded-full bg-gray-200 px-4 py-2 text-xs font-bold uppercase tracking-[0.12em] text-ink sm:text-sm">
+        <div className="welcome-pill mb-7 inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-4 py-2 text-xs font-bold uppercase tracking-[0.12em] text-slate-700 transition hover:bg-slate-50 sm:text-sm">
           <Sparkles className="size-4" aria-hidden="true" />
           My profile before God
         </div>
@@ -99,11 +99,6 @@ export default function WelcomePage() {
           )}
         </div>
       </section>
-      <footer className="mx-auto mt-12 w-full max-w-3xl text-center text-[10px] font-medium tracking-wide text-muted/70">
-        <span className="inline-flex rounded-full border border-white/30 bg-paper/80 px-3 py-1 shadow-sm backdrop-blur">
-          &copy; 2026 Saintagram. All rights reserved.
-        </span>
-      </footer>
     </main>
   );
 }

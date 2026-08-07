@@ -1112,7 +1112,7 @@ export function ProfileWizard() {
                 </button>
                 <button
                   type="button"
-                  className="inline-flex min-h-10 items-center justify-center gap-2 rounded-full px-3 text-[11px] font-bold text-clay-600 transition hover:bg-clay-50"
+                  className="btn-destructive inline-flex min-h-10 items-center justify-center gap-2 px-3 text-[11px] font-bold"
                   onClick={() => setDiscardOpen(true)}
                 >
                   <Trash2 className="size-3.5" aria-hidden="true" />
@@ -1145,10 +1145,11 @@ export function ProfileWizard() {
                 {error && (
                   <div
                     id="wizard-error"
-                    className="warning-indicator mb-5 px-4 py-3 text-sm"
+                    className="warning-indicator mb-5 flex items-start gap-2 px-4 py-3 text-sm"
                     role="alert"
                   >
-                    {error}
+                    <CircleAlert className="mt-0.5 size-4 shrink-0 text-red-600" aria-hidden="true" />
+                    <span>{error}</span>
                   </div>
                 )}
                 <div
@@ -1171,7 +1172,7 @@ export function ProfileWizard() {
                     role="alert"
                   >
                     <CircleAlert
-                      className="mt-0.5 size-4 shrink-0"
+                      className="mt-0.5 size-4 shrink-0 text-red-600"
                       aria-hidden="true"
                     />
                     {stepError}

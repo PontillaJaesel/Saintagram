@@ -275,7 +275,7 @@ export function SocialProfileView({
               {isOwnProfile ? (
                 <Link
                   href="/profile"
-                  className="btn-secondary"
+                  className="profile-edit-button btn-secondary"
                 >
                   View your profile
                 </Link>

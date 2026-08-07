@@ -291,7 +291,7 @@ export function ProfileDashboard() {
         Search your posted reflections
       </label>
       <div className="flex items-center gap-3">
-        <div className="relative min-w-0 flex-1 rounded-md border-2 border-sage-300 bg-paper/75 shadow-sm transition focus-within:border-sage-500 focus-within:bg-paper focus-within:ring-2 focus-within:ring-sage-200">
+        <div className="relative min-w-0 flex-1 rounded-md border-2 border-gray-300 bg-paper/75 shadow-sm transition focus-within:border-gray-400 focus-within:bg-paper focus-within:ring-2 focus-within:ring-gray-200">
           <Search
             className="pointer-events-none absolute left-4 top-1/2 size-4 -translate-y-1/2 text-muted"
             aria-hidden="true"
@@ -335,7 +335,9 @@ export function ProfileDashboard() {
               <span className="absolute right-0.5 top-0.5 size-2.5 rounded-full border-2 border-paper bg-sage-500" aria-hidden="true" />
             )}
           </summary>
-          <div className="absolute right-0 top-full z-50 mt-2 max-h-[calc(100dvh-2rem)] w-[min(34rem,calc(100vw-2rem))] overflow-x-hidden overflow-y-auto rounded-[var(--radius-base)] border border-sage-100 bg-paper shadow-lift sm:grid sm:grid-cols-[9.5rem_1fr]">
+          <div
+            className="absolute right-0 top-full z-50 mt-2 max-h-[calc(100dvh-2rem)] w-[min(26rem,calc(100vw-2rem))] max-w-[calc(100vw-2rem)] overflow-x-hidden overflow-y-auto rounded-[var(--radius-base)] border border-sage-100 bg-paper shadow-lift sm:grid sm:grid-cols-[8.5rem_1fr]"
+          >
             <div className="flex flex-col border-b border-sage-100 p-3 sm:border-b-0 sm:border-r">
               <div className="grid grid-cols-2 gap-1 sm:grid-cols-1">
                 {([['week', 'Last Week'], ['month', 'Last Month'], ['year', 'Last Year'], ['custom', 'Custom']] as const).map(([value, label]) => (

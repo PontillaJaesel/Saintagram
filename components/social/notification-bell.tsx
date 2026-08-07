@@ -395,7 +395,7 @@ export function NotificationBell() {
   return (
     <div
       ref={containerRef}
-      className="relative"
+      className="relative ml-auto"
     >
       <button
         type="button"
@@ -431,7 +431,7 @@ export function NotificationBell() {
 
       {open && (
         <div
-          className="absolute right-0 top-[calc(100%+.65rem)] z-[90] w-[min(22rem,calc(100vw-2rem))] overflow-hidden rounded-3xl border border-sage-100 bg-paper shadow-lift"
+          className="absolute right-0 top-[calc(100%+.65rem)] z-[90] w-[min(22rem,calc(100vw-2rem))] overflow-hidden rounded-3xl border border-sage-100 bg-paper shadow-lift lg:bottom-[calc(100%+.65rem)] lg:top-auto"
           aria-label="Notifications"
         >
           <div className="border-b border-sage-100 px-5 py-4">
