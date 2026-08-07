@@ -51,28 +51,28 @@ function EditorSection({
   return (
     <section
       className={`surface overflow-hidden ${
-        privateSection ? "border-amber-300/80" : ""
+        privateSection ? "border-gold-500/80" : ""
       }`}
     >
       <div
         className={`flex items-start gap-4 border-b p-5 sm:p-6 ${
           privateSection
-            ? "border-amber-300/80 bg-amber-50/90 dark:border-violet-400/60 dark:bg-violet-500/15"
-            : "border-sage-100 bg-sage-50/60"
+            ? "border-gold-500/80 bg-gold-50/90 dark:border-gold-500/60 dark:bg-gold-500/15"
+            : "border-gold-100 bg-gold-50/60"
         }`}
       >
         <div
           className={`grid size-11 shrink-0 place-items-center rounded-[var(--radius-base)] bg-white shadow-sm ${
-            privateSection ? "text-amber-700 dark:text-violet-200" : "text-sage-600"
+            privateSection ? "text-gold-700 dark:text-gold-300" : "text-gold-700"
           }`}
         >
           <Icon className="size-5" aria-hidden="true" />
         </div>
         <div>
-          <h2 className={`font-serif text-xl font-bold ${privateSection ? "text-amber-700 dark:text-violet-200" : "text-ink dark:text-slate-100"}`}>
+          <h2 className={`font-serif text-xl font-bold ${privateSection ? "text-gold-700 dark:text-gold-300" : "text-ink dark:text-ink"}`}>
             {title}
           </h2>
-          <p className={`mt-1 text-sm leading-6 ${privateSection ? "text-amber-700 dark:text-violet-200" : "text-muted dark:text-slate-300"}`}>
+          <p className={`mt-1 text-sm leading-6 ${privateSection ? "text-gold-700 dark:text-gold-300" : "text-muted"}`}>
             {description}
           </p>
         </div>
@@ -189,7 +189,7 @@ export function ProfileEditor() {
         confirmLabel="I’m ready to edit privately"
         cancelLabel="Back to profile"
         headerIcon={
-          <div className="flex h-16 w-16 items-center justify-center rounded-full border border-sage-100 bg-sage-50 text-sage-700 shadow-sm">
+          <div className="flex h-16 w-16 items-center justify-center rounded-full border border-gold-100 bg-gold-50 text-gold-700 shadow-sm">
             <ShieldCheck className="size-6" aria-hidden="true" />
           </div>
         }
@@ -282,13 +282,13 @@ export function ProfileEditor() {
           {!profile.profileName.trim() && error && (
             <p
               id="edit-profile-name-error"
-              className="mt-2 text-sm font-semibold text-clay-600"
+              className="mt-2 text-sm font-semibold text-muted"
             >
               A profile name is required.
             </p>
           )}
-          <div className="mt-4 rounded-[var(--radius-base)] border border-sage-100 bg-sage-50/80 p-4">
-            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-sage-600">
+          <div className="mt-4 rounded-[var(--radius-base)] border border-gold-100 bg-gold-50/80 p-4">
+            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gold-600">
               A few gentle ideas
             </p>
             <div className="mt-3 flex flex-wrap gap-3">
@@ -298,8 +298,8 @@ export function ProfileEditor() {
                   type="button"
                   className={`rounded-full border px-4 py-2 text-sm font-semibold transition ${
                     profile.profileName === idea
-                      ? "border-sage-500 bg-sage-500 text-ink"
-                      : "border-sage-100 bg-white text-ink hover:border-sage-300"
+                      ? "border-gold-500 bg-gold-300 text-ink"
+                      : "border-gold-100 bg-white text-ink hover:border-gold-300"
                   }`}
                   onClick={() => setField("profileName", idea)}
                 >
@@ -319,8 +319,8 @@ export function ProfileEditor() {
           icon={Palette}
         >
           <div
-            className="mb-5 h-28 rounded-[var(--radius-base)] border border-sage-100"
-            style={{ backgroundColor: profile.coverColor ?? "#DDD2F6" }}
+            className="mb-5 h-28 rounded-[var(--radius-base)] border border-gold-100"
+            style={{ backgroundColor: profile.coverColor ?? "#EFBF04" }}
             aria-hidden="true"
           />
           <label htmlFor="edit-cover-color" className="label">
@@ -332,13 +332,13 @@ export function ProfileEditor() {
               type="color"
               value={profile.coverColor ?? "#DDD2F6"}
               onChange={(event) => setField("coverColor", event.target.value)}
-              className="h-12 w-16 cursor-pointer rounded-xl border border-sage-200 bg-paper p-1"
+              className="h-12 w-16 cursor-pointer rounded-xl border border-gold-200 bg-paper p-1"
             />
             <output
               htmlFor="edit-cover-color"
               className="font-secondary text-sm font-medium text-muted"
             >
-              {(profile.coverColor ?? "#DDD2F6").toUpperCase()}
+              {(profile.coverColor ?? "#EFBF04").toUpperCase()}
             </output>
           </div>
         </EditorSection>
@@ -393,7 +393,7 @@ export function ProfileEditor() {
             onChange={(values) => setField("followers", values)}
             placeholder="Add a follower"
           />
-          <div className="my-7 h-px bg-sage-100" />
+          <div className="my-7 h-px bg-gold-300" />
           <TagEditor
             label="Who or what am I following right now?"
             values={profile.following}
@@ -507,7 +507,7 @@ export function ProfileEditor() {
         </EditorSection>
       </div>
 
-      <div className="mx-auto mt-6 flex max-w-6xl flex-col-reverse gap-3 rounded-[var(--radius-card)] border border-sage-100 bg-paper/95 px-4 py-4 shadow-lift backdrop-blur-xl sm:flex-row sm:items-center sm:justify-between sm:px-6">
+      <div className="mx-auto mt-6 flex max-w-6xl flex-col-reverse gap-3 rounded-[var(--radius-card)] border border-gold-100 bg-paper/95 px-4 py-4 shadow-lift backdrop-blur-xl sm:flex-row sm:items-center sm:justify-between sm:px-6">
         <Link href="/profile" className="btn-secondary">
           <ArrowLeft className="size-4" aria-hidden="true" />
           Cancel

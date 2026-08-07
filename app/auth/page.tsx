@@ -567,16 +567,16 @@ function AuthForm() {
       </section>
 
       <aside
-        className={`absolute inset-y-0 left-0 hidden w-1/2 overflow-hidden bg-gradient-to-br from-sage-800 via-sage-700 to-sage-600 p-12 text-white transition-transform duration-700 ease-[cubic-bezier(.22,1,.36,1)] lg:flex lg:flex-col lg:justify-between ${
+        className={`absolute inset-y-0 left-0 hidden w-1/2 overflow-hidden bg-gradient-to-br from-gold-600 via-gold-500 to-gold-400 p-12 text-white transition-transform duration-700 ease-[cubic-bezier(.22,1,.36,1)] lg:flex lg:flex-col lg:justify-between ${
           formOnRight ? "translate-x-0" : "translate-x-full"
         }`}
       >
         <div
-          className="absolute -right-28 -top-28 size-96 rounded-full border border-sage-600"
+          className="absolute -right-28 -top-28 size-96 rounded-full border border-gold-500/50"
           aria-hidden="true"
         />
         <div
-          className="absolute -right-10 -top-10 size-56 rounded-full border border-sage-500"
+          className="absolute -right-10 -top-10 size-56 rounded-full border border-gold-400/50"
           aria-hidden="true"
         />
         <div
@@ -584,23 +584,23 @@ function AuthForm() {
           aria-hidden="true"
         />
         <div className="relative max-w-lg">
-          <p className="text-xs font-bold uppercase tracking-[0.2em] text-[#f6c5df]">
+          <p className="text-xs font-bold uppercase tracking-[0.2em] text-clay-500">
             Matthew 5:3
           </p>
-          <blockquote className="mt-7 font-serif text-4xl font-bold leading-tight">
-            “Blessed are the poor in spirit, for theirs is the kingdom of
-            heaven.”
+          <blockquote className="mt-7 font-serif text-4xl font-bold leading-tight text-clay-500">
+            "Blessed are the poor in spirit, for theirs is the kingdom of
+            heaven."
           </blockquote>
-          <p className="mt-7 max-w-md text-base leading-7 text-[#e4ddea]">
+          <p className="mt-7 max-w-md text-base leading-7 text-clay-500">
             You do not need a perfect image here. Honesty, humility, and a need
             for God are welcome.
           </p>
         </div>
-        <div className="relative rounded-[var(--radius-card)] border border-sage-600 bg-sage-700/60 p-6">
-          <p className="text-sm font-bold text-[#f6c5df]">
+        <div className="relative rounded-[var(--radius-card)] border border-gold-500/50 bg-gold-500/10 dark:bg-gold-600/20 p-6">
+          <p className="text-sm font-bold text-clay-500">
             Your reflections belong to you.
           </p>
-          <p className="mt-2 text-sm leading-6 text-[#e4ddea]">
+          <p className="mt-2 text-sm leading-6 text-clay-500">
             Hidden Stories and private journal entries never appear on the
             standard profile screen.
           </p>
