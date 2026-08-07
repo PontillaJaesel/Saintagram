@@ -381,6 +381,371 @@ service cloud.firestore {
         && isIsoDate(data.createdAt);
     }
 
+    function hasValidReflectionLikeShape(data) {
+      return data.keys().hasOnly([
+          'id',
+          'reflectionId',
+          'postOwnerId',
+          'userId',
+          'createdAt'
+        ])
+        && data.keys().hasAll([
+          'id',
+          'reflectionId',
+          'postOwnerId',
+          'userId',
+          'createdAt'
+        ])
+        && data.id is string
+        && data.reflectionId is string
+        && data.postOwnerId is string
+        && data.userId is string
+        && data.postOwnerId != data.userId
+        && isIsoDate(data.createdAt);
+    }
+
+    function hasValidReflectionCommentShape(data) {
+      let hasParentComment =
+        data.keys().hasAny([
+          'parentCommentId'
+        ]);
+
+      let hasReplyTarget =
+        data.keys().hasAny([
+          'replyToUserId'
+        ]);
+
+      return data.keys().hasOnly([
+          'id',
+          'reflectionId',
+          'postOwnerId',
+          'userId',
+          'parentCommentId',
+          'replyToUserId',
+          'content',
+          'createdAt',
+          'updatedAt'
+        ])
+        && data.keys().hasAll([
+          'id',
+          'reflectionId',
+          'postOwnerId',
+          'userId',
+          'content',
+          'createdAt',
+          'updatedAt'
+        ])
+        && data.id is string
+        && data.reflectionId is string
+        && data.postOwnerId is string
+        && data.userId is string
+        && data.content is string
+        && data.content.size() > 0
+        && data.content.size() <= 500
+        && isIsoDate(data.createdAt)
+        && isIsoDate(data.updatedAt)
+
+        && (
+          /*
+          * NORMAL COMMENT
+          */
+          (
+            !hasParentComment
+            && !hasReplyTarget
+            && data.postOwnerId
+              != data.userId
+          )
+
+          ||
+
+          /*
+          * REPLY
+          */
+          (
+            hasParentComment
+            && hasReplyTarget
+            && data.parentCommentId
+              is string
+            && data.parentCommentId
+              .size() > 0
+            && data.replyToUserId
+              is string
+            && data.replyToUserId
+              .size() > 0
+          )
+        );
+    }
+
+    function isValidReplyTarget(data) {
+      let parentPath =
+        /databases/$(database)/documents/reflectionComments/$(data.parentCommentId);
+
+      return exists(parentPath)
+
+        /*
+        * Parent must belong to the same
+        * reflection.
+        */
+        && get(parentPath)
+          .data.reflectionId
+          == data.reflectionId
+
+        /*
+        * Parent must belong to the same
+        * reflection owner.
+        */
+        && get(parentPath)
+          .data.postOwnerId
+          == data.postOwnerId
+
+        /*
+        * The user being replied to must
+        * actually be the author of the
+        * immediate parent comment/reply.
+        */
+        && get(parentPath)
+          .data.userId
+          == data.replyToUserId;
+    }
+
+    function isPublicReflectionOwnedBy(
+      reflectionId,
+      postOwnerId
+    ) {
+      let reflectionPath =
+        /databases/$(database)/documents/reflectionPosts/$(reflectionId);
+
+      return exists(reflectionPath)
+        && get(reflectionPath).data.userId == postOwnerId
+        && get(reflectionPath).data.isPrivate == false;
+    }
+
+    function followsPostOwner(
+      followerId,
+      postOwnerId
+    ) {
+      let followId =
+        followerId + '_' + postOwnerId;
+
+      let followPath =
+        /databases/$(database)/documents/follows/$(followId);
+
+      return followerId != postOwnerId
+        && exists(followPath)
+        && get(followPath).data.followerId == followerId
+        && get(followPath).data.followingId == postOwnerId;
+    }
+
+    function hasValidSocialNotificationShape(data) {
+      return data.keys().hasOnly([
+          'id',
+          'userId',
+          'actorUserId',
+          'type',
+          'reflectionId',
+          'commentId',
+          'createdAt',
+          'readAt'
+        ])
+        && data.keys().hasAll([
+          'id',
+          'userId',
+          'actorUserId',
+          'type',
+          'createdAt',
+          'readAt'
+        ])
+        && data.id is string
+        && data.userId is string
+        && data.actorUserId is string
+        && data.userId != data.actorUserId
+        && data.type in [
+          'follow',
+          'like',
+          'comment',
+          'reply'
+        ]
+        && isIsoDate(data.createdAt)
+        && (
+          data.readAt == null
+          || isIsoDate(data.readAt)
+        )
+        && (
+          !data.keys().hasAny([
+            'reflectionId'
+          ])
+          || data.reflectionId is string
+        )
+        && (
+          !data.keys().hasAny([
+            'commentId'
+          ])
+          || data.commentId is string
+        )
+        && (
+          /*
+          * FOLLOW
+          */
+          (
+            data.type == 'follow'
+            && !data.keys().hasAny([
+              'reflectionId',
+              'commentId'
+            ])
+          )
+
+          ||
+
+          /*
+          * LIKE
+          */
+          (
+            data.type == 'like'
+            && data.keys().hasAll([
+              'reflectionId'
+            ])
+            && !data.keys().hasAny([
+              'commentId'
+            ])
+          )
+
+          ||
+
+          /*
+          * COMMENT OR REPLY
+          */
+          (
+            (
+              data.type == 'comment'
+              || data.type == 'reply'
+            )
+            && data.keys().hasAll([
+              'reflectionId',
+              'commentId'
+            ])
+          )
+        );
+    }
+
+    function createsMatchingLikeNotification(data) {
+      let likeId =
+        data.reflectionId
+        + '_'
+        + data.actorUserId;
+
+      let likePath =
+        /databases/$(database)/documents/reflectionLikes/$(likeId);
+
+      return existsAfter(likePath)
+        && getAfter(likePath).data.id
+          == likeId
+        && getAfter(likePath).data.reflectionId
+          == data.reflectionId
+        && getAfter(likePath).data.postOwnerId
+          == data.userId
+        && getAfter(likePath).data.userId
+          == data.actorUserId
+        && getAfter(likePath).data.createdAt
+          == data.createdAt;
+    }
+
+    function createsMatchingCommentNotification(data) {
+      let commentPath =
+        /databases/$(database)/documents/reflectionComments/$(data.commentId);
+
+      return existsAfter(commentPath)
+        && getAfter(commentPath).data.id
+          == data.commentId
+        && getAfter(commentPath).data.reflectionId
+          == data.reflectionId
+        && getAfter(commentPath).data.postOwnerId
+          == data.userId
+        && getAfter(commentPath).data.userId
+          == data.actorUserId
+        && getAfter(commentPath).data.createdAt
+          == data.createdAt;
+    }
+
+    function createsMatchingReplyNotification(data) {
+      let replyPath =
+        /databases/$(database)/documents/reflectionComments/$(data.commentId);
+
+      return existsAfter(replyPath)
+
+        /*
+        * The newly-created document really
+        * is a reply.
+        */
+        && getAfter(replyPath)
+          .data.keys()
+          .hasAll([
+            'parentCommentId',
+            'replyToUserId'
+          ])
+
+        /*
+        * Same reflection.
+        */
+        && getAfter(replyPath)
+          .data.reflectionId
+          == data.reflectionId
+
+        /*
+        * Person creating reply =
+        * notification actor.
+        */
+        && getAfter(replyPath)
+          .data.userId
+          == data.actorUserId
+
+        /*
+        * Person being replied to =
+        * notification recipient.
+        */
+        && getAfter(replyPath)
+          .data.replyToUserId
+          == data.userId
+
+        /*
+        * Same event time.
+        */
+        && getAfter(replyPath)
+          .data.createdAt
+          == data.createdAt
+
+        /*
+        * Reflection must still be public.
+        */
+        && isPublicReflectionOwnedBy(
+          data.reflectionId,
+          getAfter(replyPath)
+            .data.postOwnerId
+        );
+    }
+
+    function createsMatchingFollow(data) {
+      let followId =
+        data.actorUserId
+        + '_'
+        + data.userId;
+
+      return !exists(
+          /databases/$(database)/documents/follows/$(followId)
+        )
+        && existsAfter(
+          /databases/$(database)/documents/follows/$(followId)
+        )
+        && getAfter(
+          /databases/$(database)/documents/follows/$(followId)
+        ).data.followerId == data.actorUserId
+        && getAfter(
+          /databases/$(database)/documents/follows/$(followId)
+        ).data.followingId == data.userId
+        && getAfter(
+          /databases/$(database)/documents/follows/$(followId)
+        ).data.createdAt == data.createdAt;
+    }
+
     // Account metadata is private and keyed by the Firebase Authentication UID.
     match /users/{userId} {
       allow get: if isCurrentUser(userId);
@@ -483,6 +848,57 @@ service cloud.firestore {
       allow delete: if ownsExistingDocument();
     }
 
+    match /profileJourneyEvents/{eventId} {
+      /*
+      * Journey events belong only
+      * to the logged-in user.
+      */
+      allow get, list: if ownsExistingDocument();
+
+      /*
+      * The user may only create
+      * their own journey event.
+      */
+      allow create: if ownsIncomingDocument()
+        && request.resource.data.id == eventId
+
+        && request.resource.data.keys().hasOnly([
+          'id',
+          'userId',
+          'changes',
+          'createdAt'
+        ])
+
+        && request.resource.data.keys().hasAll([
+          'id',
+          'userId',
+          'changes',
+          'createdAt'
+        ])
+
+        && request.resource.data.id is string
+
+        && request.resource.data.userId is string
+
+        && request.resource.data.changes is list
+
+        && request.resource.data.changes.size() > 0
+
+        && request.resource.data.changes.size() <= 20
+
+        && isIsoDate(
+          request.resource.data.createdAt
+        );
+
+      /*
+      * History should not be edited
+      * after it is created.
+      */
+      allow update: if false;
+
+      allow delete: if ownsExistingDocument();
+    }
+
     match /drafts/{draftId} {
       allow get: if isCurrentUser(draftId);
       allow list: if false;
@@ -546,26 +962,312 @@ service cloud.firestore {
       allow get, list: if signedIn();
 
       allow create: if signedIn()
-        && request.resource.data.followerId == request.auth.uid
-        && request.resource.data.followingId != request.auth.uid
-        && request.resource.data.id == followId
+        && request.resource.data.followerId
+          == request.auth.uid
+        && request.resource.data.followingId
+          != request.auth.uid
+        && request.resource.data.id
+          == followId
         && followId ==
           request.resource.data.followerId
           + '_'
           + request.resource.data.followingId
-        && hasValidFollowShape(request.resource.data);
+        && hasValidFollowShape(
+          request.resource.data
+        );
 
       allow update: if false;
 
       allow delete: if signedIn()
         && (
-          resource.data.followerId == request.auth.uid
-          || resource.data.followingId == request.auth.uid
+          resource.data.followerId
+            == request.auth.uid
+          || resource.data.followingId
+            == request.auth.uid
         );
     }
-    // Fail closed for every collection not explicitly declared above.
+
+    match /reflectionLikes/{likeId} {
+      /*
+      * Likes may only be read when the associated
+      * reflection is public.
+      *
+      * This lets Community display Like counts while
+      * preventing social interaction data from being
+      * exposed for private reflections.
+      */
+      allow get, list: if signedIn();
+      /*
+      * Only the currently authenticated user can
+      * create a Like in their own name.
+      *
+      * The user must:
+      * - not be the post owner
+      * - follow the post owner
+      * - like an existing PUBLIC reflection
+      */
+      allow create: if signedIn()
+        && request.resource.data.userId
+          == request.auth.uid
+        && request.resource.data.postOwnerId
+          != request.auth.uid
+        && request.resource.data.id
+          == likeId
+        && likeId ==
+          request.resource.data.reflectionId
+          + '_'
+          + request.auth.uid
+        && hasValidReflectionLikeShape(
+          request.resource.data
+        )
+        && isPublicReflectionOwnedBy(
+          request.resource.data.reflectionId,
+          request.resource.data.postOwnerId
+        )
+        && followsPostOwner(
+          request.auth.uid,
+          request.resource.data.postOwnerId
+        );
+
+      /*
+      * Likes should not be edited.
+      * Unlike = delete the Like document.
+      */
+      allow update: if false;
+
+      /*
+      * The person who liked the reflection may unlike it.
+      *
+      * The post owner may also delete it so account/post
+      * cleanup can remove interaction documents later.
+      */
+      allow delete: if signedIn()
+        && (
+          resource.data.userId
+            == request.auth.uid
+          || resource.data.postOwnerId
+            == request.auth.uid
+        );
+    }
+
+    match /reflectionComments/{commentId} {
+      /*
+      * Comments may only be read when their associated
+      * reflection is public.
+      */
+      allow get, list: if signedIn();
+
+      /*
+      * Only the currently authenticated user can
+      * create a comment in their own name.
+      *
+      * They must follow the reflection owner.
+      */
+      allow create: if signedIn()
+
+      /*
+      * Nobody may submit a comment/reply
+      * pretending to be another user.
+      */
+      && request.resource.data.userId
+        == request.auth.uid
+
+      && request.resource.data.id
+        == commentId
+
+      && hasValidReflectionCommentShape(
+        request.resource.data
+      )
+
+      /*
+      * Absolutely no comments or replies
+      * on private reflections.
+      */
+      && isPublicReflectionOwnedBy(
+        request.resource.data.reflectionId,
+        request.resource.data.postOwnerId
+      )
+
+      && (
+        /*
+        * NORMAL TOP-LEVEL COMMENT:
+        *
+        * must follow the post owner.
+        */
+        (
+          !request.resource.data
+            .keys()
+            .hasAny([
+              'parentCommentId',
+              'replyToUserId'
+            ])
+
+          && request.resource.data
+            .postOwnerId
+            != request.auth.uid
+
+          && followsPostOwner(
+            request.auth.uid,
+            request.resource.data.postOwnerId
+          )
+        )
+
+        ||
+
+        /*
+        * REPLY:
+        *
+        * Any signed-in user may reply.
+        * Following the post owner is NOT
+        * required.
+        */
+        (
+          request.resource.data
+            .keys()
+            .hasAll([
+              'parentCommentId',
+              'replyToUserId'
+            ])
+
+          && isValidReplyTarget(
+            request.resource.data
+          )
+        )
+      );
+
+      /*
+      * We have not implemented Edit Comment yet.
+      */
+      allow update: if false;
+
+      /*
+      * Comment author may delete their comment.
+      * Reflection owner may also remove a comment.
+      */
+      allow delete: if signedIn()
+        && (
+          resource.data.userId
+            == request.auth.uid
+          || resource.data.postOwnerId
+            == request.auth.uid
+        );
+    }
+
+    match /notifications/{notificationId} {
+      allow get, list: if signedIn()
+        && (
+          resource.data.userId == request.auth.uid
+          || resource.data.actorUserId == request.auth.uid
+        );
+
+      allow create: if signedIn()
+        && request.resource.data.actorUserId == request.auth.uid
+        && request.resource.data.userId != request.auth.uid
+        && request.resource.data.id == notificationId
+        && request.resource.data.readAt == null
+        && hasValidSocialNotificationShape(
+          request.resource.data
+        )
+        && (
+          (
+            request.resource.data.type == 'follow'
+            && notificationId ==
+              request.resource.data.actorUserId
+              + '_'
+              + request.resource.data.userId
+              + '_'
+              + request.resource.data.createdAt
+            && createsMatchingFollow(
+              request.resource.data
+            )
+          )
+
+          ||
+
+          (
+            request.resource.data.type == 'like'
+            && notificationId ==
+              'like_'
+              + request.resource.data.reflectionId
+              + '_'
+              + request.resource.data.actorUserId
+              + '_'
+              + request.resource.data.createdAt
+            && isPublicReflectionOwnedBy(
+              request.resource.data.reflectionId,
+              request.resource.data.userId
+            )
+            && createsMatchingLikeNotification(
+              request.resource.data
+            )
+          )
+
+          ||
+
+          (
+            request.resource.data.type == 'comment'
+            && notificationId ==
+              'comment_'
+              + request.resource.data.commentId
+            && isPublicReflectionOwnedBy(
+              request.resource.data.reflectionId,
+              request.resource.data.userId
+            )
+            && createsMatchingCommentNotification(
+              request.resource.data
+            )
+          )
+
+          ||
+
+          /*
+          * REPLY
+          */
+          (
+            request.resource.data.type
+              == 'reply'
+
+            && notificationId ==
+              'reply_'
+              + request.resource.data.commentId
+
+            && createsMatchingReplyNotification(
+              request.resource.data
+            )
+          )
+        );
+
+      allow update: if signedIn()
+        && resource.data.userId == request.auth.uid
+        && request.resource.data
+          .diff(resource.data)
+          .affectedKeys()
+          .hasOnly([
+            'readAt'
+          ])
+        && request.resource.data.readAt != null
+        && isIsoDate(
+          request.resource.data.readAt
+        )
+        && hasValidSocialNotificationShape(
+          request.resource.data
+        );
+
+      allow delete: if signedIn()
+        && (
+          resource.data.userId == request.auth.uid
+          || resource.data.actorUserId == request.auth.uid
+        );
+    }
+
+    /*
+    * This is NOT inside notifications.
+    * This denies access to any collection
+    * that does not have its own rule above.
+    */
     match /{document=**} {
       allow read, write: if false;
     }
+
   }
 }

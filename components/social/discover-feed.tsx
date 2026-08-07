@@ -5,11 +5,8 @@ import {
   useState
 } from "react";
 
-import Link from "next/link";
-
 import {
-  ArrowRight,
-  UsersRound
+  Compass
 } from "lucide-react";
 
 import { useAuth } from "@/components/providers/auth-provider";
@@ -25,11 +22,7 @@ import type {
   SocialFeedPost
 } from "@/types";
 
-export function FollowingFeed({
-  onFindPeople
-}: {
-  onFindPeople?: () => void;
-}) {
+export function DiscoverFeed() {
   const { user } = useAuth();
 
   const [posts, setPosts] =
@@ -57,7 +50,7 @@ export function FollowingFeed({
       try {
         const nextPosts =
           await appService
-            .getFollowingFeed(
+            .getDiscoverFeed(
               user.id
             );
 
@@ -74,7 +67,7 @@ export function FollowingFeed({
         setError(
           loadError instanceof Error
             ? loadError.message
-            : "Your following feed could not be loaded."
+            : "Discover could not be loaded."
         );
       } finally {
         if (active) {
@@ -92,7 +85,7 @@ export function FollowingFeed({
 
   if (loading) {
     return (
-      <LoadingState label="Gathering reflections from people you follow…" />
+      <LoadingState label="Discovering public reflections…" />
     );
   }
 
@@ -122,53 +115,43 @@ export function FollowingFeed({
   if (!posts.length) {
     return (
       <EmptyState
-        icon={UsersRound}
-        title="Your following feed is quiet"
-        description="Follow people in the Saintagram community to see their public reflections here."
-        action={
-          onFindPeople ? (
-            <button
-              type="button"
-              className="btn-primary"
-              onClick={
-                onFindPeople
-              }
-            >
-              Find people to follow
-
-              <ArrowRight
-                className="size-4"
-                aria-hidden="true"
-              />
-            </button>
-          ) : (
-            <Link
-              href="/community"
-              className="btn-primary"
-            >
-              Find people to follow
-
-              <ArrowRight
-                className="size-4"
-                aria-hidden="true"
-              />
-            </Link>
-          )
-        }
+        icon={Compass}
+        title="Nothing new to discover yet"
+        description="Public reflections from people you do not follow will appear here."
       />
     );
   }
 
   return (
     <section
-      aria-labelledby="following-feed-title"
+      aria-labelledby="discover-feed-title"
     >
+      <div className="mb-6">
+        <p className="eyebrow">
+          Discover
+        </p>
+
+        <h2
+          id="discover-feed-title"
+          className="mt-1 font-serif text-2xl font-bold sm:text-3xl"
+        >
+          Reflections beyond your
+          following
+        </h2>
+
+        <p className="mt-2 text-sm leading-6 text-muted">
+          Public reflections from
+          people you do not currently
+          follow.
+        </p>
+      </div>
+
       <div className="space-y-5">
         {posts.map((post) => (
           <SocialReflectionCard
             key={post.id}
             post={post}
-            initialFollowing
+            initialFollowing={false}
           />
         ))}
       </div>

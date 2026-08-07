@@ -11,7 +11,7 @@ import {
 
 import { useAuth } from "@/components/providers/auth-provider";
 import { FollowButton } from "@/components/social/follow-button";
-import { ReflectionCard } from "@/components/reflections/reflection-card";
+import { SocialReflectionCard } from "@/components/social/social-reflection-card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { LoadingState } from "@/components/ui/loading-state";
 
@@ -302,29 +302,16 @@ export function SocialProfileView({
       </section>
 
       <section>
-        <div className="mb-5">
-          <p className="eyebrow">
-            Shared reflections
-          </p>
-
-          <h2 className="mt-1 font-serif text-2xl font-bold">
-            Posts God Sees
-          </h2>
-
-          <p className="mt-1 text-sm leading-6 text-muted">
-            Public reflections shared by{" "}
-            {profile.profileName}.
-          </p>
-        </div>
-
         {posts.length ? (
           <div className="space-y-4">
             {posts.map((post) => (
-              <ReflectionCard
+              <SocialReflectionCard
                 key={post.id}
-                post={post}
-                showPrivacy={false}
-                showActions={false}
+                post={{
+                  ...post,
+                  author: profile
+                }}
+                initialFollowing={false}
               />
             ))}
           </div>

@@ -20,12 +20,14 @@ import {
 import {
   collection,
   deleteDoc,
+  deleteField,
   doc,
   getDoc,
   getDocs,
   limit as firestoreLimit,
   onSnapshot,
   query,
+  runTransaction,
   serverTimestamp,
   setDoc,
   updateDoc,
@@ -63,8 +65,11 @@ import {
   type PublicSpiritualProfile,
   type ReflectionPost,
   type FollowRelationship,
+  type SocialNotification,
   type SocialFeedPost,
   type SocialProfile,
+  type ReflectionLike,
+  type ReflectionComment,
   type SpiritualProfile,
   type SpiritualSymbol
 } from "@/types";
@@ -423,6 +428,212 @@ function storedFollowRelationship(
   };
 }
 
+function storedReflectionLike(
+  id: string,
+  value: unknown
+): ReflectionLike | null {
+  if (typeof value !== "object" || !value) {
+    return null;
+  }
+
+  const data = value as Record<string, unknown>;
+
+  const storedId = stringValue(data.id);
+  const reflectionId = stringValue(data.reflectionId);
+  const postOwnerId = stringValue(data.postOwnerId);
+  const userId = stringValue(data.userId);
+  const createdAt = dateValue(data.createdAt);
+
+  if (
+    storedId !== id ||
+    !reflectionId ||
+    !postOwnerId ||
+    !userId ||
+    postOwnerId === userId ||
+    Number.isNaN(Date.parse(createdAt))
+  ) {
+    return null;
+  }
+
+  return {
+    id,
+    reflectionId,
+    postOwnerId,
+    userId,
+    createdAt
+  };
+}
+
+function storedReflectionComment(
+  id: string,
+  value: unknown
+): ReflectionComment | null {
+  if (
+    typeof value !== "object" ||
+    !value
+  ) {
+    return null;
+  }
+
+  const data =
+    value as Record<
+      string,
+      unknown
+    >;
+
+  const storedId =
+    stringValue(data.id);
+
+  const reflectionId =
+    stringValue(
+      data.reflectionId
+    );
+
+  const postOwnerId =
+    stringValue(
+      data.postOwnerId
+    );
+
+  const userId =
+    stringValue(data.userId);
+
+  const parentCommentId =
+    stringValue(
+      data.parentCommentId
+    );
+
+  const replyToUserId =
+    stringValue(
+      data.replyToUserId
+    );
+
+  const content =
+    stringValue(data.content);
+
+  const createdAt =
+    dateValue(data.createdAt);
+
+  const updatedAt =
+    dateValue(data.updatedAt);
+
+  const hasReplyData =
+    Boolean(
+      parentCommentId ||
+      replyToUserId
+    );
+
+  if (
+    storedId !== id ||
+    !reflectionId ||
+    !postOwnerId ||
+    !userId ||
+    !content ||
+    Number.isNaN(
+      Date.parse(createdAt)
+    ) ||
+    Number.isNaN(
+      Date.parse(updatedAt)
+    ) ||
+    (
+      hasReplyData &&
+      (
+        !parentCommentId ||
+        !replyToUserId
+      )
+    )
+  ) {
+    return null;
+  }
+
+  return {
+    id,
+    reflectionId,
+    postOwnerId,
+    userId,
+
+    ...(parentCommentId
+      ? { parentCommentId }
+      : {}),
+
+    ...(replyToUserId
+      ? { replyToUserId }
+      : {}),
+
+    content,
+    createdAt,
+    updatedAt
+  };
+}
+
+function storedSocialNotification(
+  id: string,
+  value: unknown
+): SocialNotification | null {
+  if (typeof value !== "object" || !value) {
+    return null;
+  }
+
+  const data =
+    value as Record<string, unknown>;
+
+  const storedId =
+    stringValue(data.id);
+
+  const userId =
+    stringValue(data.userId);
+
+  const actorUserId =
+    stringValue(data.actorUserId);
+
+  const type =
+    stringValue(data.type);
+
+  const createdAt =
+    dateValue(data.createdAt);
+
+  const readAt =
+    data.readAt === null
+      ? null
+      : dateValue(data.readAt);
+
+  const reflectionId =
+    stringValue(data.reflectionId);
+
+  const commentId =
+    stringValue(data.commentId);
+
+  if (
+    storedId !== id ||
+    !userId ||
+    !actorUserId ||
+    userId === actorUserId ||
+    ![
+      "follow",
+      "like",
+      "comment",
+      "reply"
+    ].includes(type) ||
+    Number.isNaN(Date.parse(createdAt))
+  ) {
+    return null;
+  }
+
+  return {
+    id,
+    userId,
+    actorUserId,
+    type: type as SocialNotification["type"],
+    ...(reflectionId
+      ? { reflectionId }
+      : {}),
+    ...(commentId
+      ? { commentId }
+      : {}),
+    createdAt,
+    readAt
+  };
+}
+
 function newestFirst(posts: ReflectionPost[]): ReflectionPost[] {
   return posts.sort(
     (a, b) =>
@@ -728,128 +939,244 @@ async function hasFirebaseProfileImageReference(
 async function deleteFirebaseOwnedDocuments(
   userId: string
 ): Promise<void> {
-  const services = getFirebaseServices();
+  const services =
+    getFirebaseServices();
 
   if (!services) {
-    throw new Error("The account service is unavailable.");
+    throw new Error(
+      "The account service is unavailable."
+    );
   }
 
-  // 1. Delete all reflection posts owned by this user.
-  //
-  // Firestore write batches support at most 500 writes,
-  // so delete documents in smaller pages.
+  // 1. Delete reflection posts.
   while (true) {
-    const reflectionsPage = await getDocs(
+    const page = await getDocs(
       query(
-        collection(services.db, "reflectionPosts"),
-        where("userId", "==", userId),
+        collection(
+          services.db,
+          "reflectionPosts"
+        ),
+        where(
+          "userId",
+          "==",
+          userId
+        ),
         firestoreLimit(400)
       )
     );
 
-    if (reflectionsPage.empty) {
+    if (page.empty) {
       break;
     }
 
-    const reflectionBatch = writeBatch(services.db);
+    const batch =
+      writeBatch(services.db);
 
-    reflectionsPage.docs.forEach((item) => {
-      reflectionBatch.delete(item.ref);
+    page.docs.forEach((item) => {
+      batch.delete(item.ref);
     });
 
-    await reflectionBatch.commit();
+    await batch.commit();
   }
 
-  // 2. Delete all saved profile-image history entries.
+  // 2. Delete profile-image history.
   while (true) {
-    const historyPage = await getDocs(
+    const page = await getDocs(
       query(
-        collection(services.db, "profileImageHistory"),
-        where("userId", "==", userId),
+        collection(
+          services.db,
+          "profileImageHistory"
+        ),
+        where(
+          "userId",
+          "==",
+          userId
+        ),
         firestoreLimit(400)
       )
     );
 
-    if (historyPage.empty) {
+    if (page.empty) {
       break;
     }
 
-    const historyBatch = writeBatch(services.db);
+    const batch =
+      writeBatch(services.db);
 
-    historyPage.docs.forEach((item) => {
-      historyBatch.delete(item.ref);
+    page.docs.forEach((item) => {
+      batch.delete(item.ref);
     });
 
-    await historyBatch.commit();
+    await batch.commit();
   }
 
-  // 3. Delete relationships where this user follows someone else.
+  // 3. Delete outgoing follow relationships.
   while (true) {
-    const followingPage = await getDocs(
+    const page = await getDocs(
       query(
-        collection(services.db, "follows"),
-        where("followerId", "==", userId),
+        collection(
+          services.db,
+          "follows"
+        ),
+        where(
+          "followerId",
+          "==",
+          userId
+        ),
         firestoreLimit(400)
       )
     );
 
-    if (followingPage.empty) {
+    if (page.empty) {
       break;
     }
 
-    const followingBatch = writeBatch(services.db);
+    const batch =
+      writeBatch(services.db);
 
-    followingPage.docs.forEach((item) => {
-      followingBatch.delete(item.ref);
+    page.docs.forEach((item) => {
+      batch.delete(item.ref);
     });
 
-    await followingBatch.commit();
+    await batch.commit();
   }
 
-  // 4. Delete relationships where other users follow this user.
+  // 4. Delete incoming follow relationships.
   while (true) {
-    const followersPage = await getDocs(
+    const page = await getDocs(
       query(
-        collection(services.db, "follows"),
-        where("followingId", "==", userId),
+        collection(
+          services.db,
+          "follows"
+        ),
+        where(
+          "followingId",
+          "==",
+          userId
+        ),
         firestoreLimit(400)
       )
     );
 
-    if (followersPage.empty) {
+    if (page.empty) {
       break;
     }
 
-    const followersBatch = writeBatch(services.db);
+    const batch =
+      writeBatch(services.db);
 
-    followersPage.docs.forEach((item) => {
-      followersBatch.delete(item.ref);
+    page.docs.forEach((item) => {
+      batch.delete(item.ref);
     });
 
-    await followersBatch.commit();
+    await batch.commit();
   }
 
-  // 5. Delete all UID-keyed account documents.
-  const accountBatch = writeBatch(services.db);
+  // 5. Delete notifications received by this user.
+  while (true) {
+    const page = await getDocs(
+      query(
+        collection(
+          services.db,
+          "notifications"
+        ),
+        where(
+          "userId",
+          "==",
+          userId
+        ),
+        firestoreLimit(400)
+      )
+    );
+
+    if (page.empty) {
+      break;
+    }
+
+    const batch =
+      writeBatch(services.db);
+
+    page.docs.forEach((item) => {
+      batch.delete(item.ref);
+    });
+
+    await batch.commit();
+  }
+
+  // 6. Delete notifications created because
+  // this user followed somebody.
+  while (true) {
+    const page = await getDocs(
+      query(
+        collection(
+          services.db,
+          "notifications"
+        ),
+        where(
+          "actorUserId",
+          "==",
+          userId
+        ),
+        firestoreLimit(400)
+      )
+    );
+
+    if (page.empty) {
+      break;
+    }
+
+    const batch =
+      writeBatch(services.db);
+
+    page.docs.forEach((item) => {
+      batch.delete(item.ref);
+    });
+
+    await batch.commit();
+  }
+
+  // 7. Delete UID-keyed account documents.
+  const accountBatch =
+    writeBatch(services.db);
 
   accountBatch.delete(
-    doc(services.db, "profiles", userId)
+    doc(
+      services.db,
+      "profiles",
+      userId
+    )
   );
 
   accountBatch.delete(
-    doc(services.db, "privateProfiles", userId)
+    doc(
+      services.db,
+      "privateProfiles",
+      userId
+    )
   );
 
   accountBatch.delete(
-    doc(services.db, "drafts", userId)
+    doc(
+      services.db,
+      "drafts",
+      userId
+    )
   );
 
   accountBatch.delete(
-    doc(services.db, "socialProfiles", userId)
+    doc(
+      services.db,
+      "socialProfiles",
+      userId
+    )
   );
 
   accountBatch.delete(
-    doc(services.db, "users", userId)
+    doc(
+      services.db,
+      "users",
+      userId
+    )
   );
 
   await accountBatch.commit();
@@ -887,6 +1214,164 @@ async function getFirebaseUserRecord(
   return user;
 }
 
+function sameStringList(
+  first: string[] | undefined,
+  second: string[] | undefined
+): boolean {
+  return JSON.stringify(
+    first ?? []
+  ) ===
+    JSON.stringify(
+      second ?? []
+    );
+}
+
+function listDescription(
+  values: string[] | undefined
+): string {
+  const list =
+    values ?? [];
+
+  return list.length
+    ? list.join(", ")
+    : "None";
+}
+
+function profileJourneyChanges(
+  before: SpiritualProfile,
+  after: SpiritualProfile
+): string[] {
+  const changes: string[] =
+    [];
+
+  if (
+    before.profileName !==
+    after.profileName
+  ) {
+    changes.push(
+      `Profile name changed from "${before.profileName}" to "${after.profileName}".`
+    );
+  }
+
+  if (
+    before.imagePath !==
+    after.imagePath
+  ) {
+    changes.push(
+      after.imagePath
+        ? "Profile picture was changed."
+        : "Profile picture was removed."
+    );
+  }
+
+  if (
+    before.selectedSymbol !==
+    after.selectedSymbol
+  ) {
+    changes.push(
+      after.selectedSymbol
+        ? `Profile symbol changed to "${after.selectedSymbol}".`
+        : "Profile symbol was removed."
+    );
+  }
+
+  if (
+    before.spiritualBio !==
+    after.spiritualBio
+  ) {
+    changes.push(
+      after.spiritualBio
+        ? `“Before God, I am” was changed to: "${after.spiritualBio}"`
+        : "“Before God, I am” was cleared."
+    );
+  }
+
+  if (
+    !sameStringList(
+      before.spiritualGuides,
+      after.spiritualGuides
+    )
+  ) {
+    changes.push(
+      `Spiritual guides changed to: ${listDescription(
+        after.spiritualGuides
+      )}.`
+    );
+  }
+
+  if (
+    !sameStringList(
+      before.lifeDirections,
+      after.lifeDirections
+    )
+  ) {
+    changes.push(
+      `Life directions changed to: ${listDescription(
+        after.lifeDirections
+      )}.`
+    );
+  }
+
+  if (
+    !sameStringList(
+      before.heartSeeks,
+      after.heartSeeks
+    )
+  ) {
+    changes.push(
+      `“My heart seeks” changed to: ${listDescription(
+        after.heartSeeks
+      )}.`
+    );
+  }
+
+  if (
+    before.godsComment !==
+    after.godsComment
+  ) {
+    changes.push(
+      after.godsComment
+        ? `Word of grace changed to: "${after.godsComment}"`
+        : "Word of grace was cleared."
+    );
+  }
+
+  if (
+    before.heavenlyHashtag !==
+    after.heavenlyHashtag
+  ) {
+    changes.push(
+      after.heavenlyHashtag
+        ? `Heavenly hashtag changed to ${after.heavenlyHashtag}.`
+        : "Heavenly hashtag was removed."
+    );
+  }
+
+  if (
+    before.hiddenStory !==
+    after.hiddenStory
+  ) {
+    /*
+     * Do not copy the private
+     * story into the journey.
+     */
+    changes.push(
+      "Hidden story was updated."
+    );
+  }
+
+  if (
+    before.coverColor !==
+    after.coverColor
+  ) {
+    changes.push(
+      "Profile cover color was changed."
+    );
+  }
+
+  return changes;
+}
+
 export const appService = {
   mode: isFirebaseConfigured ? ("firebase" as const) : ("local" as const),
 
@@ -894,28 +1379,92 @@ export const appService = {
     userId: string,
     profile: PublicSpiritualProfile
   ): Promise<SocialProfile> {
-    assertFirebaseOwner(userId);
+    assertFirebaseOwner(
+      userId
+    );
 
-    const services = getFirebaseServices();
+    const services =
+      getFirebaseServices();
+
     if (!services) {
-      throw new Error("Firebase is not available.");
+      throw new Error(
+        "Firebase is not available."
+      );
     }
 
-    const socialProfile: SocialProfile = {
+    const socialProfileRef =
+      doc(
+        services.db,
+        "socialProfiles",
+        userId
+      );
+
+    const existing =
+      await getDoc(
+        socialProfileRef
+      );
+
+    const socialProfile:
+      SocialProfile = {
       id: userId,
       userId,
-      profileName: profile.profileName,
-      imagePath: profile.imagePath,
-      spiritualBio: profile.spiritualBio,
-      heavenlyHashtag: profile.heavenlyHashtag,
-      createdAt: profile.createdAt,
-      updatedAt: profile.updatedAt
+
+      profileName:
+        profile.profileName,
+
+      imagePath:
+        profile.imagePath,
+
+      spiritualBio:
+        profile.spiritualBio,
+
+      heavenlyHashtag:
+        profile.heavenlyHashtag,
+
+      createdAt:
+        profile.createdAt,
+
+      updatedAt:
+        profile.updatedAt
     };
 
-    await setDoc(
-      doc(services.db, "socialProfiles", userId),
-      socialProfile
-    );
+    if (
+      existing.exists()
+    ) {
+      /*
+      * Update only mutable fields.
+      *
+      * Do NOT touch createdAt.
+      */
+      await updateDoc(
+        socialProfileRef,
+        {
+          profileName:
+            socialProfile.profileName,
+
+          imagePath:
+            socialProfile.imagePath,
+
+          spiritualBio:
+            socialProfile.spiritualBio,
+
+          heavenlyHashtag:
+            socialProfile.heavenlyHashtag,
+
+          updatedAt:
+            socialProfile.updatedAt
+        }
+      );
+    } else {
+      /*
+      * Only a brand-new social
+      * profile receives createdAt.
+      */
+      await setDoc(
+        socialProfileRef,
+        socialProfile
+      );
+    }
 
     return socialProfile;
   },
@@ -933,14 +1482,17 @@ export const appService = {
     );
 
     return snapshot.docs
-      .map((item) => storedSocialProfile(item.id, item.data()))
-      .filter(
-        (profile): profile is SocialProfile =>
-          Boolean(profile) && profile.userId !== currentUserId
-      )
-      .sort((a, b) =>
-        a.profileName.localeCompare(b.profileName)
-      );
+    .map((item) =>
+      storedSocialProfile(item.id, item.data())
+    )
+    .filter(
+      (profile): profile is SocialProfile =>
+        profile !== null &&
+        profile.userId !== currentUserId
+    )
+    .sort((a, b) =>
+      a.profileName.localeCompare(b.profileName)
+    );
   },
 
   async getSocialProfile(
@@ -958,6 +1510,612 @@ export const appService = {
       : null;
   },
 
+  subscribeReflectionLikes(
+    reflectionId: string,
+    callback: (likes: ReflectionLike[]) => void,
+    onError: (message: string) => void
+  ): Unsubscribe {
+    const services = getFirebaseServices();
+
+    if (!services?.auth.currentUser) {
+      callback([]);
+      return () => undefined;
+    }
+
+    return onSnapshot(
+      query(
+        collection(services.db, "reflectionLikes"),
+        where("reflectionId", "==", reflectionId)
+      ),
+      (snapshot) => {
+        callback(
+          snapshot.docs
+            .map((item) =>
+              storedReflectionLike(
+                item.id,
+                item.data()
+              )
+            )
+            .filter(
+              (like): like is ReflectionLike =>
+                like !== null
+            )
+        );
+      },
+      () => {
+        onError("Likes could not be updated.");
+      }
+    );
+  },
+
+  subscribeReflectionComments(
+    reflectionId: string,
+    callback: (comments: ReflectionComment[]) => void,
+    onError: (message: string) => void
+  ): Unsubscribe {
+    const services = getFirebaseServices();
+
+    if (!services?.auth.currentUser) {
+      callback([]);
+      return () => undefined;
+    }
+
+    return onSnapshot(
+      query(
+        collection(
+          services.db,
+          "reflectionComments"
+        ),
+        where(
+          "reflectionId",
+          "==",
+          reflectionId
+        )
+      ),
+      (snapshot) => {
+        const comments =
+          snapshot.docs
+            .map((item) =>
+              storedReflectionComment(
+                item.id,
+                item.data()
+              )
+            )
+            .filter(
+              (
+                comment
+              ): comment is ReflectionComment =>
+                comment !== null
+            )
+            .sort(
+              (a, b) =>
+                new Date(a.createdAt).getTime() -
+                new Date(b.createdAt).getTime()
+            );
+
+        callback(comments);
+      },
+      () => {
+        onError(
+          "Comments could not be updated."
+        );
+      }
+    );
+  },
+
+  async toggleReflectionLike(
+    userId: string,
+    reflectionId: string
+  ): Promise<boolean> {
+    assertFirebaseOwner(userId);
+
+    const services =
+      getFirebaseServices();
+
+    if (!services) {
+      throw new Error(
+        "Firebase is not available."
+      );
+    }
+
+    const reflectionRef = doc(
+      services.db,
+      "reflectionPosts",
+      reflectionId
+    );
+
+    const reflectionSnapshot =
+      await getDoc(reflectionRef);
+
+    if (!reflectionSnapshot.exists()) {
+      throw new Error(
+        "That reflection could not be found."
+      );
+    }
+
+    const reflectionData =
+      reflectionSnapshot.data();
+
+    const postOwnerId =
+      stringValue(
+        reflectionData.userId
+      );
+
+    if (
+      !postOwnerId ||
+      reflectionData.isPrivate !== false
+    ) {
+      throw new Error(
+        "That reflection is not available for social interaction."
+      );
+    }
+
+    if (postOwnerId === userId) {
+      throw new Error(
+        "You cannot like your own reflection."
+      );
+    }
+
+    /*
+    * IMPORTANT:
+    *
+    * userId = person liking the post
+    * postOwnerId = owner of the post
+    *
+    * A likes B:
+    * follows/A_B must exist.
+    *
+    * B does NOT need to follow A.
+    */
+    const followId =
+      `${userId}_${postOwnerId}`;
+
+    const followSnapshot =
+      await getDoc(
+        doc(
+          services.db,
+          "follows",
+          followId
+        )
+      );
+
+    if (!followSnapshot.exists()) {
+      throw new Error(
+        "Follow this person before liking their reflection."
+      );
+    }
+
+    const followData =
+      followSnapshot.data();
+
+    if (
+      followData.followerId !== userId ||
+      followData.followingId !== postOwnerId
+    ) {
+      throw new Error(
+        "Follow this person before liking their reflection."
+      );
+    }
+
+    const likeId =
+      `${reflectionId}_${userId}`;
+
+    const likeRef = doc(
+      services.db,
+      "reflectionLikes",
+      likeId
+    );
+
+    return runTransaction(
+      services.db,
+      async (transaction) => {
+        /*
+        * Only read the Like document.
+        *
+        * Do NOT try to read a notification
+        * that does not exist yet.
+        */
+        const likeSnapshot =
+          await transaction.get(
+            likeRef
+          );
+
+        /*
+        * UNLIKE
+        */
+        if (likeSnapshot.exists()) {
+          transaction.delete(
+            likeRef
+          );
+
+          return false;
+        }
+
+        /*
+        * LIKE
+        */
+        const createdAt =
+          nowIso();
+
+        const like: ReflectionLike = {
+          id: likeId,
+          reflectionId,
+          postOwnerId,
+          userId,
+          createdAt
+        };
+
+        /*
+        * Each Like event gets its own
+        * notification ID.
+        *
+        * This means:
+        * Like → Unlike → Like again
+        * can generate another notification.
+        */
+        const notificationId =
+          `like_${likeId}_${createdAt}`;
+
+        const notification:
+          SocialNotification = {
+            id: notificationId,
+            userId: postOwnerId,
+            actorUserId: userId,
+            type: "like",
+            reflectionId,
+            createdAt,
+            readAt: null
+          };
+
+        const notificationRef =
+          doc(
+            services.db,
+            "notifications",
+            notificationId
+          );
+
+        transaction.set(
+          likeRef,
+          like
+        );
+
+        transaction.set(
+          notificationRef,
+          notification
+        );
+
+        return true;
+      }
+    );
+  },
+
+  async addReflectionComment(
+    userId: string,
+    reflectionId: string,
+    rawContent: string
+  ): Promise<ReflectionComment> {
+    assertFirebaseOwner(userId);
+
+    const content =
+      cleanText(rawContent, 500);
+
+    if (!content) {
+      throw new Error(
+        "Write a comment first."
+      );
+    }
+
+    const services =
+      getFirebaseServices();
+
+    if (!services) {
+      throw new Error(
+        "Firebase is not available."
+      );
+    }
+
+    const reflectionSnapshot =
+      await getDoc(
+        doc(
+          services.db,
+          "reflectionPosts",
+          reflectionId
+        )
+      );
+
+    if (!reflectionSnapshot.exists()) {
+      throw new Error(
+        "That reflection could not be found."
+      );
+    }
+
+    const reflectionData =
+      reflectionSnapshot.data();
+
+    const postOwnerId =
+      stringValue(
+        reflectionData.userId
+      );
+
+    if (
+      !postOwnerId ||
+      reflectionData.isPrivate !== false
+    ) {
+      throw new Error(
+        "That reflection is not available."
+      );
+    }
+
+    if (postOwnerId === userId) {
+      throw new Error(
+        "You cannot comment on your own reflection."
+      );
+    }
+
+    const followSnapshot =
+      await getDoc(
+        doc(
+          services.db,
+          "follows",
+          `${userId}_${postOwnerId}`
+        )
+      );
+
+    if (!followSnapshot.exists()) {
+      throw new Error(
+        "Follow this person before commenting."
+      );
+    }
+
+    const commentRef = doc(
+      collection(
+        services.db,
+        "reflectionComments"
+      )
+    );
+
+    const createdAt = nowIso();
+
+    const comment: ReflectionComment = {
+      id: commentRef.id,
+      reflectionId,
+      postOwnerId,
+      userId,
+      content,
+      createdAt,
+      updatedAt: createdAt
+    };
+
+    const notification: SocialNotification = {
+      id: `comment_${commentRef.id}`,
+      userId: postOwnerId,
+      actorUserId: userId,
+      type: "comment",
+      reflectionId,
+      commentId: commentRef.id,
+      createdAt,
+      readAt: null
+    };
+
+    const batch =
+      writeBatch(services.db);
+
+    batch.set(
+      commentRef,
+      comment
+    );
+
+    batch.set(
+      doc(
+        services.db,
+        "notifications",
+        notification.id
+      ),
+      notification
+    );
+
+    await batch.commit();
+
+    return comment;
+  },
+
+  async addReflectionReply(
+    userId: string,
+    reflectionId: string,
+    parentCommentId: string,
+    rawContent: string
+  ): Promise<ReflectionComment> {
+    assertFirebaseOwner(userId);
+
+    const content =
+      cleanText(rawContent, 500);
+
+    if (!content) {
+      throw new Error(
+        "Write a reply first."
+      );
+    }
+
+    const services =
+      getFirebaseServices();
+
+    if (!services) {
+      throw new Error(
+        "Firebase is not available."
+      );
+    }
+
+    /*
+    * First verify that the reflection
+    * exists and is PUBLIC.
+    */
+    const reflectionSnapshot =
+      await getDoc(
+        doc(
+          services.db,
+          "reflectionPosts",
+          reflectionId
+        )
+      );
+
+    if (
+      !reflectionSnapshot.exists()
+    ) {
+      throw new Error(
+        "That reflection could not be found."
+      );
+    }
+
+    const reflectionData =
+      reflectionSnapshot.data();
+
+    const postOwnerId =
+      stringValue(
+        reflectionData.userId
+      );
+
+    if (
+      !postOwnerId ||
+      reflectionData.isPrivate !== false
+    ) {
+      throw new Error(
+        "That reflection is not available for replies."
+      );
+    }
+
+    /*
+    * Get the comment being replied to.
+    */
+    const parentSnapshot =
+      await getDoc(
+        doc(
+          services.db,
+          "reflectionComments",
+          parentCommentId
+        )
+      );
+
+    if (
+      !parentSnapshot.exists()
+    ) {
+      throw new Error(
+        "That comment could not be found."
+      );
+    }
+
+    const parentComment =
+      storedReflectionComment(
+        parentSnapshot.id,
+        parentSnapshot.data()
+      );
+
+    if (
+      !parentComment ||
+      parentComment.reflectionId
+        !== reflectionId ||
+      parentComment.postOwnerId
+        !== postOwnerId
+    ) {
+      throw new Error(
+        "That comment does not belong to this reflection."
+      );
+    }
+
+    /*
+    * Keep threads one level deep.
+    *
+    * Users can reply to normal comments,
+    * but not create replies to replies.
+    */
+
+    const replyToUserId =
+      parentComment.userId;
+
+    const replyRef = doc(
+      collection(
+        services.db,
+        "reflectionComments"
+      )
+    );
+
+    const createdAt =
+      nowIso();
+
+    const reply:
+      ReflectionComment = {
+        id: replyRef.id,
+        reflectionId,
+        postOwnerId,
+        userId,
+
+        parentCommentId:
+          parentComment.id,
+
+        replyToUserId,
+
+        content,
+        createdAt,
+        updatedAt: createdAt
+      };
+
+    const batch =
+      writeBatch(
+        services.db
+      );
+
+    batch.set(
+      replyRef,
+      reply
+    );
+
+    /*
+    * Don't send someone a notification
+    * for replying to their own comment.
+    */
+    if (
+      replyToUserId !== userId
+    ) {
+      const notification:
+        SocialNotification = {
+          id:
+            `reply_${replyRef.id}`,
+
+          /*
+          * Recipient = person whose
+          * comment was replied to.
+          */
+          userId:
+            replyToUserId,
+
+          actorUserId:
+            userId,
+
+          type: "reply",
+
+          reflectionId,
+
+          commentId:
+            replyRef.id,
+
+          createdAt,
+          readAt: null
+        };
+
+      batch.set(
+        doc(
+          services.db,
+          "notifications",
+          notification.id
+        ),
+        notification
+      );
+    }
+
+    await batch.commit();
+
+    return reply;
+  },
+
   async followUser(
     followerId: string,
     followingId: string
@@ -965,34 +2123,92 @@ export const appService = {
     assertFirebaseOwner(followerId);
 
     if (followerId === followingId) {
-      throw new Error("You cannot follow your own account.");
+      throw new Error(
+        "You cannot follow your own account."
+      );
     }
 
-    const services = getFirebaseServices();
+    const services =
+      getFirebaseServices();
+
     if (!services) {
-      throw new Error("Firebase is not available.");
+      throw new Error(
+        "Firebase is not available."
+      );
     }
 
     const target = await getDoc(
-      doc(services.db, "socialProfiles", followingId)
+      doc(
+        services.db,
+        "socialProfiles",
+        followingId
+      )
     );
 
     if (!target.exists()) {
-      throw new Error("That Saintagram user could not be found.");
+      throw new Error(
+        "That Saintagram user could not be found."
+      );
     }
 
-    const id = `${followerId}_${followingId}`;
+    const followId =
+      `${followerId}_${followingId}`;
 
-    const relationship: FollowRelationship = {
-      id,
-      followerId,
-      followingId,
-      createdAt: nowIso()
-    };
+    const followRef = doc(
+      services.db,
+      "follows",
+      followId
+    );
 
-    await setDoc(
-      doc(services.db, "follows", id),
-      relationship
+    await runTransaction(
+      services.db,
+      async (transaction) => {
+        const existingFollow =
+          await transaction.get(followRef);
+
+        // Already following:
+        // do nothing and do NOT create another notification.
+        if (existingFollow.exists()) {
+          return;
+        }
+
+        const createdAt = nowIso();
+
+        const relationship: FollowRelationship = {
+          id: followId,
+          followerId,
+          followingId,
+          createdAt
+        };
+
+        const notificationId =
+          `${followId}_${createdAt}`;
+
+        const notification: SocialNotification = {
+          id: notificationId,
+          userId: followingId,
+          actorUserId: followerId,
+          type: "follow",
+          createdAt,
+          readAt: null
+        };
+
+        const notificationRef = doc(
+          services.db,
+          "notifications",
+          notificationId
+        );
+
+        transaction.set(
+          followRef,
+          relationship
+        );
+
+        transaction.set(
+          notificationRef,
+          notification
+        );
+      }
     );
   },
 
@@ -1082,6 +2298,141 @@ export const appService = {
       .map((relationship) => relationship.followerId);
   },
 
+  subscribeNotifications(
+    userId: string,
+    callback: (
+      notifications: SocialNotification[]
+    ) => void,
+    onError: (message: string) => void
+  ): Unsubscribe {
+    if (!isFirebaseConfigured) {
+      callback([]);
+      return () => undefined;
+    }
+
+    assertFirebaseOwner(userId);
+
+    const services =
+      getFirebaseServices();
+
+    if (!services) {
+      onError(
+        "Firebase is not available."
+      );
+
+      return () => undefined;
+    }
+
+    const notificationsQuery = query(
+      collection(
+        services.db,
+        "notifications"
+      ),
+      where(
+        "userId",
+        "==",
+        userId
+      )
+    );
+
+    return onSnapshot(
+      notificationsQuery,
+      (snapshot) => {
+        const notifications =
+          snapshot.docs
+            .map((item) =>
+              storedSocialNotification(
+                item.id,
+                item.data()
+              )
+            )
+            .filter(
+              (
+                notification
+              ): notification is SocialNotification =>
+                notification !== null
+            )
+            .sort(
+              (a, b) =>
+                new Date(
+                  b.createdAt
+                ).getTime() -
+                new Date(
+                  a.createdAt
+                ).getTime()
+            );
+
+        callback(notifications);
+      },
+      (error) => {
+        onError(
+          error.code === "permission-denied"
+            ? "You do not have permission to read these notifications."
+            : "Notifications could not be updated. Check your connection."
+        );
+      }
+    );
+  },
+
+  async markNotificationRead(
+    userId: string,
+    notificationId: string
+  ): Promise<void> {
+    if (!isFirebaseConfigured) {
+      return;
+    }
+
+    assertFirebaseOwner(userId);
+
+    const services =
+      getFirebaseServices();
+
+    if (!services) {
+      throw new Error(
+        "Firebase is not available."
+      );
+    }
+
+    const notificationRef = doc(
+      services.db,
+      "notifications",
+      notificationId
+    );
+
+    const snapshot =
+      await getDoc(notificationRef);
+
+    if (!snapshot.exists()) {
+      return;
+    }
+
+    const notification =
+      storedSocialNotification(
+        snapshot.id,
+        snapshot.data()
+      );
+
+    if (
+      !notification ||
+      notification.userId !== userId
+    ) {
+      throw new Error(
+        "That notification could not be found."
+      );
+    }
+
+    if (notification.readAt) {
+      return;
+    }
+
+    await updateDoc(
+      notificationRef,
+      {
+        readAt: nowIso()
+      }
+    );
+  },
+
   async getPublicReflectionsByUser(
     profileUserId: string
   ): Promise<ReflectionPost[]> {
@@ -1109,6 +2460,99 @@ export const appService = {
           new Date(b.createdAt).getTime() -
           new Date(a.createdAt).getTime()
       );
+  },
+
+  async getPublicReflectionById(
+    reflectionId: string
+  ): Promise<SocialFeedPost | null> {
+    const services =
+      getFirebaseServices();
+
+    if (
+      !services?.auth.currentUser
+    ) {
+      throw new Error(
+        "Please log in to view this reflection."
+      );
+    }
+
+    const reflectionSnapshot =
+      await getDoc(
+        doc(
+          services.db,
+          "reflectionPosts",
+          reflectionId
+        )
+      );
+
+    if (
+      !reflectionSnapshot.exists()
+    ) {
+      return null;
+    }
+
+    const reflectionData =
+      reflectionSnapshot.data();
+
+    const postOwnerId =
+      stringValue(
+        reflectionData.userId
+      );
+
+    /*
+    * Dedicated social reflection pages
+    * are PUBLIC reflections only.
+    */
+    if (
+      !postOwnerId ||
+      reflectionData.isPrivate !== false
+    ) {
+      return null;
+    }
+
+    const post =
+      storedReflection(
+        reflectionSnapshot.id,
+        reflectionData,
+        postOwnerId
+      );
+
+    if (
+      !post ||
+      post.isPrivate
+    ) {
+      return null;
+    }
+
+    const profileSnapshot =
+      await getDoc(
+        doc(
+          services.db,
+          "socialProfiles",
+          postOwnerId
+        )
+      );
+
+    if (
+      !profileSnapshot.exists()
+    ) {
+      return null;
+    }
+
+    const author =
+      storedSocialProfile(
+        profileSnapshot.id,
+        profileSnapshot.data()
+      );
+
+    if (!author) {
+      return null;
+    }
+
+    return {
+      ...post,
+      author
+    };
   },
 
   async getFollowingFeed(
@@ -1175,6 +2619,150 @@ export const appService = {
         (a, b) =>
           new Date(b.createdAt).getTime() -
           new Date(a.createdAt).getTime()
+      );
+  },
+
+  async getDiscoverFeed(
+    userId: string
+  ): Promise<SocialFeedPost[]> {
+    assertFirebaseOwner(userId);
+
+    const services =
+      getFirebaseServices();
+
+    if (!services) {
+      return [];
+    }
+
+    const followingIds =
+      await this.getFollowingIds(userId);
+
+    const excludedUserIds =
+      new Set<string>([
+        userId,
+        ...followingIds
+      ]);
+
+    const publicPostsSnapshot =
+      await getDocs(
+        query(
+          collection(
+            services.db,
+            "reflectionPosts"
+          ),
+          where(
+            "isPrivate",
+            "==",
+            false
+          )
+        )
+      );
+
+    const posts =
+      publicPostsSnapshot.docs
+        .map((item) => {
+          const data = item.data();
+
+          const postUserId =
+            stringValue(data.userId);
+
+          if (
+            !postUserId ||
+            excludedUserIds.has(
+              postUserId
+            )
+          ) {
+            return null;
+          }
+
+          return storedReflection(
+            item.id,
+            data,
+            postUserId
+          );
+        })
+        .filter(
+          (
+            post
+          ): post is ReflectionPost =>
+            post !== null
+        );
+
+    const authorIds =
+      Array.from(
+        new Set(
+          posts.map(
+            (post) => post.userId
+          )
+        )
+      );
+
+    const profileSnapshots =
+      await Promise.all(
+        authorIds.map((authorId) =>
+          getDoc(
+            doc(
+              services.db,
+              "socialProfiles",
+              authorId
+            )
+          )
+        )
+      );
+
+    const profiles =
+      new Map<
+        string,
+        SocialProfile
+      >();
+
+    profileSnapshots.forEach(
+      (snapshot) => {
+        if (!snapshot.exists()) {
+          return;
+        }
+
+        const profile =
+          storedSocialProfile(
+            snapshot.id,
+            snapshot.data()
+          );
+
+        if (profile) {
+          profiles.set(
+            profile.userId,
+            profile
+          );
+        }
+      }
+    );
+
+    return posts
+      .map((post) => {
+        const author =
+          profiles.get(post.userId);
+
+        return author
+          ? {
+              ...post,
+              author
+            }
+          : null;
+      })
+      .filter(
+        (
+          post
+        ): post is SocialFeedPost =>
+          post !== null
+      )
+      .sort(
+        (a, b) =>
+          new Date(
+            b.createdAt
+          ).getTime() -
+          new Date(
+            a.createdAt
+          ).getTime()
       );
   },
 
@@ -1917,69 +3505,448 @@ export const appService = {
     profile: SpiritualProfile
   ): Promise<SpiritualProfile> {
     const now = nowIso();
-    const updated: SpiritualProfile = {
+
+    const updated:
+      SpiritualProfile = {
       ...profile,
+
       id: userId,
       userId,
-      profileName: cleanText(profile.profileName, LIMITS.profileName),
-      coverColor: normalizeCoverColor(profile.coverColor ?? ""),
-      imagePath: normalizeProfileImageReference(profile.imagePath),
-      spiritualBio: cleanText(profile.spiritualBio, LIMITS.bio),
-      spiritualGuides: normalizeList(profile.spiritualGuides),
-      lifeDirections: normalizeList(profile.lifeDirections),
-      heartSeeks: normalizeList(profile.heartSeeks),
-      godsComment: cleanText(profile.godsComment, LIMITS.godsComment),
-      heavenlyHashtag: normalizeHashtag(profile.heavenlyHashtag),
-      hiddenStory: cleanText(profile.hiddenStory, LIMITS.hiddenStory),
+
+      profileName:
+        cleanText(
+          profile.profileName,
+          LIMITS.profileName
+        ),
+
+      coverColor:
+        normalizeCoverColor(
+          profile.coverColor ??
+            ""
+        ),
+
+      imagePath:
+        normalizeProfileImageReference(
+          profile.imagePath
+        ),
+
+      spiritualBio:
+        cleanText(
+          profile.spiritualBio,
+          LIMITS.bio
+        ),
+
+      spiritualGuides:
+        normalizeList(
+          profile.spiritualGuides
+        ),
+
+      lifeDirections:
+        normalizeList(
+          profile.lifeDirections
+        ),
+
+      heartSeeks:
+        normalizeList(
+          profile.heartSeeks
+        ),
+
+      godsComment:
+        cleanText(
+          profile.godsComment,
+          LIMITS.godsComment
+        ),
+
+      heavenlyHashtag:
+        normalizeHashtag(
+          profile.heavenlyHashtag
+        ),
+
+      hiddenStory:
+        cleanText(
+          profile.hiddenStory,
+          LIMITS.hiddenStory
+        ),
+
       updatedAt: now
     };
-    if (!updated.profileName) throw new Error("Profile name is required.");
-    const coverColors = readJson<JsonMap<string>>(LOCAL_KEYS.coverColors, {});
-    coverColors[userId] = updated.coverColor ?? "#DDD2F6";
-    writeJson(LOCAL_KEYS.coverColors, coverColors);
 
+    if (!updated.profileName) {
+      throw new Error(
+        "Profile name is required."
+      );
+    }
+
+    /*
+    * Cover color is currently
+    * stored locally rather than
+    * inside the Firestore profile.
+    */
+    const coverColors =
+      readJson<
+        JsonMap<string>
+      >(
+        LOCAL_KEYS.coverColors,
+        {}
+      );
+
+    coverColors[userId] =
+      updated.coverColor ??
+      "#DDD2F6";
+
+    writeJson(
+      LOCAL_KEYS.coverColors,
+      coverColors
+    );
+
+    /*
+    * FIREBASE
+    */
     if (isFirebaseConfigured) {
-      assertFirebaseOwner(userId);
-      assertStoredProfileImagePath(userId, updated.imagePath);
-      const services = getFirebaseServices();
-      if (!services) throw new Error("Firebase is not available.");
-      const existing = await this.getProfileView(userId);
-      const batch = writeBatch(services.db);
-      batch.set(doc(services.db, "profiles", userId), toPublicProfile(updated));
-      batch.set(doc(services.db, "privateProfiles", userId), {
+      assertFirebaseOwner(
+        userId
+      );
+
+      assertStoredProfileImagePath(
         userId,
-        hiddenStory: updated.hiddenStory,
-        updatedAt: now
-      });
-      batch.update(doc(services.db, "users", userId), { updatedAt: now });
-      await batch.commit();
-      await this.saveSocialProfile(userId, updated);
-      await cleanupReplacedProfileImage(
-        userId,
-        existing?.imagePath ?? "",
         updated.imagePath
       );
+
+      const services =
+        getFirebaseServices();
+
+      if (!services) {
+        throw new Error(
+          "Firebase is not available."
+        );
+      }
+
+      /*
+      * Get the complete OLD profile
+      * before changing anything.
+      *
+      * getFullProfile includes the
+      * private Hidden Story.
+      */
+      const existing =
+        await this.getFullProfile(
+          userId
+        );
+
+      if (!existing) {
+        throw new Error(
+          "Your existing profile could not be found."
+        );
+      }
+
+      /*
+      * Determine exactly what the
+      * user changed for Journey.
+      */
+      const changes =
+        profileJourneyChanges(
+          existing,
+          updated
+        );
+
+      const profileRef =
+        doc(
+          services.db,
+          "profiles",
+          userId
+        );
+
+      const privateProfileRef =
+        doc(
+          services.db,
+          "privateProfiles",
+          userId
+        );
+
+      const userRef =
+        doc(
+          services.db,
+          "users",
+          userId
+        );
+
+      const socialProfileRef =
+        doc(
+          services.db,
+          "socialProfiles",
+          userId
+        );
+
+      /*
+      * Check whether the public
+      * social profile already exists.
+      *
+      * Existing profile:
+      *   UPDATE only mutable fields.
+      *
+      * Missing profile:
+      *   CREATE the full document.
+      */
+      const socialProfileSnapshot =
+        await getDoc(
+          socialProfileRef
+        );
+
+      const batch =
+        writeBatch(
+          services.db
+        );
+
+      /*
+      * MAIN PROFILE
+      *
+      * IMPORTANT:
+      * Do NOT write createdAt here.
+      *
+      * Firestore keeps the original
+      * createdAt automatically.
+      */
+      batch.update(
+        profileRef,
+        {
+          profileName:
+            updated.profileName,
+
+          imagePath:
+            updated.imagePath,
+
+          selectedSymbol:
+            updated.selectedSymbol,
+
+          spiritualBio:
+            updated.spiritualBio,
+
+          spiritualGuides:
+            updated.spiritualGuides,
+
+          lifeDirections:
+            updated.lifeDirections,
+
+          heartSeeks:
+            updated.heartSeeks,
+
+          godsComment:
+            updated.godsComment,
+
+          heavenlyHashtag:
+            updated.heavenlyHashtag,
+
+          /*
+          * Remove OLD profile field names.
+          *
+          * Older Saintagram profiles used:
+          * followers -> spiritualGuides
+          * following -> lifeDirections
+          *
+          * The current Firestore rules no
+          * longer permit the old keys.
+          */
+          followers:
+            deleteField(),
+
+          following:
+            deleteField(),
+
+          updatedAt: now
+        }
+      );
+
+      /*
+      * PRIVATE PROFILE
+      */
+      batch.set(
+        privateProfileRef,
+        {
+          userId,
+
+          hiddenStory:
+            updated.hiddenStory,
+
+          updatedAt: now
+        }
+      );
+
+      /*
+      * USER ACCOUNT METADATA
+      */
+      batch.update(
+        userRef,
+        {
+          updatedAt: now
+        }
+      );
+
+      /*
+      * SOCIAL PROFILE
+      */
+      if (
+        socialProfileSnapshot.exists()
+      ) {
+        /*
+        * Existing social profile.
+        *
+        * Do NOT rewrite createdAt.
+        */
+        batch.update(
+          socialProfileRef,
+          {
+            profileName:
+              updated.profileName,
+
+            imagePath:
+              updated.imagePath,
+
+            spiritualBio:
+              updated.spiritualBio,
+
+            heavenlyHashtag:
+              updated.heavenlyHashtag,
+
+            updatedAt: now
+          }
+        );
+      } else {
+        /*
+        * Social profile does not
+        * exist yet, so create it.
+        */
+        const socialProfile:
+          SocialProfile = {
+          id: userId,
+          userId,
+
+          profileName:
+            updated.profileName,
+
+          imagePath:
+            updated.imagePath,
+
+          spiritualBio:
+            updated.spiritualBio,
+
+          heavenlyHashtag:
+            updated.heavenlyHashtag,
+
+          createdAt:
+            updated.createdAt,
+
+          updatedAt: now
+        };
+
+        batch.set(
+          socialProfileRef,
+          socialProfile
+        );
+      }
+
+      /*
+      * JOURNEY HISTORY
+      *
+      * Only create an event when
+      * something actually changed.
+      */
+      if (changes.length > 0) {
+        const eventRef =
+          doc(
+            collection(
+              services.db,
+              "profileJourneyEvents"
+            )
+          );
+
+        batch.set(
+          eventRef,
+          {
+            id: eventRef.id,
+
+            userId,
+
+            changes,
+
+            createdAt: now
+          }
+        );
+      }
+
+      /*
+      * All Firestore changes happen
+      * together.
+      */
+      await batch.commit();
+
+      await cleanupReplacedProfileImage(
+        userId,
+        existing.imagePath ??
+          "",
+        updated.imagePath
+      );
+
       return updated;
     }
 
-    assertLocalOwner(userId);
-    const profiles = readJson<JsonMap<PublicSpiritualProfile>>(
+    /*
+    * LOCAL / DEMO MODE
+    */
+    assertLocalOwner(
+      userId
+    );
+
+    const profiles =
+      readJson<
+        JsonMap<
+          PublicSpiritualProfile
+        >
+      >(
+        LOCAL_KEYS.profiles,
+        {}
+      );
+
+    profiles[userId] =
+      toPublicProfile(
+        updated
+      );
+
+    writeJson(
       LOCAL_KEYS.profiles,
-      {}
+      profiles
     );
-    profiles[userId] = toPublicProfile(updated);
-    writeJson(LOCAL_KEYS.profiles, profiles);
-    const privateProfiles = readJson<JsonMap<PrivateProfileRecord>>(
-      LOCAL_KEYS.privateProfiles,
-      {}
-    );
-    privateProfiles[userId] = {
+
+    const privateProfiles =
+      readJson<
+        JsonMap<
+          PrivateProfileRecord
+        >
+      >(
+        LOCAL_KEYS.privateProfiles,
+        {}
+      );
+
+    privateProfiles[
+      userId
+    ] = {
       userId,
-      hiddenStory: updated.hiddenStory,
+
+      hiddenStory:
+        updated.hiddenStory,
+
       updatedAt: now
     };
-    writeJson(LOCAL_KEYS.privateProfiles, privateProfiles);
-    await this.updateUser(userId, {});
+
+    writeJson(
+      LOCAL_KEYS.privateProfiles,
+      privateProfiles
+    );
+
+    await this.updateUser(
+      userId,
+      {}
+    );
+
     return updated;
   },
 

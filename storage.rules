@@ -3,16 +3,24 @@ rules_version = '2';
 service firebase.storage {
   match /b/{bucket}/o {
     function isOwner(userId) {
-      return request.auth != null && request.auth.uid == userId;
+      return request.auth != null
+        && request.auth.uid == userId;
     }
 
     match /users/{userId}/profile/{imageName} {
+      // Any signed-in Saintagram user may VIEW profile images.
       allow read: if request.auth != null;
+
+      // Only the owner may UPLOAD.
       allow create: if isOwner(userId)
         && imageName.matches('^[A-Za-z0-9_-]+\\.(jpg|png|webp)$')
         && request.resource.size < 2097152
         && request.resource.contentType.matches('image/(jpeg|png|webp)');
+
+      // Only the owner may DELETE.
       allow delete: if isOwner(userId);
+
+      // Existing image objects cannot be overwritten.
       allow update: if false;
     }
   }

@@ -36,6 +36,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { LoadingState } from "@/components/ui/loading-state";
 import { ProfileAvatar } from "@/components/ui/profile-avatar";
 import { ReflectionCard } from "@/components/reflections/reflection-card";
+import { SocialReflectionCard } from "@/components/social/social-reflection-card";
 import { appService } from "@/lib/app-service";
 import { downloadFirebaseProfileImage, isLocalProfileImageSource } from "@/lib/profile-images";
 import { formatFriendlyDate } from "@/lib/validation";
@@ -747,16 +748,6 @@ export function ProfileDashboard() {
           >
             {tab === "posts" && (
               <div>
-                <div className="mb-5">
-                  <div>
-                    <h2 className="font-serif text-2xl font-bold">
-                      Posts God Sees
-                    </h2>
-                    <p className="font-secondary mt-1 text-sm text-muted">
-                      Quiet moments, newest first. No likes or public totals.
-                    </p>
-                  </div>
-                </div>
                 <div className="mb-5 xl:hidden">{searchControls("mobile")}</div>
                 {(searchQuery || dateStart || dateEnd) && (
                   <p className="font-secondary mb-4 text-sm text-muted" role="status" aria-live="polite">
@@ -767,13 +758,28 @@ export function ProfileDashboard() {
                 {filteredPosts.length ? (
                   <div className="profile-scroll max-h-[min(60vh,42rem)] space-y-3 overflow-y-auto overscroll-contain pr-2" tabIndex={0} aria-label="Reflection search results">
                     {filteredPosts.map((post) => (
-                      <ReflectionCard
+                      <SocialReflectionCard
                         key={post.id}
-                        post={post}
-                        showPrivacy={false}
-                        showDate={
-                          user?.privacyPreferences?.showReflectionDates ?? true
-                        }
+                        post={{
+                          ...post,
+                          author: {
+                            id: profile.id,
+                            userId: profile.userId,
+                            profileName:
+                              profile.profileName,
+                            imagePath:
+                              profile.imagePath,
+                            spiritualBio:
+                              profile.spiritualBio,
+                            heavenlyHashtag:
+                              profile.heavenlyHashtag,
+                            createdAt:
+                              profile.createdAt,
+                            updatedAt:
+                              profile.updatedAt
+                          }
+                        }}
+                        initialFollowing={false}
                       />
                     ))}
                   </div>
