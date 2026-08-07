@@ -120,6 +120,25 @@ export function isOwnedProfileImagePath(
   );
 }
 
+export function isFirebaseProfileImagePath(
+  imagePath: string
+): boolean {
+  const parts = imagePath.split("/");
+
+  if (parts.length !== 4) {
+    return false;
+  }
+
+  const [usersFolder, userId, profileFolder, imageName] = parts;
+
+  return (
+    usersFolder === "users" &&
+    profileFolder === "profile" &&
+    FIREBASE_UID.test(userId) &&
+    PROFILE_IMAGE_FILE.test(imageName)
+  );
+}
+
 export function isLocalProfileImageSource(value: string): boolean {
   return LOCAL_IMAGE_SOURCE.test(value);
 }
@@ -155,12 +174,15 @@ export async function downloadFirebaseProfileImage(
   imagePath: string
 ): Promise<string> {
   const storage = await authorizedStorage();
-  const { userId } = storage;
-  if (!isOwnedProfileImagePath(imagePath, userId)) {
-    throw new Error("That profile image does not belong to this account.");
+
+  if (!isFirebaseProfileImagePath(imagePath)) {
+    throw new Error("That profile image path is not valid.");
   }
+
   try {
-    return await getDownloadURL(ref(storage.storage, imagePath));
+    return await getDownloadURL(
+      ref(storage.storage, imagePath)
+    );
   } catch (error) {
     throw profileImageError("downloaded", error);
   }

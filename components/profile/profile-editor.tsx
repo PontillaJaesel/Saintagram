@@ -42,7 +42,7 @@ function EditorSection({
   privateSection = false
 }: {
   title: string;
-  description: string;
+  description?: string;
   icon: typeof UserRound;
   children: React.ReactNode;
   privateSection?: boolean;
@@ -69,7 +69,11 @@ function EditorSection({
         </div>
         <div>
           <h2 className="font-serif text-xl font-bold">{title}</h2>
-          <p className="mt-1 text-sm leading-6 text-muted">{description}</p>
+          {description && (
+            <p className="mt-1 text-sm leading-6 text-muted">
+              {description}
+            </p>
+          )}
         </div>
       </div>
       <div className="p-5 sm:p-6">{children}</div>
@@ -352,21 +356,26 @@ export function ProfileEditor() {
         </EditorSection>
 
         <EditorSection
-          title="Followers and Following"
-          description="Reflect on who supports your faith and who or what you currently follow."
+          title="Spiritual influences"
           icon={CheckCircle2}
         >
           <TagEditor
-            label="Who helps lead me closer to God?"
-            values={profile.followers}
-            onChange={(values) => setField("followers", values)}
-            placeholder="Add a follower"
+            label="Who helps me lead closer to God?"
+            values={profile.spiritualGuides}
+            onChange={(values) =>
+              setField("spiritualGuides", values)
+            }
+            placeholder="Add a person or guide"
           />
+
           <div className="my-7 h-px bg-sage-100" />
+
           <TagEditor
-            label="Who or what am I following right now?"
-            values={profile.following}
-            onChange={(values) => setField("following", values)}
+            label="Who or what am I following in my life right now?"
+            values={profile.lifeDirections}
+            onChange={(values) =>
+              setField("lifeDirections", values)
+            }
             suggestions={FOLLOWING_IDEAS}
             placeholder="Add an influence"
           />

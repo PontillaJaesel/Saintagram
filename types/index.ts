@@ -124,8 +124,8 @@ export const EMPTY_DRAFT: ProfileDraftData = {
   imagePath: "",
   selectedSymbol: "",
   spiritualBio: "",
-  spiritualGuides: string[];
-  lifeDirections: string[];
+  spiritualGuides: [],
+  lifeDirections: [],
   onboardingPostTitles: [""],
   onboardingPosts: [""],
   heartSeeks: [],

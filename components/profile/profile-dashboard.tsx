@@ -590,16 +590,36 @@ export function ProfileDashboard() {
       </section>
       <section className="surface p-5">
         <h2 className="flex items-center gap-2 text-sm font-bold">
-          <UsersRound className="size-4 text-sage-600" aria-hidden="true" />
-          Followers
+          <UsersRound
+            className="size-4 text-sage-600"
+            aria-hidden="true"
+          />
+          Who helps me lead closer to God
         </h2>
-        <div className="mt-3"><ValueList values={profile.followers} emptyText="No followers named yet." /></div>
+
+        <div className="mt-3">
+          <ValueList
+            values={profile.spiritualGuides}
+            emptyText="No one has been added yet."
+          />
+        </div>
+
         <div className="my-5 h-px bg-sage-100" />
+
         <h2 className="flex items-center gap-2 text-sm font-bold">
-          <Footprints className="size-4 text-sage-600" aria-hidden="true" />
-          Following
+          <Footprints
+            className="size-4 text-sage-600"
+            aria-hidden="true"
+          />
+          Who or what am I following in my life right now?
         </h2>
-        <div className="mt-3"><ValueList values={profile.following} emptyText="Nothing followed yet." /></div>
+
+        <div className="mt-3">
+          <ValueList
+            values={profile.lifeDirections}
+            emptyText="Nothing has been added yet."
+          />
+        </div>
       </section>
       <section className="surface p-5">
         <h2 className="flex items-center gap-2 text-sm font-bold">

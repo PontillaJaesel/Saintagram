@@ -7,7 +7,7 @@ service firebase.storage {
     }
 
     match /users/{userId}/profile/{imageName} {
-      allow read: if isOwner(userId);
+      allow read: if request.auth != null;
       allow create: if isOwner(userId)
         && imageName.matches('^[A-Za-z0-9_-]+\\.(jpg|png|webp)$')
         && request.resource.size < 2097152

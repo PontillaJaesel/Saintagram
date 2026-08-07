@@ -133,8 +133,8 @@ service cloud.firestore {
           'imagePath',
           'selectedSymbol',
           'spiritualBio',
-          'followers',
-          'following',
+          'spiritualGuides',
+          'lifeDirections',
           'heartSeeks',
           'godsComment',
           'heavenlyHashtag',
@@ -148,8 +148,8 @@ service cloud.firestore {
           'imagePath',
           'selectedSymbol',
           'spiritualBio',
-          'followers',
-          'following',
+          'spiritualGuides',
+          'lifeDirections',
           'heartSeeks',
           'godsComment',
           'heavenlyHashtag',
@@ -172,8 +172,8 @@ service cloud.firestore {
         ]
         && (data.imagePath == '' || data.selectedSymbol == '')
         && isShortString(data.spiritualBio, 320)
-        && isStringList(data.followers, 30)
-        && isStringList(data.following, 30)
+        && isStringList(data.spiritualGuides, 30)
+        && isStringList(data.lifeDirections, 30)
         && isStringList(data.heartSeeks, 30)
         && isShortString(data.godsComment, 280)
         && isShortString(data.heavenlyHashtag, 40)
@@ -226,8 +226,9 @@ service cloud.firestore {
           'imagePath',
           'selectedSymbol',
           'spiritualBio',
-          'followers',
-          'following',
+          'spiritualGuides',
+          'lifeDirections',
+          'onboardingPostTitles',
           'onboardingPosts',
           'heartSeeks',
           'hiddenStory',
@@ -239,9 +240,8 @@ service cloud.firestore {
           'imagePath',
           'selectedSymbol',
           'spiritualBio',
-          'followers',
-          'following',
-          'onboardingPostTitles',
+          'spiritualGuides',
+          'lifeDirections',
           'onboardingPosts',
           'heartSeeks',
           'hiddenStory',
@@ -261,10 +261,12 @@ service cloud.firestore {
         ]
         && (value.imagePath == '' || value.selectedSymbol == '')
         && isShortString(value.spiritualBio, 320)
-        && isStringList(value.followers, 30)
-        && isStringList(value.following, 30)
-        && (!value.keys().hasAny(['onboardingPostTitles'])
-          || isStringList(value.onboardingPostTitles, 20))
+        && isStringList(value.spiritualGuides, 30)
+        && isStringList(value.lifeDirections, 30)
+        && (
+          !value.keys().hasAny(['onboardingPostTitles'])
+          || isStringList(value.onboardingPostTitles, 20)
+        )
         && isStringList(value.onboardingPosts, 20)
         && isStringList(value.heartSeeks, 30)
         && isShortString(value.hiddenStory, 1000)
@@ -325,6 +327,58 @@ service cloud.firestore {
         && isIsoDate(data.createdAt)
         && isIsoDate(data.updatedAt)
         && (!('editedAt' in data) || isIsoDate(data.editedAt));
+    }
+
+    function hasValidSocialProfileShape(data) {
+      return data.keys().hasOnly([
+          'id',
+          'userId',
+          'profileName',
+          'imagePath',
+          'spiritualBio',
+          'heavenlyHashtag',
+          'createdAt',
+          'updatedAt'
+        ])
+        && data.keys().hasAll([
+          'id',
+          'userId',
+          'profileName',
+          'imagePath',
+          'spiritualBio',
+          'heavenlyHashtag',
+          'createdAt',
+          'updatedAt'
+        ])
+        && data.id is string
+        && data.userId is string
+        && isShortString(data.profileName, 60)
+        && data.profileName.size() > 0
+        && hasValidProfileImagePath(data.imagePath, data.userId)
+        && isShortString(data.spiritualBio, 320)
+        && isShortString(data.heavenlyHashtag, 40)
+        && isIsoDate(data.createdAt)
+        && isIsoDate(data.updatedAt);
+    }
+
+    function hasValidFollowShape(data) {
+      return data.keys().hasOnly([
+          'id',
+          'followerId',
+          'followingId',
+          'createdAt'
+        ])
+        && data.keys().hasAll([
+          'id',
+          'followerId',
+          'followingId',
+          'createdAt'
+        ])
+        && data.id is string
+        && data.followerId is string
+        && data.followingId is string
+        && data.followerId != data.followingId
+        && isIsoDate(data.createdAt);
     }
 
     // Account metadata is private and keyed by the Firebase Authentication UID.
@@ -413,8 +467,7 @@ service cloud.firestore {
     }
 
     match /profileImageHistory/{entryId} {
-      allow get: if ownsExistingDocument();
-      allow list: if false;
+      allow get, list: if ownsExistingDocument();
 
       allow create: if ownsIncomingDocument()
         && request.resource.data.id == entryId
@@ -451,7 +504,11 @@ service cloud.firestore {
     }
 
     match /reflectionPosts/{reflectionId} {
-      allow get, list: if ownsExistingDocument();
+      allow get, list: if signedIn()
+      && (
+        resource.data.userId == request.auth.uid
+        || resource.data.isPrivate == false
+      );
 
       allow create: if ownsIncomingDocument()
         && request.resource.data.id == reflectionId
@@ -466,6 +523,46 @@ service cloud.firestore {
       allow delete: if ownsExistingDocument();
     }
 
+    match /socialProfiles/{userId} {
+      allow get, list: if signedIn();
+
+      allow create: if isCurrentUser(userId)
+        && request.resource.data.id == userId
+        && request.resource.data.userId == userId
+        && hasValidSocialProfileShape(request.resource.data);
+
+      allow update: if isCurrentUser(userId)
+        && resource.data.id == userId
+        && resource.data.userId == userId
+        && request.resource.data.id == userId
+        && request.resource.data.userId == userId
+        && request.resource.data.createdAt == resource.data.createdAt
+        && hasValidSocialProfileShape(request.resource.data);
+
+      allow delete: if isCurrentUser(userId);
+    }
+
+    match /follows/{followId} {
+      allow get, list: if signedIn();
+
+      allow create: if signedIn()
+        && request.resource.data.followerId == request.auth.uid
+        && request.resource.data.followingId != request.auth.uid
+        && request.resource.data.id == followId
+        && followId ==
+          request.resource.data.followerId
+          + '_'
+          + request.resource.data.followingId
+        && hasValidFollowShape(request.resource.data);
+
+      allow update: if false;
+
+      allow delete: if signedIn()
+        && (
+          resource.data.followerId == request.auth.uid
+          || resource.data.followingId == request.auth.uid
+        );
+    }
     // Fail closed for every collection not explicitly declared above.
     match /{document=**} {
       allow read, write: if false;

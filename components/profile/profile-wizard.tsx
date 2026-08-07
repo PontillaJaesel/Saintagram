@@ -1,5 +1,4 @@
 "use client";
-
 import {
   useCallback,
   useEffect,
@@ -58,8 +57,16 @@ const STEPS = [
   { title: "Profile name", short: "Name", icon: UserRound },
   { title: "Picture or symbol", short: "Image", icon: ImageIcon },
   { title: "Spiritual bio", short: "Bio", icon: FileText },
-  { title: "Followers", short: "Followers", icon: UsersRound },
-  { title: "Following", short: "Following", icon: ChevronRight },
+  {
+    title: "Who helps me lead closer to God?",
+    short: "Guides",
+    icon: UsersRound
+  },
+  {
+    title: "Who or what am I following in my life right now?",
+    short: "Influences",
+    icon: ChevronRight
+  },
   { title: "Posts God sees", short: "Moments", icon: Sparkles },
   { title: "Likes", short: "Likes", icon: Heart },
   { title: "Hidden Story", short: "Private", icon: EyeOff },
@@ -73,8 +80,8 @@ type SaveStatus = "idle" | "saving" | "saved" | "error";
 function cloneEmptyDraft(): ProfileDraftData {
   return {
     ...EMPTY_DRAFT,
-    followers: [],
-    following: [],
+    spiritualGuides: [],
+    lifeDirections: [],
     onboardingPostTitles: [""],
     onboardingPosts: [""],
     heartSeeks: []
@@ -389,10 +396,10 @@ export function ProfileWizard() {
       !data.spiritualBio.trim()
         ? "Answer the spiritual bio question before continuing."
         : "",
-      data.followers.length === 0
+      data.spiritualGuides.length === 0
         ? "Add at least one person or holy companion before continuing."
         : "",
-      data.following.length === 0
+      data.lifeDirections.length === 0
         ? "Add at least one influence you are following before continuing."
         : "",
       data.onboardingPosts.length === 0 ||
@@ -627,22 +634,24 @@ export function ProfileWizard() {
       case 3:
         return (
           <TagEditor
-            label="Who helps lead me closer to God?"
-            description="Name people or holy companions who guide, encourage, challenge, or pray with you. No counts are ever shown."
-            values={data.followers}
-            onChange={(values) => updateData("followers", values)}
-            placeholder="e.g., My grandmother, Mary, St. Joseph"
+            label="Who helps me lead closer to God?"
+            values={data.spiritualGuides}
+            onChange={(values) =>
+              updateData("spiritualGuides", values)
+            }
+            placeholder="Add a person or guide"
           />
         );
       case 4:
         return (
           <TagEditor
             label="Who or what am I following in my life right now?"
-            description="There are no perfect answers. Notice the influences that are actually shaping your attention and choices."
-            values={data.following}
-            onChange={(values) => updateData("following", values)}
+            values={data.lifeDirections}
+            onChange={(values) =>
+              updateData("lifeDirections", values)
+            }
             suggestions={FOLLOWING_IDEAS}
-            placeholder="Add another influence"
+            placeholder="Add an influence"
           />
         );
       case 5:
@@ -903,11 +912,24 @@ export function ProfileWizard() {
               <ReviewSection title="Spiritual bio" step={2} onEdit={setStep}>
                 {data.spiritualBio || <em>Not answered</em>}
               </ReviewSection>
-              <ReviewSection title="Followers" step={3} onEdit={setStep}>
-                {data.followers.length ? data.followers.join(" · ") : <em>Not answered</em>}
+              <ReviewSection
+                title="Who helps me lead closer to God?"
+                step={3}
+                onEdit={setStep}
+              >
+                {data.spiritualGuides.length
+                  ? data.spiritualGuides.join(" · ")
+                  : <em>Not answered</em>}
               </ReviewSection>
-              <ReviewSection title="Following" step={4} onEdit={setStep}>
-                {data.following.length ? data.following.join(" · ") : <em>Not answered</em>}
+
+              <ReviewSection
+                title="Who or what am I following in my life right now?"
+                step={4}
+                onEdit={setStep}
+              >
+                {data.lifeDirections.length
+                  ? data.lifeDirections.join(" · ")
+                  : <em>Not answered</em>}
               </ReviewSection>
               <ReviewSection title="Likes" step={6} onEdit={setStep}>
                 {data.heartSeeks.length ? data.heartSeeks.join(" · ") : <em>Not answered</em>}

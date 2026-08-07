@@ -7,12 +7,16 @@ import {
   Footprints,
   Home,
   NotebookPen,
-  Settings as SettingsIcon
+  Search,
+  Settings as SettingsIcon,
+  UsersRound
 } from "lucide-react";
 import { Logo } from "@/components/brand/logo";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
 
 const NAV_ITEMS = [
+  { href: "/feed", label: "Following", icon: UsersRound },
+  { href: "/community", label: "Community", icon: Search },
   { href: "/profile", label: "Profile", icon: Home },
   { href: "/reflect", label: "Reflect", icon: NotebookPen },
   { href: "/journey", label: "Journey", icon: Footprints },
@@ -20,6 +24,17 @@ const NAV_ITEMS = [
 ] as const;
 
 let lastPrimaryNavIndex: number | null = null;
+
+function isNavItemActive(
+  pathname: string,
+  href: (typeof NAV_ITEMS)[number]["href"]
+) {
+  return (
+    pathname === href ||
+    (href === "/profile" && pathname.startsWith("/profile/")) ||
+    (href === "/community" && pathname.startsWith("/users/"))
+  );
+}
 
 export function AppShell({
   children,
@@ -34,14 +49,14 @@ export function AppShell({
 }) {
   const pathname = usePathname();
   const isProfile = pathname === "/profile";
+
   const activeNavIndex = Math.max(
     0,
-    NAV_ITEMS.findIndex(
-      ({ href }) =>
-        pathname === href ||
-        (href === "/profile" && pathname.startsWith("/profile/"))
+    NAV_ITEMS.findIndex(({ href }) =>
+      isNavItemActive(pathname, href)
     )
   );
+
   const [indicatorIndex, setIndicatorIndex] = useState(
     () => lastPrimaryNavIndex ?? activeNavIndex
   );
@@ -51,6 +66,7 @@ export function AppShell({
       setIndicatorIndex(activeNavIndex);
       lastPrimaryNavIndex = activeNavIndex;
     });
+
     return () => window.cancelAnimationFrame(frame);
   }, [activeNavIndex]);
 
@@ -62,9 +78,8 @@ export function AppShell({
       >
         Skip to main content
       </a>
-      <header
-        className="sticky top-0 z-40 border-b border-sage-100/70 bg-canvas/80 backdrop-blur-2xl lg:hidden"
-      >
+
+      <header className="sticky top-0 z-40 border-b border-sage-100/70 bg-canvas/80 backdrop-blur-2xl lg:hidden">
         <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6">
           <Logo href="/profile" />
           <ThemeToggle />
@@ -72,44 +87,61 @@ export function AppShell({
       </header>
 
       <div className="mx-auto w-full max-w-[92rem] lg:grid lg:grid-cols-[15rem_minmax(0,1fr)] xl:grid-cols-[16rem_minmax(0,1fr)]">
-          <aside className="sticky top-0 hidden h-screen border-r border-sage-100 bg-paper/55 px-3 py-6 backdrop-blur-xl lg:flex lg:flex-col xl:px-4">
-            <Logo href="/profile" />
-            <nav className="mt-10 space-y-2" aria-label="Primary navigation">
-              {NAV_ITEMS.map(({ href, label, icon: Icon }) => {
-                const active =
-                  pathname === href ||
-                  (href === "/profile" && pathname.startsWith("/profile/"));
-                return (
-                  <Link
-                    key={href}
-                    href={href}
-                    className={`flex min-h-12 items-center gap-3 rounded-xl px-3 text-sm font-semibold transition-colors ${
-                      active
-                        ? "bg-sage-100 text-sage-800"
-                        : "text-ink hover:bg-sage-50"
-                    }`}
-                    aria-current={active ? "page" : undefined}
-                  >
-                    <Icon className="size-6" aria-hidden="true" />
-                    {label}
-                  </Link>
-                );
-              })}
-            </nav>
-            {pathname === "/reflect" && (
-              <a href="#reflection-editor" className="btn-primary mt-6 w-full">
-                <NotebookPen className="size-5" aria-hidden="true" />
-                New reflection
-              </a>
-            )}
-            <div className="mt-auto">
-              <ThemeToggle />
-              <p className="font-secondary mt-4 text-xs leading-5 text-muted">
-                A private space for the parts of your story that matter beyond
-                numbers.
-              </p>
-            </div>
-          </aside>
+        <aside className="sticky top-0 hidden h-screen border-r border-sage-100 bg-paper/55 px-3 py-6 backdrop-blur-xl lg:flex lg:flex-col xl:px-4">
+          <Logo href="/profile" />
+
+          <nav
+            className="mt-10 space-y-2"
+            aria-label="Primary navigation"
+          >
+            {NAV_ITEMS.map(({ href, label, icon: Icon }) => {
+              const active = isNavItemActive(pathname, href);
+
+              return (
+                <Link
+                  key={href}
+                  href={href}
+                  className={`flex min-h-12 items-center gap-3 rounded-xl px-3 text-sm font-semibold transition-colors ${
+                    active
+                      ? "bg-sage-100 text-sage-800"
+                      : "text-ink hover:bg-sage-50"
+                  }`}
+                  aria-current={active ? "page" : undefined}
+                >
+                  <Icon
+                    className="size-6"
+                    aria-hidden="true"
+                  />
+
+                  {label}
+                </Link>
+              );
+            })}
+          </nav>
+
+          {pathname === "/reflect" && (
+            <a
+              href="#reflection-editor"
+              className="btn-primary mt-6 w-full"
+            >
+              <NotebookPen
+                className="size-5"
+                aria-hidden="true"
+              />
+
+              New reflection
+            </a>
+          )}
+
+          <div className="mt-auto">
+            <ThemeToggle />
+
+            <p className="font-secondary mt-4 text-xs leading-5 text-muted">
+              A private space for the parts of your story that matter beyond
+              numbers.
+            </p>
+          </div>
+        </aside>
 
         <main
           key={pathname}
@@ -120,23 +152,26 @@ export function AppShell({
               : "mx-auto min-w-0 max-w-6xl px-4 py-7 sm:px-8 sm:py-12"
           }`}
         >
-        {(title || description || action) && (
-          <div className="mb-7 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-            <div>
-              {title && (
-                <h1 className="font-serif text-3xl font-semibold tracking-tight text-ink sm:text-4xl">
-                  {title}
-                </h1>
-              )}
-              {description && (
-                <p className="mt-2 max-w-2xl text-sm leading-6 text-muted sm:text-base">
-                  {description}
-                </p>
-              )}
+          {(title || description || action) && (
+            <div className="mb-7 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+              <div>
+                {title && (
+                  <h1 className="font-serif text-3xl font-semibold tracking-tight text-ink sm:text-4xl">
+                    {title}
+                  </h1>
+                )}
+
+                {description && (
+                  <p className="mt-2 max-w-2xl text-sm leading-6 text-muted sm:text-base">
+                    {description}
+                  </p>
+                )}
+              </div>
+
+              {action}
             </div>
-            {action}
-          </div>
-        )}
+          )}
+
           {children}
         </main>
       </div>
@@ -145,18 +180,24 @@ export function AppShell({
         className="fixed inset-x-3 bottom-3 z-50 overflow-hidden rounded-[1.6rem] border border-sage-100/80 bg-paper/90 px-2 pb-[max(.5rem,env(safe-area-inset-bottom))] pt-2 shadow-lift backdrop-blur-2xl lg:hidden"
         aria-label="Mobile navigation"
       >
-        <div className="relative mx-auto grid max-w-lg grid-cols-4">
+        <div
+          className="relative mx-auto grid max-w-2xl"
+          style={{
+            gridTemplateColumns: `repeat(${NAV_ITEMS.length}, minmax(0, 1fr))`
+          }}
+        >
           <span
-            className="primary-nav-indicator pointer-events-none absolute bottom-0 left-0 h-[3px] w-1/4 rounded-t-full"
+            className="primary-nav-indicator pointer-events-none absolute bottom-0 left-0 h-[3px] rounded-t-full"
             style={{
+              width: `${100 / NAV_ITEMS.length}%`,
               transform: `translateX(${indicatorIndex * 100}%)`
             }}
             aria-hidden="true"
           />
+
           {NAV_ITEMS.map(({ href, label, icon: Icon }) => {
-            const active =
-              pathname === href ||
-              (href === "/profile" && pathname.startsWith("/profile/"));
+            const active = isNavItemActive(pathname, href);
+
             return (
               <Link
                 key={href}
@@ -166,7 +207,11 @@ export function AppShell({
                 }`}
                 aria-current={active ? "page" : undefined}
               >
-                <Icon className="size-5" aria-hidden="true" />
+                <Icon
+                  className="size-5"
+                  aria-hidden="true"
+                />
+
                 {label}
               </Link>
             );
