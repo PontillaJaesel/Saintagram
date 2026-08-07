@@ -677,7 +677,7 @@ export function ProfileDashboard() {
                     {profile.profileName}
                   </h1>
                 </div>
-                <Link href="/profile/edit" className="btn-secondary">
+                <Link href="/profile/edit" className="profile-edit-button btn-secondary">
                   <Pencil className="size-4" aria-hidden="true" />
                   Edit Profile
                 </Link>

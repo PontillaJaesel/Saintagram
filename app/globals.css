@@ -327,12 +327,16 @@ body {
     border-color: rgb(var(--line));
   }
 
-  .sidebar-nav-active {
+  .saintagram-sidebar nav a svg {
+    color: rgb(var(--brand-300));
+  }
+
+  .saintagram-sidebar .sidebar-nav-active {
     background: rgb(var(--brand-50));
     color: rgb(var(--brand-500));
   }
 
-  :root[data-theme="dark"] .sidebar-nav-active {
+  :root[data-theme="dark"] .saintagram-sidebar .sidebar-nav-active {
     background: linear-gradient(90deg, rgb(var(--brand-600) / 0.7), rgb(var(--brand-500) / 0.38));
     color: rgb(var(--ink));
     box-shadow: inset 3px 0 rgb(var(--brand-300));
@@ -340,6 +344,10 @@ body {
 
   .profile-cover {
     border-bottom: 1px solid rgb(var(--line) / 0.55);
+  }
+
+  .profile-edit-button {
+    border-color: rgb(var(--sage-300));
   }
 
   .profile-insight-card {
