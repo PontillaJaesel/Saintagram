@@ -137,7 +137,7 @@ export function ImageSymbolPicker({
                 type="button"
                 className={`min-h-28 rounded-[var(--radius-base)] border p-4 text-left transition ${
                   selected
-                    ? "border-sage-600 bg-sage-700 text-white"
+                    ? "border-sage-600 bg-sage-400 text-white"
                     : "border-sage-200 bg-white text-ink hover:border-sage-400"
                 }`}
                 disabled={uploading}
@@ -153,10 +153,10 @@ export function ImageSymbolPicker({
                 <SymbolIcon
                   symbol={symbol.id}
                   className={`mb-3 size-6 ${
-                    selected ? "text-gold-200" : "text-sage-600"
+                    selected ? "text-gold-200" : "text-sage-400"
                   }`}
                 />
-                <span className="block text-sm font-bold">{symbol.label}</span>
+                <span className="block text-sm text-clay-400 font-bold">{symbol.label}</span>
                 <span
                   className={`mt-1 block text-xs leading-5 ${
                     selected ? "text-sage-100" : "text-muted"
