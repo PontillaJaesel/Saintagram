@@ -266,7 +266,7 @@ export function AppShell({
       </div>
 
       <nav
-        className="fixed inset-x-3 bottom-3 z-50 overflow-visible rounded-[1.6rem] border border-sage-100/80 bg-paper/90 px-2 pb-[max(.5rem,env(safe-area-inset-bottom))] pt-2 shadow-lift backdrop-blur-2xl lg:hidden"
+        className="mobile-primary-nav fixed inset-x-3 bottom-3 z-50 overflow-visible rounded-[1.6rem] border border-sage-100/80 bg-paper/90 px-2 pb-[max(.5rem,env(safe-area-inset-bottom))] pt-2 shadow-lift backdrop-blur-2xl lg:hidden"
         aria-label="Mobile navigation"
       >
         <div
@@ -317,7 +317,7 @@ export function AppShell({
                     title="Reflect"
                   >
                     <span
-                      className={`grid size-12 place-items-center rounded-full bg-gold-500 text-ink shadow-lift transition-transform ${
+                      className={`mobile-reflect-action grid size-12 place-items-center rounded-full shadow-lift transition-transform ${
                         active
                           ? "scale-105"
                           : "hover:-translate-y-0.5"
