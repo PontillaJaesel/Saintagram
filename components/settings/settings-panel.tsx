@@ -349,7 +349,7 @@ export function SettingsPanel() {
           </div>
         </dl>
         {user.isGuest && (
-          <div className="mt-4 rounded-[var(--radius-base)] border border-gold-200 bg-gold-50 p-4">
+          <div className="mt-4 rounded-[var(--radius-base)] border border-gray-200 bg-white p-4">
             <p className="text-sm font-bold text-gold-700">
               Keep this profile permanently
             </p>
@@ -669,7 +669,7 @@ export function SettingsPanel() {
         onClose={() => setExportOpen(false)}
         onConfirm={() => void exportData()}
       >
-        <div className="rounded-[var(--radius-base)] bg-gold-50 p-4 text-sm leading-6 text-gold-700">
+        <div className="rounded-[var(--radius-base)] bg-white p-4 text-sm leading-6 text-gold-700">
           This is a personal data export, not a public or shareable profile.
         </div>
       </ConfirmDialog>

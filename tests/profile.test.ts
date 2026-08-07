@@ -22,8 +22,8 @@ function makeProfile(): SpiritualProfile {
     imagePath: "",
     selectedSymbol: "candle",
     spiritualBio: "Still growing in faith.",
-    followers: ["Mary", "A trusted friend"],
-    following: ["Jesus"],
+    spiritualGuides: ["Mary", "A trusted friend"],
+    lifeDirections: ["Jesus"],
     heartSeeks: ["Peace", "Truth"],
     godsComment: "You are loved.",
     heavenlyHashtag: "#SeenByGod",
@@ -87,8 +87,8 @@ describe("normalizeDraft", () => {
         "  users/user-1/profile/04fefae1-e03e-42ee-9cd4-dc86823426e8.png  ",
       selectedSymbol: "heart",
       spiritualBio: `  Learning\u0000 to trust  `,
-      followers: [" Mary ", "mary", "", "  Jesus  "],
-      following: [" God's will ", "GOD'S WILL", "Jesus"],
+      spiritualGuides: [" Mary ", "mary", "", "  Jesus  "],
+      lifeDirections: [" God's will ", "GOD'S WILL", "Jesus"],
       onboardingPosts: [
         "  A quiet prayer  ",
         "",
@@ -111,8 +111,8 @@ describe("normalizeDraft", () => {
       "users/user-1/profile/04fefae1-e03e-42ee-9cd4-dc86823426e8.png"
     );
     expect(normalized.spiritualBio).toBe("Learning to trust");
-    expect(normalized.followers).toEqual(["Mary", "Jesus"]);
-    expect(normalized.following).toEqual(["God's will", "Jesus"]);
+    expect(normalized.spiritualGuides).toEqual(["Mary", "Jesus"]);
+    expect(normalized.lifeDirections).toEqual(["God's will", "Jesus"]);
     expect(normalized.heartSeeks).toEqual(["Peace", "Healing"]);
     expect(normalized.onboardingPosts).toHaveLength(20);
     expect(normalized.onboardingPosts[0]).toBe("A quiet prayer");
@@ -127,8 +127,8 @@ describe("normalizeDraft", () => {
       imagePath: "",
       selectedSymbol: "",
       spiritualBio: "",
-      followers: [" Mary "],
-      following: [],
+      spiritualGuides: [" Mary "],
+      lifeDirections: [],
       onboardingPosts: [" A reflection "],
       heartSeeks: [],
       hiddenStory: "",

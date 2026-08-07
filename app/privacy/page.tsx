@@ -83,7 +83,7 @@ function PrivacyContent() {
             space treats what you share.
           </p>
           {mode === "local" && (
-            <div className="mt-6 rounded-[var(--radius-base)] border border-gold-200 bg-gold-50 p-4 text-sm leading-6 text-gold-700">
+            <div className="mt-6 rounded-[var(--radius-base)] border border-gray-200 bg-white p-4 text-sm leading-6 text-gold-700">
               <strong>Demo mode:</strong> Cloud sync is not configured, so your
               account and reflections stay in this browser’s local storage.
               This is useful for demonstration, but not a substitute for

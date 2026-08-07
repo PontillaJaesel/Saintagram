@@ -57,10 +57,10 @@ const config: Config = {
         "4xl": "2rem"
       },
       fontFamily: {
-        sans: ["Arial", "system-ui", "-apple-system", "Segoe UI", "Roboto", "Helvetica Neue", "sans-serif"],
-        serif: ["Plus Jakarta Sans", "Arial", "sans-serif"],
-        heading: ["Plus Jakarta Sans", "Arial", "sans-serif"],
-        secondary: ["Arial", "system-ui", "sans-serif"]
+        sans: ["var(--font-body)", "system-ui", "sans-serif"],
+        serif: ["var(--font-heading)", "system-ui", "sans-serif"],
+        heading: ["var(--font-heading)", "system-ui", "sans-serif"],
+        secondary: ["var(--font-secondary)", "system-ui", "sans-serif"]
       }
     }
   },

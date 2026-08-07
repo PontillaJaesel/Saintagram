@@ -516,7 +516,7 @@ function AuthForm() {
           )}
 
           {auth.mode === "local" && mode === "login" && (
-            <div className="mt-5 rounded-[var(--radius-base)] border border-gold-200 bg-gold-50 p-4">
+            <div className="mt-5 rounded-[var(--radius-base)] border border-gray-200 bg-white p-4">
               <p className="text-sm font-bold text-gold-700">
                 Try the completed sample profile
               </p>
@@ -567,7 +567,7 @@ function AuthForm() {
       </section>
 
       <aside
-        className={`absolute inset-y-0 left-0 hidden w-1/2 overflow-hidden bg-gradient-to-br from-gold-600 via-gold-500 to-gold-400 p-12 text-white transition-transform duration-700 ease-[cubic-bezier(.22,1,.36,1)] lg:flex lg:flex-col lg:justify-between ${
+        className={`absolute inset-y-0 left-0 hidden w-1/2 overflow-hidden auth-aside-gradient p-12 text-white transition-transform duration-700 ease-[cubic-bezier(.22,1,.36,1)] lg:flex lg:flex-col lg:justify-between ${
           formOnRight ? "translate-x-0" : "translate-x-full"
         }`}
       >

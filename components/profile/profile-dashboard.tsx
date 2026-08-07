@@ -587,16 +587,16 @@ export function ProfileDashboard() {
           <MessageCircleHeart className="size-5 text-gold-600" aria-hidden="true" />
           God’s Comment
         </h2>
-        <div className="mt-4 rounded-2xl bg-gold-50 p-4">
+        <div className="mt-4 rounded-2xl bg-white p-4">
           <p className="user-content font-secondary whitespace-pre-wrap text-sm leading-7 text-ink">
             {profile.godsComment || <span className="italic text-muted">This space is open for a word of grace.</span>}
           </p>
         </div>
       </section>
       <section className="surface p-5">
-        <h2 className="flex items-center gap-2 text-sm font-bold">
+        <h2 className="flex items-center gap-2 font-serif text-xl font-bold">
           <UsersRound
-            className="size-4 text-sage-600"
+            className="size-5 text-sage-600"
             aria-hidden="true"
           />
           Who helps me lead closer to God
@@ -611,9 +611,9 @@ export function ProfileDashboard() {
 
         <div className="my-5 h-px bg-sage-100" />
 
-        <h2 className="flex items-center gap-2 text-sm font-bold">
+        <h2 className="flex items-center gap-2 font-serif text-xl font-bold">
           <Footprints
-            className="size-4 text-sage-600"
+            className="size-5 text-sage-600"
             aria-hidden="true"
           />
           Who or what am I following in my life right now?
@@ -627,8 +627,8 @@ export function ProfileDashboard() {
         </div>
       </section>
       <section className="surface p-5">
-        <h2 className="flex items-center gap-2 text-sm font-bold">
-          <Heart className="size-4 text-clay-600" aria-hidden="true" />
+        <h2 className="flex items-center gap-2 font-serif text-xl font-bold">
+          <Heart className="size-5 text-clay-600" aria-hidden="true" />
           Likes
         </h2>
         <p className="mt-1 text-xs leading-5 text-muted">What my heart usually seeks.</p>
@@ -835,7 +835,7 @@ export function ProfileDashboard() {
                     )
                     .map((entry) => (
                       <li key={entry.id} className="relative pb-7 last:pb-0">
-                        <span className="absolute -left-[2.15rem] top-1 grid size-4 place-items-center rounded-full border-4 border-paper bg-gold-500" />
+                                              <span className="absolute -left-[2.15rem] top-1 grid size-4 place-items-center rounded-full border-4 border-paper bg-gray-300" />
                         <time
                           dateTime={entry.createdAt}
                           className="text-xs font-bold uppercase tracking-wider text-gold-700"
@@ -869,7 +869,7 @@ export function ProfileDashboard() {
                       </li>
                     ))}
                   <li className="relative">
-                    <span className="absolute -left-[2.15rem] top-1 grid size-4 place-items-center rounded-full border-4 border-paper bg-gold-500" />
+                                      <span className="absolute -left-[2.15rem] top-1 grid size-4 place-items-center rounded-full border-4 border-paper bg-gray-300" />
                     <time
                       dateTime={profile.createdAt}
                       className="text-xs font-bold uppercase tracking-wider text-gold-700"

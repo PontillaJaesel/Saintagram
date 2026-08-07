@@ -1164,7 +1164,7 @@ export function JourneyTimeline() {
                       ? "bg-sage-600 text-white"
                       : item.type ===
                           "profile-update"
-                        ? "bg-gold-100 text-gold-700"
+                        ? "bg-gray-100 text-gold-700"
                         : item.type ===
                             "like"
                           ? "bg-clay-50 text-clay-600"

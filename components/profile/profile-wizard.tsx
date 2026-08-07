@@ -816,7 +816,7 @@ export function ProfileWizard() {
             <p className="mb-4 text-sm leading-6 text-muted">
               Write a short message grounded in God’s mercy, truth, and love.
             </p>
-            <div className="rounded-[var(--radius-card)] border border-gold-100 bg-gold-50 p-5">
+            <div className="rounded-[var(--radius-card)] border border-gray-100 bg-white p-5">
               <div className="mb-3 flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-gold-700">
                 <Sparkles className="size-4" aria-hidden="true" />
                 A comment of grace

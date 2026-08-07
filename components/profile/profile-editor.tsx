@@ -51,14 +51,14 @@ function EditorSection({
   return (
     <section
       className={`surface overflow-hidden ${
-        privateSection ? "border-gold-500/80" : ""
+              privateSection ? "border-gray-200/80" : ""
       }`}
     >
       <div
         className={`flex items-start gap-4 border-b p-5 sm:p-6 ${
           privateSection
-            ? "border-gold-500/80 bg-gold-50/90 dark:border-gold-500/60 dark:bg-gold-500/15"
-            : "border-gold-100 bg-gold-50/60"
+                  ? "border-gray-200/80 bg-white/90 dark:border-slate-700/60 dark:bg-slate-800/15"
+                  : "border-gray-100 bg-white/60"
         }`}
       >
         <div
@@ -193,7 +193,7 @@ export function ProfileEditor() {
         confirmLabel="I’m ready to edit privately"
         cancelLabel="Back to profile"
         headerIcon={
-          <div className="flex h-16 w-16 items-center justify-center rounded-full border border-gold-100 bg-gold-50 text-gold-700 shadow-sm">
+          <div className="flex h-16 w-16 items-center justify-center rounded-full border border-gray-100 bg-white text-gold-700 shadow-sm">
             <ShieldCheck className="size-6" aria-hidden="true" />
           </div>
         }
@@ -291,7 +291,7 @@ export function ProfileEditor() {
               A profile name is required.
             </p>
           )}
-          <div className="mt-4 rounded-[var(--radius-base)] border border-gold-100 bg-gold-50/80 p-4">
+          <div className="mt-4 rounded-[var(--radius-base)] border border-gray-100 bg-white/80 p-4">
             <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gold-600">
               A few gentle ideas
             </p>
@@ -302,8 +302,8 @@ export function ProfileEditor() {
                   type="button"
                   className={`rounded-full border px-4 py-2 text-sm font-semibold transition ${
                     profile.profileName === idea
-                      ? "border-gold-500 bg-gold-300 text-ink"
-                      : "border-gold-100 bg-white text-ink hover:border-gold-300"
+                      ? "border-gray-300 bg-gray-100 text-ink"
+                                            : "border-gray-100 bg-white text-ink hover:border-gray-300"
                   }`}
                   onClick={() => setField("profileName", idea)}
                 >
@@ -323,8 +323,8 @@ export function ProfileEditor() {
           icon={Palette}
         >
           <div
-            className="mb-5 h-28 rounded-[var(--radius-base)] border border-gold-100"
-            style={{ backgroundColor: profile.coverColor ?? "#EFBF04" }}
+            className="mb-5 h-28 rounded-[var(--radius-base)] border border-gray-100"
+            style={{ backgroundColor: profile.coverColor ?? "#D4AF37" }}
             aria-hidden="true"
           />
           <label htmlFor="edit-cover-color" className="label">
@@ -334,15 +334,15 @@ export function ProfileEditor() {
             <input
               id="edit-cover-color"
               type="color"
-              value={profile.coverColor ?? "#DDD2F6"}
+              value={profile.coverColor ?? "#D4AF37"}
               onChange={(event) => setField("coverColor", event.target.value)}
-              className="h-12 w-16 cursor-pointer rounded-xl border border-gold-200 bg-paper p-1"
+              className="h-12 w-16 cursor-pointer rounded-xl border border-gray-200 bg-paper p-1"
             />
             <output
               htmlFor="edit-cover-color"
               className="font-secondary text-sm font-medium text-muted"
             >
-              {(profile.coverColor ?? "#EFBF04").toUpperCase()}
+              {(profile.coverColor ?? "#D4AF37").toUpperCase()}
             </output>
           </div>
         </EditorSection>
@@ -398,7 +398,7 @@ export function ProfileEditor() {
             }
             placeholder="Add a person or guide"
           />
-          <div className="my-7 h-px bg-gold-300" />
+          <div className="my-7 h-px bg-gray-200" />
           <TagEditor
             label="Who or what am I following in my life right now?"
             values={profile.lifeDirections}
@@ -514,7 +514,7 @@ export function ProfileEditor() {
         </EditorSection>
       </div>
 
-      <div className="mx-auto mt-6 flex max-w-6xl flex-col-reverse gap-3 rounded-[var(--radius-card)] border border-gold-100 bg-paper/95 px-4 py-4 shadow-lift backdrop-blur-xl sm:flex-row sm:items-center sm:justify-between sm:px-6">
+      <div className="mx-auto mt-6 flex max-w-6xl flex-col-reverse gap-3 rounded-[var(--radius-card)] border border-gray-100 bg-paper/95 px-4 py-4 shadow-lift backdrop-blur-xl sm:flex-row sm:items-center sm:justify-between sm:px-6">
         <Link href="/profile" className="btn-secondary">
           <ArrowLeft className="size-4" aria-hidden="true" />
           Cancel
