@@ -5,7 +5,6 @@ import {
   useMemo,
   useRef,
   useState,
-  type CSSProperties,
   type KeyboardEvent
 } from "react";
 import Link from "next/link";
@@ -653,15 +652,15 @@ export function ProfileDashboard() {
             </p>
           </div>
         </div>
-        <section className="profile-hero overflow-hidden border-b border-sage-100">
+        <section className="profile-hero border-b border-sage-100">
           <div
             className="profile-cover h-36 sm:h-52"
-            style={{ "--profile-cover-color": profile.coverColor ?? "#8E1B1B" } as CSSProperties}
+            style={{ backgroundColor: profile.coverColor ?? "#DDD2F6" }}
             aria-hidden="true"
           />
-          <div className="px-5 pb-6 sm:px-8 sm:pb-8">
+          <div className="relative z-10 px-5 pb-6 sm:px-8 sm:pb-8">
             <div className="-mt-12 flex items-end justify-between gap-4 sm:-mt-16">
-              <div className="shrink-0">
+              <div className="relative z-20 shrink-0">
                 <ProfileAvatar
                   imagePath={profile.imagePath}
                   symbol={profile.selectedSymbol}
