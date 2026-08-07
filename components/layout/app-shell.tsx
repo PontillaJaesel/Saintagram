@@ -134,7 +134,7 @@ export function AppShell({
   }, [activeNavIndex]);
 
   return (
-    <div className="min-h-screen pb-28 sm:pb-24">
+    <div className="saintagram-shell min-h-screen pb-28 sm:pb-24">
       <a
         href="#main-content"
         className="fixed left-4 top-3 z-[80] -translate-y-20 rounded-full bg-sage-800 px-4 py-3 text-sm font-bold text-white shadow-lift transition-transform focus:translate-y-0"
@@ -154,7 +154,7 @@ export function AppShell({
       </header>
 
       <div className="mx-auto w-full max-w-[92rem] lg:grid lg:grid-cols-[15rem_minmax(0,1fr)] xl:grid-cols-[16rem_minmax(0,1fr)]">
-        <aside className="sticky top-0 hidden h-screen border-r border-sage-100 bg-paper/55 px-3 py-6 backdrop-blur-xl lg:flex lg:flex-col xl:px-4">
+        <aside className="saintagram-sidebar sticky top-0 hidden h-screen border-r border-sage-100 bg-paper/55 px-3 py-6 backdrop-blur-xl lg:flex lg:flex-col xl:px-4">
           <Logo href="/profile" />
 
           <nav
@@ -179,7 +179,7 @@ export function AppShell({
                     href={href}
                     className={`flex min-h-12 items-center gap-3 rounded-xl px-3 text-sm font-semibold transition-colors ${
                       active
-                        ? "bg-sage-100 text-sage-800"
+                        ? "sidebar-nav-active bg-sage-100 text-sage-800"
                         : "text-ink hover:bg-sage-50"
                     }`}
                     aria-current={

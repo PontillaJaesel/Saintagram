@@ -5,6 +5,7 @@ import {
   useMemo,
   useRef,
   useState,
+  type CSSProperties,
   type KeyboardEvent
 } from "react";
 import Link from "next/link";
@@ -582,18 +583,18 @@ export function ProfileDashboard() {
 
   const profileInsights = (
     <>
-      <section className="surface p-5">
+      <section className="profile-insight-card surface p-5">
         <h2 className="flex items-center gap-2 font-serif text-xl font-bold">
           <MessageCircleHeart className="size-5 text-gold-600" aria-hidden="true" />
           God’s Comment
         </h2>
-        <div className="mt-4 rounded-2xl bg-white p-4">
+        <div className="profile-insight-value mt-4 rounded-2xl bg-white p-4">
           <p className="user-content font-secondary whitespace-pre-wrap text-sm leading-7 text-ink">
             {profile.godsComment || <span className="italic text-muted">This space is open for a word of grace.</span>}
           </p>
         </div>
       </section>
-      <section className="surface p-5">
+      <section className="profile-insight-card surface p-5">
         <h2 className="flex items-center gap-2 font-serif text-xl font-bold">
           <UsersRound
             className="size-5 text-sage-600"
@@ -609,8 +610,8 @@ export function ProfileDashboard() {
           />
         </div>
 
-        <div className="my-5 h-px bg-sage-100" />
-
+      </section>
+      <section className="profile-insight-card surface p-5">
         <h2 className="flex items-center gap-2 font-serif text-xl font-bold">
           <Footprints
             className="size-5 text-sage-600"
@@ -626,7 +627,7 @@ export function ProfileDashboard() {
           />
         </div>
       </section>
-      <section className="surface p-5">
+      <section className="profile-insight-card surface p-5">
         <h2 className="flex items-center gap-2 font-serif text-xl font-bold">
           <Heart className="size-5 text-clay-600" aria-hidden="true" />
           Likes
@@ -642,9 +643,9 @@ export function ProfileDashboard() {
   );
 
   return (
-    <div className="grid min-h-screen pb-6 sm:pb-8 xl:grid-cols-[minmax(0,42rem)_minmax(19rem,1fr)]">
-      <div className="min-w-0 border-r border-sage-100 bg-paper/55">
-        <div className="sticky top-0 z-20 flex min-h-16 items-center border-b border-sage-100 bg-paper/85 px-5 backdrop-blur-xl">
+    <div className="profile-dashboard grid min-h-screen pb-6 sm:pb-8 xl:grid-cols-[minmax(0,42rem)_minmax(19rem,1fr)]">
+      <div className="profile-main-column min-w-0 border-r border-sage-100 bg-paper/55">
+        <div className="profile-header-bar sticky top-0 z-20 flex min-h-16 items-center border-b border-sage-100 bg-paper/85 px-5 backdrop-blur-xl">
           <div>
             <p className="text-base font-bold text-ink">{profile.profileName}</p>
             <p className="font-secondary text-xs text-muted">
@@ -652,10 +653,10 @@ export function ProfileDashboard() {
             </p>
           </div>
         </div>
-        <section className="overflow-hidden border-b border-sage-100">
+        <section className="profile-hero overflow-hidden border-b border-sage-100">
           <div
-            className="h-36 sm:h-52"
-            style={{ backgroundColor: profile.coverColor ?? "#DDD2F6" }}
+            className="profile-cover h-36 sm:h-52"
+            style={{ "--profile-cover-color": profile.coverColor ?? "#8E1B1B" } as CSSProperties}
             aria-hidden="true"
           />
           <div className="px-5 pb-6 sm:px-8 sm:pb-8">
@@ -707,7 +708,7 @@ export function ProfileDashboard() {
 
         <section className="overflow-visible">
           <div
-            className="sticky top-0 z-20 grid grid-cols-3 border-b border-sage-100 bg-paper/95 backdrop-blur-xl"
+            className="profile-tabs sticky top-0 z-20 grid grid-cols-3 border-b border-sage-100 bg-paper/95 backdrop-blur-xl"
             role="tablist"
             aria-label="Profile sections"
           >
@@ -995,7 +996,7 @@ export function ProfileDashboard() {
         </aside>
       </div>
 
-      <aside className="relative hidden px-6 py-6 xl:block xl:sticky xl:top-0 xl:h-screen xl:overflow-visible xl:self-start">
+      <aside className="profile-insights-column relative hidden px-6 py-6 xl:block xl:sticky xl:top-0 xl:h-screen xl:overflow-visible xl:self-start">
         {searchControls("desktop")}
         <div className="profile-scroll mt-4 max-h-[calc(100vh-7rem)] space-y-4 overflow-y-auto pr-1">
           {profileInsights}
