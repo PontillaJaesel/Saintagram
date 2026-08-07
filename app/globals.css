@@ -179,6 +179,7 @@ body {
     rgb(var(--canvas));
   background-attachment: fixed;
   transition: background-color 180ms ease, color 180ms ease;
+  padding-bottom: 3rem;
 }
 
 ::selection {

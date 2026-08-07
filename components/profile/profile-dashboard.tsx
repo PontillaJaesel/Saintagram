@@ -15,6 +15,7 @@ import {
   CalendarDays,
   ChevronLeft,
   ChevronRight,
+  Image as ImageIcon,
   EyeOff,
   Footprints,
   Heart,
@@ -35,9 +36,12 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { LoadingState } from "@/components/ui/loading-state";
 import { ProfileAvatar } from "@/components/ui/profile-avatar";
 import { ReflectionCard } from "@/components/reflections/reflection-card";
+import { SocialReflectionCard } from "@/components/social/social-reflection-card";
 import { appService } from "@/lib/app-service";
+import { downloadFirebaseProfileImage, isLocalProfileImageSource } from "@/lib/profile-images";
 import { formatFriendlyDate } from "@/lib/validation";
 import type {
+  ProfileImageHistoryEntry,
   PublicSpiritualProfile,
   ReflectionPost
 } from "@/types";
@@ -109,6 +113,52 @@ function ValueList({
   );
 }
 
+function JourneyImagePreview({ imagePath }: { imagePath: string }) {
+  const { loading, mode, user } = useAuth();
+  const [src, setSrc] = useState(imagePath.startsWith("data:image/") ? imagePath : "");
+
+  useEffect(() => {
+    let active = true;
+    if (!imagePath) {
+      setSrc("");
+      return () => undefined;
+    }
+    if (isLocalProfileImageSource(imagePath)) {
+      setSrc(mode === "local" ? imagePath : "");
+      return () => undefined;
+    }
+    if (loading || !user) {
+      setSrc("");
+      return () => undefined;
+    }
+
+    void downloadFirebaseProfileImage(imagePath)
+      .then((downloadUrl) => {
+        if (active) setSrc(downloadUrl);
+      })
+      .catch(() => {
+        if (active) setSrc("");
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [imagePath, loading, mode, user?.id]);
+
+  if (!src) return null;
+  return (
+    <div className="mt-3 overflow-hidden rounded-2xl border border-sage-100 bg-paper p-2 shadow-sm">
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        src={src}
+        alt="Profile picture history"
+        className="max-h-48 w-full rounded-xl object-contain"
+        loading="lazy"
+      />
+    </div>
+  );
+}
+
 export function ProfileDashboard() {
   const { user, updateUser } = useAuth();
   const { notify } = useToast();
@@ -116,6 +166,7 @@ export function ProfileDashboard() {
   const searchParams = useSearchParams();
   const [profile, setProfile] = useState<PublicSpiritualProfile | null>(null);
   const [posts, setPosts] = useState<ReflectionPost[]>([]);
+  const [imageHistory, setImageHistory] = useState<ProfileImageHistoryEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [tab, setTab] = useState<ProfileTab>("posts");
@@ -377,9 +428,17 @@ export function ProfileDashboard() {
       },
       fail
     );
+    const unsubscribeImageHistory = appService.subscribeProfileImageHistory(
+      user.id,
+      (nextHistory) => {
+        setImageHistory(nextHistory);
+      },
+      fail
+    );
     return () => {
       unsubscribeProfile();
       unsubscribePosts();
+      unsubscribeImageHistory();
     };
   }, [user]);
 
@@ -528,24 +587,44 @@ export function ProfileDashboard() {
           <MessageCircleHeart className="size-5 text-gold-600" aria-hidden="true" />
           God’s Comment
         </h2>
-        <div className="mt-4 rounded-[var(--radius-base)] bg-gold-50 p-4">
-          <p className="font-secondary whitespace-pre-wrap text-sm leading-7 text-ink">
+        <div className="mt-4 rounded-2xl bg-gold-50 p-4">
+          <p className="user-content font-secondary whitespace-pre-wrap text-sm leading-7 text-ink">
             {profile.godsComment || <span className="italic text-muted">This space is open for a word of grace.</span>}
           </p>
         </div>
       </section>
       <section className="surface p-5">
         <h2 className="flex items-center gap-2 text-sm font-bold">
-          <UsersRound className="size-4 text-sage-600" aria-hidden="true" />
-          Followers
+          <UsersRound
+            className="size-4 text-sage-600"
+            aria-hidden="true"
+          />
+          Who helps me lead closer to God
         </h2>
-        <div className="mt-3"><ValueList values={profile.followers} emptyText="No followers named yet." /></div>
+
+        <div className="mt-3">
+          <ValueList
+            values={profile.spiritualGuides}
+            emptyText="No one has been added yet."
+          />
+        </div>
+
         <div className="my-5 h-px bg-sage-100" />
+
         <h2 className="flex items-center gap-2 text-sm font-bold">
-          <Footprints className="size-4 text-sage-600" aria-hidden="true" />
-          Following
+          <Footprints
+            className="size-4 text-sage-600"
+            aria-hidden="true"
+          />
+          Who or what am I following in my life right now?
         </h2>
-        <div className="mt-3"><ValueList values={profile.following} emptyText="Nothing followed yet." /></div>
+
+        <div className="mt-3">
+          <ValueList
+            values={profile.lifeDirections}
+            emptyText="Nothing has been added yet."
+          />
+        </div>
       </section>
       <section className="surface p-5">
         <h2 className="flex items-center gap-2 text-sm font-bold">
@@ -675,16 +754,6 @@ export function ProfileDashboard() {
           >
             {tab === "posts" && (
               <div>
-                <div className="mb-5">
-                  <div>
-                    <h2 className="font-serif text-2xl font-bold">
-                      Posts God Sees
-                    </h2>
-                    <p className="font-secondary mt-1 text-sm text-muted">
-                      Quiet moments, newest first. No likes or public totals.
-                    </p>
-                  </div>
-                </div>
                 <div className="mb-5 xl:hidden">{searchControls("mobile")}</div>
                 {(searchQuery || dateStart || dateEnd) && (
                   <p className="font-secondary mb-4 text-sm text-muted" role="status" aria-live="polite">
@@ -695,13 +764,28 @@ export function ProfileDashboard() {
                 {filteredPosts.length ? (
                   <div className="profile-scroll max-h-[min(60vh,42rem)] space-y-3 overflow-y-auto overscroll-contain pr-2" tabIndex={0} aria-label="Reflection search results">
                     {filteredPosts.map((post) => (
-                      <ReflectionCard
+                      <SocialReflectionCard
                         key={post.id}
-                        post={post}
-                        showPrivacy={false}
-                        showDate={
-                          user?.privacyPreferences?.showReflectionDates ?? true
-                        }
+                        post={{
+                          ...post,
+                          author: {
+                            id: profile.id,
+                            userId: profile.userId,
+                            profileName:
+                              profile.profileName,
+                            imagePath:
+                              profile.imagePath,
+                            spiritualBio:
+                              profile.spiritualBio,
+                            heavenlyHashtag:
+                              profile.heavenlyHashtag,
+                            createdAt:
+                              profile.createdAt,
+                            updatedAt:
+                              profile.updatedAt
+                          }
+                        }}
+                        initialFollowing={false}
                       />
                     ))}
                   </div>
@@ -743,6 +827,27 @@ export function ProfileDashboard() {
                   </p>
                 </div>
                 <ol className="relative ml-3 border-l border-sage-200 pl-7">
+                  {[...imageHistory]
+                    .sort(
+                      (a, b) =>
+                        new Date(b.createdAt).getTime() -
+                        new Date(a.createdAt).getTime()
+                    )
+                    .map((entry) => (
+                      <li key={entry.id} className="relative pb-7 last:pb-0">
+                        <span className="absolute -left-[2.15rem] top-1 grid size-4 place-items-center rounded-full border-4 border-paper bg-gold-500" />
+                        <time
+                          dateTime={entry.createdAt}
+                          className="text-xs font-bold uppercase tracking-wider text-gold-700"
+                        >
+                          {formatFriendlyDate(entry.createdAt)}
+                        </time>
+                        <p className="font-secondary mt-2 text-sm font-semibold leading-6 text-ink">
+                          Profile picture updated
+                        </p>
+                        <JourneyImagePreview imagePath={entry.imagePath} />
+                      </li>
+                    ))}
                   {[...posts]
                     .sort(
                       (a, b) =>

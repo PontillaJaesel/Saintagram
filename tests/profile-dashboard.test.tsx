@@ -18,10 +18,12 @@ const mocks = vi.hoisted(() => ({
   updateUser: vi.fn(),
   subscribeProfile: vi.fn(),
   subscribeReflections: vi.fn(),
+  subscribeProfileImageHistory: vi.fn(),
   getProfileView: vi.fn(),
   getPublicReflections: vi.fn(),
   getPrivateStory: vi.fn(),
-  getPrivateReflections: vi.fn()
+  getPrivateReflections: vi.fn(),
+  downloadFirebaseProfileImage: vi.fn()
 }));
 
 vi.mock("next/navigation", () => ({
@@ -44,11 +46,17 @@ vi.mock("@/lib/app-service", () => ({
   appService: {
     subscribeProfile: mocks.subscribeProfile,
     subscribeReflections: mocks.subscribeReflections,
+    subscribeProfileImageHistory: mocks.subscribeProfileImageHistory,
     getProfileView: mocks.getProfileView,
     getPublicReflections: mocks.getPublicReflections,
     getPrivateStory: mocks.getPrivateStory,
     getPrivateReflections: mocks.getPrivateReflections
   }
+}));
+
+vi.mock("@/lib/profile-images", () => ({
+  downloadFirebaseProfileImage: mocks.downloadFirebaseProfileImage,
+  isLocalProfileImageSource: (value: string) => value.startsWith("data:image/")
 }));
 
 import { ProfileDashboard } from "@/components/profile/profile-dashboard";
@@ -93,6 +101,14 @@ const PRIVATE_REFLECTION: ReflectionPost = {
   updatedAt: "2026-07-28T08:00:00.000Z"
 };
 
+const PROFILE_IMAGE_HISTORY = {
+  id: "image-history-1",
+  userId: TEST_USER.id,
+  imagePath: "users/user-1/profile/image-history-1.webp",
+  createdAt: "2026-07-29T08:00:00.000Z",
+  updatedAt: "2026-07-29T08:00:00.000Z"
+};
+
 describe("ProfileDashboard private content", () => {
   beforeEach(() => {
     TEST_USER.privacyPreferences = {
@@ -106,6 +122,9 @@ describe("ProfileDashboard private content", () => {
     mocks.getPublicReflections.mockResolvedValue([]);
     mocks.getPrivateStory.mockResolvedValue(PRIVATE_STORY);
     mocks.getPrivateReflections.mockResolvedValue([PRIVATE_REFLECTION]);
+    mocks.downloadFirebaseProfileImage.mockResolvedValue(
+      "https://images.example.test/profile-history.png"
+    );
     mocks.subscribeProfile.mockImplementation(
       (_userId, callback) => {
         callback({ ...PROFILE, hiddenStory: PUBLIC_VIEW_SECRET });
@@ -115,6 +134,12 @@ describe("ProfileDashboard private content", () => {
     mocks.subscribeReflections.mockImplementation(
       (_userId, _visibility, callback) => {
         callback([]);
+        return () => undefined;
+      }
+    );
+    mocks.subscribeProfileImageHistory.mockImplementation(
+      (_userId, callback) => {
+        callback([PROFILE_IMAGE_HISTORY]);
         return () => undefined;
       }
     );
@@ -182,5 +207,23 @@ describe("ProfileDashboard private content", () => {
     ).not.toBeInTheDocument();
     expect(await screen.findByText(PRIVATE_STORY)).toBeInTheDocument();
     expect(screen.getByText(PRIVATE_POST)).toBeInTheDocument();
+  });
+
+  it("shows profile picture history in the journey tab", async () => {
+    const user = userEvent.setup();
+    render(<ProfileDashboard />);
+
+    await screen.findByRole("heading", { name: PROFILE.profileName });
+    await user.click(screen.getByRole("tab", { name: "Spiritual Journey" }));
+
+    expect(
+      await screen.findByText("Profile picture updated")
+    ).toBeInTheDocument();
+    expect(
+      await screen.findByRole("img", { name: "Profile picture history" })
+    ).toBeInTheDocument();
+    expect(mocks.downloadFirebaseProfileImage).toHaveBeenCalledWith(
+      PROFILE_IMAGE_HISTORY.imagePath
+    );
   });
 });

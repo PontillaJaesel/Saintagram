@@ -1,10 +1,12 @@
-import { getFirebaseServices } from "@/lib/firebase";
-import {
-  getSupabaseClient,
-  isSupabaseConfigured,
-  PROFILE_IMAGES_BUCKET
-} from "@/lib/supabase";
+import { getFirebaseServices, type FirebaseServices } from "@/lib/firebase";
 import { validateImage } from "@/lib/validation";
+import {
+  deleteObject,
+  getDownloadURL,
+  listAll,
+  ref,
+  uploadBytes
+} from "firebase/storage";
 
 const PROFILE_IMAGE_MIME_EXTENSIONS = {
   "image/jpeg": "jpg",
@@ -20,15 +22,15 @@ const PROFILE_IMAGE_FILE =
 
 interface AuthorizedStorage {
   userId: string;
-  client: NonNullable<ReturnType<typeof getSupabaseClient>>;
+  storage: FirebaseServices["storage"];
   firebaseUser: {
     uid: string;
     getIdToken(forceRefresh?: boolean): Promise<string>;
   };
 }
 
-function imageStorageStatus(error: unknown): {
-  status: number;
+function storageErrorStatus(error: unknown): {
+  code: string;
   detail: string;
 } {
   const record =
@@ -36,49 +38,33 @@ function imageStorageStatus(error: unknown): {
       ? (error as Record<string, unknown>)
       : {};
   return {
-    status: Number(record.statusCode ?? record.status ?? 0),
+    code: String(record.code ?? record.serverErrorCode ?? ""),
     detail: `${String(record.message ?? "")} ${String(
-      record.error ?? ""
+      record.serverResponse ?? record.error ?? ""
     )}`.toLocaleLowerCase()
   };
 }
 
-function isImageAuthorizationError(error: unknown): boolean {
-  const { status, detail } = imageStorageStatus(error);
-  return (
-    status === 401 ||
-    status === 403 ||
-    detail.includes("invalid jwt") ||
-    detail.includes("row-level security") ||
-    detail.includes("unauthorized")
-  );
-}
-
 function profileImageError(action: string, error: unknown): Error {
-  const { status, detail } = imageStorageStatus(error);
+  const { code, detail } = storageErrorStatus(error);
 
-  console.error(`Supabase profile image ${action} failed.`, error);
+  console.error(`Firebase profile image ${action} failed.`, error);
 
-  if (status === 413 || detail.includes("maximum allowed size")) {
-    return new Error("Choose an image no larger than 2 MB.");
-  }
-  if (status === 401 || detail.includes("invalid jwt")) {
+  if (code === "storage/unauthorized" || detail.includes("unauthorized")) {
     return new Error(
-      "Image storage could not verify your sign-in. Sign out, sign in again, and retry."
+      "Image storage access is not configured for this account. Check Firebase Storage rules and sign in again."
     );
   }
   if (
-    status === 403 ||
-    detail.includes("row-level security") ||
-    detail.includes("unauthorized")
+    code === "storage/object-not-found" ||
+    detail.includes("object not found") ||
+    detail.includes("not found")
   ) {
-    return new Error(
-      "Image storage access is not configured for this account. The site owner must apply the Supabase image-access migration."
-    );
+    return new Error("The stored profile image could not be found.");
   }
-  if (status === 404 || detail.includes("bucket not found")) {
+  if (code === "storage/quota-exceeded" || detail.includes("quota")) {
     return new Error(
-      "The private image bucket is missing. The site owner must apply the Supabase image-storage migration."
+      "Choose a smaller image or free up Firebase Storage space."
     );
   }
   if (detail.includes("failed to fetch") || detail.includes("network")) {
@@ -86,33 +72,10 @@ function profileImageError(action: string, error: unknown): Error {
       "Image storage could not be reached. Check your connection and try again."
     );
   }
+  if (code === "storage/canceled") {
+    return new Error("The image upload was canceled.");
+  }
   return new Error(`The profile image could not be ${action}. Please try again.`);
-}
-
-async function refreshImageAccess(
-  firebaseUser: AuthorizedStorage["firebaseUser"]
-): Promise<boolean> {
-  try {
-    await firebaseUser.getIdToken(true);
-    return true;
-  } catch {
-    return false;
-  }
-}
-
-async function storageRequest<T extends { error: unknown }>(
-  storage: AuthorizedStorage,
-  request: () => PromiseLike<T>
-): Promise<T> {
-  let result = await request();
-  if (
-    result.error &&
-    isImageAuthorizationError(result.error) &&
-    (await refreshImageAccess(storage.firebaseUser))
-  ) {
-    result = await request();
-  }
-  return result;
 }
 
 function assertSafeFirebaseUid(userId: string): void {
@@ -125,6 +88,9 @@ async function authorizedStorage(
   expectedUserId?: string
 ): Promise<AuthorizedStorage> {
   const services = getFirebaseServices();
+  if (!services) {
+    throw new Error("Firebase is not available.");
+  }
   const firebaseUser = services?.auth.currentUser;
   if (!firebaseUser) {
     throw new Error("Please log in before accessing profile images.");
@@ -133,22 +99,8 @@ async function authorizedStorage(
     throw new Error("You can only access your own Saintagram images.");
   }
   assertSafeFirebaseUid(firebaseUser.uid);
-
-  if (!isSupabaseConfigured) {
-    throw new Error(
-      "Supabase image storage is not configured. Add the project URL and publishable key."
-    );
-  }
-  const client = getSupabaseClient();
-  if (!client) {
-    throw new Error("Supabase image storage is not available in this browser.");
-  }
-
-  // Supabase accepts Firebase JWTs directly. Firebase tokens do not normally
-  // contain Supabase's `role` claim, so storage RLS authorizes the verified
-  // token by issuer and subject instead of mutating Firebase custom claims.
   await firebaseUser.getIdToken();
-  return { userId: firebaseUser.uid, client, firebaseUser };
+  return { userId: firebaseUser.uid, storage: services.storage, firebaseUser };
 }
 
 export function profileImageFolder(userId: string): string {
@@ -168,11 +120,30 @@ export function isOwnedProfileImagePath(
   );
 }
 
+export function isFirebaseProfileImagePath(
+  imagePath: string
+): boolean {
+  const parts = imagePath.split("/");
+
+  if (parts.length !== 4) {
+    return false;
+  }
+
+  const [usersFolder, userId, profileFolder, imageName] = parts;
+
+  return (
+    usersFolder === "users" &&
+    profileFolder === "profile" &&
+    FIREBASE_UID.test(userId) &&
+    PROFILE_IMAGE_FILE.test(imageName)
+  );
+}
+
 export function isLocalProfileImageSource(value: string): boolean {
   return LOCAL_IMAGE_SOURCE.test(value);
 }
 
-export async function uploadSupabaseProfileImage(
+export async function uploadFirebaseProfileImage(
   userId: string,
   file: File
 ): Promise<string> {
@@ -186,36 +157,38 @@ export async function uploadSupabaseProfileImage(
   if (!extension) throw new Error("Choose a JPG, PNG, or WebP image.");
 
   const storage = await authorizedStorage(userId);
-  const { client } = storage;
   const imagePath =
     `${profileImageFolder(userId)}/${crypto.randomUUID()}.${extension}`;
-  const { error } = await storageRequest(storage, () =>
-    client.storage.from(PROFILE_IMAGES_BUCKET).upload(imagePath, file, {
+  try {
+    await uploadBytes(ref(storage.storage, imagePath), file, {
       cacheControl: "300",
-      contentType: file.type,
-      upsert: false
-    })
-  );
-  if (error) throw profileImageError("uploaded", error);
+      contentType: file.type
+    });
+  } catch (error) {
+    throw profileImageError("uploaded", error);
+  }
   return imagePath;
 }
 
-export async function downloadSupabaseProfileImage(
+export async function downloadFirebaseProfileImage(
   imagePath: string
-): Promise<Blob> {
+): Promise<string> {
   const storage = await authorizedStorage();
-  const { userId, client } = storage;
-  if (!isOwnedProfileImagePath(imagePath, userId)) {
-    throw new Error("That profile image does not belong to this account.");
+
+  if (!isFirebaseProfileImagePath(imagePath)) {
+    throw new Error("That profile image path is not valid.");
   }
-  const { data, error } = await storageRequest(storage, () =>
-    client.storage.from(PROFILE_IMAGES_BUCKET).download(imagePath)
-  );
-  if (error || !data) throw profileImageError("downloaded", error);
-  return data;
+
+  try {
+    return await getDownloadURL(
+      ref(storage.storage, imagePath)
+    );
+  } catch (error) {
+    throw profileImageError("downloaded", error);
+  }
 }
 
-export async function deleteSupabaseProfileImage(
+export async function deleteFirebaseProfileImage(
   userId: string,
   imagePath: string
 ): Promise<void> {
@@ -224,54 +197,37 @@ export async function deleteSupabaseProfileImage(
     throw new Error("That profile image does not belong to this account.");
   }
   const storage = await authorizedStorage(userId);
-  const { client } = storage;
-  const { error } = await storageRequest(storage, () =>
-    client.storage.from(PROFILE_IMAGES_BUCKET).remove([imagePath])
-  );
-  if (error) throw profileImageError("removed", error);
+  try {
+    await deleteObject(ref(storage.storage, imagePath));
+  } catch (error) {
+    throw profileImageError("removed", error);
+  }
 }
 
-export async function deleteAllSupabaseProfileImages(
+export async function deleteAllFirebaseProfileImages(
   userId: string
 ): Promise<void> {
-  const { client } = await authorizedStorage(userId);
+  const storage = await authorizedStorage(userId);
   const folder = profileImageFolder(userId);
 
-  for (let page = 0; page < 1_000; page += 1) {
-    const { data, error } = await client.storage
-      .from(PROFILE_IMAGES_BUCKET)
-      .list(folder, {
-        limit: 100,
-        offset: 0,
-        sortBy: { column: "name", order: "asc" }
-      });
-    if (error) throw profileImageError("listed for removal", error);
-
-    const entries = data ?? [];
-    if (!entries.length) return;
-    const nestedFolders = entries.filter((item) => !item.id);
-    if (nestedFolders.length) {
-      throw new Error(
-        "Unexpected nested profile-image folders require administrator cleanup."
-      );
-    }
-    const imagePaths = entries.map((item) => `${folder}/${item.name}`);
-    if (!imagePaths.length) {
-      throw new Error("Profile-image cleanup could not make progress.");
-    }
-
-    const { data: removed, error: removeError } = await client.storage
-      .from(PROFILE_IMAGES_BUCKET)
-      .remove(imagePaths);
-    if (removeError) {
-      throw profileImageError("removed during account deletion", removeError);
-    }
-    if (!removed?.length) {
-      throw new Error("Profile-image cleanup could not make progress.");
-    }
+  let listing: Awaited<ReturnType<typeof listAll>>;
+  try {
+    listing = await listAll(ref(storage.storage, folder));
+  } catch (error) {
+    throw profileImageError("listed for removal", error);
   }
 
-  throw new Error(
-    "Profile-image cleanup exceeded its safety limit. Contact the site owner."
-  );
+  if (listing.prefixes.length) {
+    throw new Error(
+      "Unexpected nested profile-image folders require administrator cleanup."
+    );
+  }
+
+  for (const item of listing.items) {
+    try {
+      await deleteObject(item);
+    } catch (error) {
+      throw profileImageError("removed during account deletion", error);
+    }
+  }
 }
