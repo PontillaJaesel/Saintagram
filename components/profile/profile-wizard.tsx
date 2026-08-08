@@ -766,16 +766,14 @@ export function ProfileWizard() {
         );
       case 7:
         return (
-          <div className="rounded-[var(--radius-card)] border border-amber-300/80 bg-amber-50/90 p-5 sm:p-6 dark:border-amber-500/40 dark:bg-amber-500/15">
+          <div className="rounded-[var(--radius-card)] border border-clay-200 bg-clay-50 p-5 sm:p-6 dark:border-clay-600/40 dark:bg-clay-900/06">
             <div className="mb-5 flex items-start gap-3">
-              <div className="grid size-11 shrink-0 place-items-center rounded-[var(--radius-base)] bg-white text-amber-700 shadow-sm dark:text-amber-300">
+              <div className="grid size-11 shrink-0 place-items-center rounded-[var(--radius-base)] bg-white text-clay-600 shadow-sm dark:text-clay-500">
                 <ShieldCheck className="size-5" aria-hidden="true" />
               </div>
               <div>
-                <p className="font-bold text-slate-300">
-                  Owner-only · Required
-                </p>
-                <p className="mt-1 text-sm leading-6 text-slate-400">
+                <p className="font-bold text-ink">Owner-only · Required</p>
+                <p className="mt-1 text-sm leading-6 text-muted">
                   Your Hidden Story is stored separately and never loaded into
                   the standard profile, journey, preview, or public view.
                 </p>
@@ -786,7 +784,7 @@ export function ProfileWizard() {
             </label>
             <textarea
               id="hidden-story"
-              className="field min-h-48 resize-y border-violet-400 dark:border-violet-400/40"
+              className="field min-h-48 resize-y border-violet-400 hover:border-gold-700 focus:border-gold-700 dark:border-violet-400/40 dark:hover:border-gold-600 transition-colors"
               value={data.hiddenStory}
               onChange={(event) =>
                 updateData("hiddenStory", event.target.value)
