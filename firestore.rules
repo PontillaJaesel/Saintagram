@@ -849,23 +849,20 @@ service cloud.firestore {
     }
 
     match /profileJourneyEvents/{eventId} {
-      /*
-      * Journey events belong only
-      * to the logged-in user.
-      */
-      allow get, list: if ownsExistingDocument();
+      allow get, list:
+        if ownsExistingDocument();
 
-      /*
-      * The user may only create
-      * their own journey event.
-      */
-      allow create: if ownsIncomingDocument()
-        && request.resource.data.id == eventId
+      allow create:
+        if ownsIncomingDocument()
+
+        && request.resource.data.id
+          == eventId
 
         && request.resource.data.keys().hasOnly([
           'id',
           'userId',
           'changes',
+          'imagePath',
           'createdAt'
         ])
 
@@ -876,27 +873,64 @@ service cloud.firestore {
           'createdAt'
         ])
 
-        && request.resource.data.id is string
+        && request.resource.data.id
+          is string
 
-        && request.resource.data.userId is string
+        && request.resource.data.userId
+          is string
 
-        && request.resource.data.changes is list
+        && request.resource.data.changes
+          is list
 
-        && request.resource.data.changes.size() > 0
+        && request.resource.data.changes.size()
+          <= 20
 
-        && request.resource.data.changes.size() <= 20
+        /*
+        * A Journey event must contain
+        * either a text change or an
+        * actual profile image.
+        */
+        && (
+          request.resource.data.changes.size()
+            > 0
+
+          ||
+
+          (
+            request.resource.data.keys().hasAny([
+              'imagePath'
+            ])
+
+            && request.resource.data.imagePath
+              != ''
+          )
+        )
+
+        /*
+        * If an imagePath exists,
+        * it must belong to this user.
+        */
+        && (
+          !request.resource.data.keys().hasAny([
+            'imagePath'
+          ])
+
+          ||
+
+          hasValidProfileImagePath(
+            request.resource.data.imagePath,
+            request.resource.data.userId
+          )
+        )
 
         && isIsoDate(
           request.resource.data.createdAt
         );
 
-      /*
-      * History should not be edited
-      * after it is created.
-      */
       allow update: if false;
 
-      allow delete: if ownsExistingDocument();
+      allow delete:
+        if ownsExistingDocument();
     }
 
     match /drafts/{draftId} {

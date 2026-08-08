@@ -26,6 +26,11 @@ import {
   where
 } from "firebase/firestore";
 
+import {
+  downloadFirebaseProfileImage,
+  isLocalProfileImageSource
+} from "@/lib/profile-images";
+
 import { useAuth } from "@/components/providers/auth-provider";
 
 import { EmptyState } from "@/components/ui/empty-state";
@@ -58,12 +63,14 @@ interface JourneyItem {
   description: string;
   type: JourneyItemType;
   priority: number;
+  imagePath?: string;
 }
 
 interface ProfileJourneyEvent {
   id: string;
   userId: string;
   changes: string[];
+  imagePath?: string;
   createdAt: string;
 }
 
@@ -169,6 +176,12 @@ function parseProfileJourneyEvent(
       ? data.createdAt
       : "";
 
+  const imagePath =
+    typeof data.imagePath ===
+    "string"
+      ? data.imagePath
+      : "";
+
   const changes =
     Array.isArray(data.changes)
       ? data.changes.filter(
@@ -185,7 +198,10 @@ function parseProfileJourneyEvent(
 
   if (
     !userId ||
-    !changes.length ||
+    (
+      !changes.length &&
+      !imagePath
+    ) ||
     !validDate(createdAt)
   ) {
     return null;
@@ -195,6 +211,13 @@ function parseProfileJourneyEvent(
     id,
     userId,
     changes,
+
+    ...(imagePath
+      ? {
+          imagePath
+        }
+      : {}),
+
     createdAt
   };
 }
@@ -354,6 +377,110 @@ function parseComment(
         }
       : {})
   };
+}
+
+function JourneyImagePreview({
+  imagePath
+}: {
+  imagePath: string;
+}) {
+  const {
+    loading,
+    mode,
+    user
+  } = useAuth();
+
+  const [
+    src,
+    setSrc
+  ] = useState(
+    imagePath.startsWith(
+      "data:image/"
+    )
+      ? imagePath
+      : ""
+  );
+
+  useEffect(() => {
+    let active = true;
+
+    if (!imagePath) {
+      setSrc("");
+
+      return () =>
+        undefined;
+    }
+
+    if (
+      isLocalProfileImageSource(
+        imagePath
+      )
+    ) {
+      setSrc(
+        mode === "local"
+          ? imagePath
+          : ""
+      );
+
+      return () =>
+        undefined;
+    }
+
+    if (
+      loading ||
+      !user
+    ) {
+      setSrc("");
+
+      return () =>
+        undefined;
+    }
+
+    void downloadFirebaseProfileImage(
+      imagePath
+    )
+      .then(
+        (
+          downloadUrl
+        ) => {
+          if (active) {
+            setSrc(
+              downloadUrl
+            );
+          }
+        }
+      )
+      .catch(() => {
+        if (active) {
+          setSrc("");
+        }
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [
+    imagePath,
+    loading,
+    mode,
+    user?.id
+  ]);
+
+  if (!src) {
+    return null;
+  }
+
+  return (
+    <div className="mt-4 max-w-sm overflow-hidden border border-sage-100 bg-paper p-2 shadow-sm">
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        src={src}
+        alt="Profile picture saved in journey"
+        className="max-h-72 w-full object-contain"
+        loading="lazy"
+      />
+    </div>
+  );
 }
 
 export function JourneyTimeline() {
@@ -917,10 +1044,15 @@ export function JourneyTimeline() {
           journey.push({
             id:
               `profile-update-${event.id}`,
+
             date:
               event.createdAt,
+
             title:
-              "Profile updated",
+              event.imagePath
+                ? "Profile picture updated"
+                : "Profile updated",
+
             description:
               event.changes
                 .map(
@@ -928,9 +1060,18 @@ export function JourneyTimeline() {
                     `• ${change}`
                 )
                 .join("\n"),
+
             type:
               "profile-update",
-            priority: 30
+
+            priority: 30,
+
+            ...(event.imagePath
+              ? {
+                  imagePath:
+                    event.imagePath
+                }
+              : {})
           });
         }
       );
@@ -1206,11 +1347,21 @@ export function JourneyTimeline() {
                     {item.title}
                   </h3>
 
-                  <p className="user-content mt-2 whitespace-pre-wrap text-sm leading-7 text-muted">
-                    {
-                      item.description
-                    }
-                  </p>
+                  {item.description && (
+                    <p className="user-content mt-2 whitespace-pre-wrap text-sm leading-7 text-muted">
+                      {
+                        item.description
+                      }
+                    </p>
+                  )}
+
+                  {item.imagePath && (
+                    <JourneyImagePreview
+                      imagePath={
+                        item.imagePath
+                      }
+                    />
+                  )}
                 </li>
               );
             }

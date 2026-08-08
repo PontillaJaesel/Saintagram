@@ -1253,27 +1253,46 @@ function profileJourneyChanges(
     );
   }
 
-  if (
-    before.imagePath !==
-    after.imagePath
-  ) {
-    changes.push(
-      after.imagePath
-        ? "Profile picture was changed."
-        : "Profile picture was removed."
-    );
-  }
+  const profileImageChanged =
+      before.imagePath !==
+      after.imagePath;
 
-  if (
-    before.selectedSymbol !==
-    after.selectedSymbol
-  ) {
-    changes.push(
-      after.selectedSymbol
-        ? `Profile symbol changed to "${after.selectedSymbol}".`
-        : "Profile symbol was removed."
-    );
-  }
+    /*
+    * When a NEW picture is selected,
+    * the actual picture will be shown
+    * in Journey instead of a text bullet.
+    */
+    if (
+      profileImageChanged &&
+      !after.imagePath
+    ) {
+      changes.push(
+        "Profile picture was removed."
+      );
+    }
+
+    /*
+    * Choosing an image automatically
+    * removes the selected symbol.
+    *
+    * Do not record that automatic removal
+    * as a separate profile change.
+    */
+    if (
+      before.selectedSymbol !==
+        after.selectedSymbol &&
+      !(
+        profileImageChanged &&
+        Boolean(after.imagePath) &&
+        !after.selectedSymbol
+      )
+    ) {
+      changes.push(
+        after.selectedSymbol
+          ? `Profile symbol changed to "${after.selectedSymbol}".`
+          : "Profile symbol was removed."
+      );
+    }
 
   if (
     before.spiritualBio !==
@@ -3649,6 +3668,10 @@ export const appService = {
           updated
         );
 
+      const profileImageChanged =
+        existing.imagePath !==
+        updated.imagePath;
+
       const profileRef =
         doc(
           services.db,
@@ -3850,7 +3873,10 @@ export const appService = {
       * Only create an event when
       * something actually changed.
       */
-      if (changes.length > 0) {
+      if (
+        changes.length > 0 ||
+        profileImageChanged
+      ) {
         const eventRef =
           doc(
             collection(
@@ -3867,6 +3893,19 @@ export const appService = {
             userId,
 
             changes,
+
+            /*
+            * Store the exact picture
+            * that was saved during
+            * this profile update.
+            */
+            ...(profileImageChanged &&
+            updated.imagePath
+              ? {
+                  imagePath:
+                    updated.imagePath
+                }
+              : {}),
 
             createdAt: now
           }
