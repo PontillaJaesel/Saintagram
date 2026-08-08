@@ -5,7 +5,7 @@ service cloud.firestore {
     function signedIn() {
       return request.auth != null
         && (
-          request.auth.token.email_verified == true
+          request.auth.token.get('email_verified', false) == true
           || request.auth.token.firebase.sign_in_provider == 'google.com'
           || request.auth.token.firebase.sign_in_provider == 'anonymous'
         );
@@ -754,8 +754,8 @@ service cloud.firestore {
       allow create: if isCurrentUser(userId)
         && request.resource.data.id == userId
         && (
-          request.auth.token.email == null
-          || request.resource.data.email == request.auth.token.email
+          request.auth.token.get('email', null) == null
+          || request.resource.data.email == request.auth.token.get('email', null)
         )
         && request.resource.data.get('isGuest', false)
           == (request.auth.token.firebase.sign_in_provider == 'anonymous')
@@ -849,23 +849,20 @@ service cloud.firestore {
     }
 
     match /profileJourneyEvents/{eventId} {
-      /*
-      * Journey events belong only
-      * to the logged-in user.
-      */
-      allow get, list: if ownsExistingDocument();
+      allow get, list:
+        if ownsExistingDocument();
 
-      /*
-      * The user may only create
-      * their own journey event.
-      */
-      allow create: if ownsIncomingDocument()
-        && request.resource.data.id == eventId
+      allow create:
+        if ownsIncomingDocument()
+
+        && request.resource.data.id
+          == eventId
 
         && request.resource.data.keys().hasOnly([
           'id',
           'userId',
           'changes',
+          'imagePath',
           'createdAt'
         ])
 
@@ -876,27 +873,42 @@ service cloud.firestore {
           'createdAt'
         ])
 
-        && request.resource.data.id is string
+        && request.resource.data.id
+          is string
 
-        && request.resource.data.userId is string
+        && request.resource.data.userId
+          is string
 
-        && request.resource.data.changes is list
+        && request.resource.data.changes
+          is list
 
-        && request.resource.data.changes.size() > 0
+        && request.resource.data.changes.size()
+          > 0
 
-        && request.resource.data.changes.size() <= 20
+        && request.resource.data.changes.size()
+          <= 20
+
+        && (
+          !request.resource.data.keys().hasAny([
+            'imagePath'
+          ])
+
+          ||
+
+          hasValidProfileImagePath(
+            request.resource.data.imagePath,
+            request.resource.data.userId
+          )
+        )
 
         && isIsoDate(
           request.resource.data.createdAt
         );
 
-      /*
-      * History should not be edited
-      * after it is created.
-      */
       allow update: if false;
 
-      allow delete: if ownsExistingDocument();
+      allow delete:
+        if ownsExistingDocument();
     }
 
     match /drafts/{draftId} {

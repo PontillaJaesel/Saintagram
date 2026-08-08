@@ -431,7 +431,21 @@ export function NotificationBell() {
 
       {open && (
         <div
-          className="absolute right-0 top-[calc(100%+.65rem)] z-[90] w-[min(22rem,calc(100vw-2rem))] overflow-hidden rounded-3xl border border-sage-100 bg-paper shadow-lift lg:bottom-[calc(100%+.65rem)] lg:top-auto"
+          className="
+            fixed left-4 right-4 top-20 z-[90]
+            max-h-[calc(100dvh-6rem)]
+            overflow-hidden rounded-3xl
+            border border-sage-100 bg-paper shadow-lift
+
+            sm:left-auto sm:right-4 sm:w-[22rem]
+
+            lg:absolute
+            lg:left-auto
+            lg:right-0
+            lg:top-auto
+            lg:bottom-[calc(100%+.65rem)]
+            lg:max-h-none
+          "
           aria-label="Notifications"
         >
           <div className="border-b border-sage-100 px-5 py-4">

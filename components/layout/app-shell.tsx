@@ -177,6 +177,7 @@ export function AppShell({
                   <Link
                     key={href}
                     href={href}
+                    prefetch={true}
                     className={`flex min-h-12 items-center gap-3 rounded-xl px-3 text-sm font-semibold transition-colors ${
                       active
                         ? "sidebar-nav-active bg-sage-100 text-sage-800"
@@ -231,7 +232,6 @@ export function AppShell({
         </aside>
 
         <main
-          key={pathname}
           id="main-content"
           className={`app-page-enter w-full ${
             isProfile
@@ -307,6 +307,7 @@ export function AppShell({
                   <Link
                     key={href}
                     href={href}
+                    prefetch={true}
                     className="relative z-20 flex min-h-14 min-w-0 -translate-y-2 items-center justify-center"
                     aria-label="Reflect"
                     aria-current={
@@ -336,6 +337,7 @@ export function AppShell({
                 <Link
                   key={href}
                   href={href}
+                  prefetch={true}
                   className={`relative z-10 flex min-h-14 min-w-0 flex-col items-center justify-center gap-1 px-1 text-[11px] font-medium transition-colors duration-150 ${
                     active
                       ? "app-nav-active"

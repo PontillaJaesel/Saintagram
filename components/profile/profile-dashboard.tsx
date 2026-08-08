@@ -669,20 +669,23 @@ export function ProfileDashboard() {
                   profileName={profile.profileName}
                 />
               </div>
+
+              <Link
+                href="/profile/edit"
+                className="profile-edit-button btn-secondary -mb-3 shrink-0 px-3 py-1.5 text-sm sm:-mb-3 sm:px-4 sm:py-2 sm:text-base"
+              >
+                <Pencil className="size-3.5 sm:size-4" aria-hidden="true" />
+                Edit Profile
+              </Link>
             </div>
 
             <div className="mt-4 max-w-2xl">
-              <div className="flex flex-wrap items-end justify-between gap-3">
-                <div>
-                  <p className="eyebrow">Profile before God</p>
-                  <h1 className="mt-1 font-serif text-3xl font-bold tracking-tight sm:text-4xl">
-                    {profile.profileName}
-                  </h1>
-                </div>
-                <Link href="/profile/edit" className="profile-edit-button btn-secondary">
-                  <Pencil className="size-4" aria-hidden="true" />
-                  Edit Profile
-                </Link>
+              <div className="min-w-0">
+                <p className="eyebrow">Profile before God</p>
+
+                <h1 className="mt-1 truncate font-serif text-2xl font-bold tracking-tight sm:text-4xl">
+                  {profile.profileName}
+                </h1>
               </div>
               {profile.heavenlyHashtag && (
                 <p className="mt-1 font-bold text-gold-700">

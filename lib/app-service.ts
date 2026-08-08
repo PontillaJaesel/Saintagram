@@ -1188,30 +1188,69 @@ async function getFirebaseUserRecord(
   authProvider?: "password" | "google" | "guest"
 ): Promise<AppUser> {
   const services = getFirebaseServices();
-  if (!services) throw new Error("Firebase is not available.");
-  const userRef = doc(services.db, "users", userId);
-  const snapshot = await getDoc(userRef);
-  if (snapshot.exists()) {
-    const stored = snapshot.data() as AppUser;
-    if (authProvider && (
-      stored.email !== email ||
-      stored.authProvider !== authProvider ||
-      Boolean(stored.isGuest) !== (authProvider === "guest")
-    )) {
-      const identityPatch = {
-        email: email.trim().toLocaleLowerCase(),
-        isGuest: authProvider === "guest",
-        authProvider,
-        updatedAt: nowIso()
-      };
-      await updateDoc(userRef, identityPatch);
-      return { ...stored, ...identityPatch };
-    }
-    return stored;
+
+  if (!services) {
+    throw new Error("Firebase is not available.");
   }
-  const user = createUserRecord(userId, email, authProvider ?? "password");
-  await setDoc(userRef, user);
-  return user;
+
+  const userRef = doc(
+    services.db,
+    "users",
+    userId
+  );
+
+  return runTransaction(
+    services.db,
+    async (transaction) => {
+      const snapshot = await transaction.get(userRef);
+
+      if (snapshot.exists()) {
+        const stored = snapshot.data() as AppUser;
+
+        if (
+          authProvider &&
+          (
+            stored.email !== email ||
+            stored.authProvider !== authProvider ||
+            Boolean(stored.isGuest) !==
+              (authProvider === "guest")
+          )
+        ) {
+          const identityPatch = {
+            email: email.trim().toLocaleLowerCase(),
+            isGuest: authProvider === "guest",
+            authProvider,
+            updatedAt: nowIso()
+          };
+
+          transaction.update(
+            userRef,
+            identityPatch
+          );
+
+          return {
+            ...stored,
+            ...identityPatch
+          };
+        }
+
+        return stored;
+      }
+
+      const user = createUserRecord(
+        userId,
+        email,
+        authProvider ?? "password"
+      );
+
+      transaction.set(
+        userRef,
+        user
+      );
+
+      return user;
+    }
+  );
 }
 
 function sameStringList(
@@ -2851,38 +2890,89 @@ export const appService = {
     try {
       if (isFirebaseConfigured) {
         const services = getFirebaseServices();
-        if (!services) throw new Error("Firebase is not available.");
+
+        if (!services) {
+          throw new Error("Firebase is not available.");
+        }
+
         await services.persistenceReady;
+
         const credential = await createUserWithEmailAndPassword(
           services.auth,
           email.trim(),
           password
         );
-        const user = createUserRecord(credential.user.uid, email);
+
+        const user = createUserRecord(
+          credential.user.uid,
+          credential.user.email ?? email,
+          "password"
+        );
+
         try {
           await sendEmailVerification(
             credential.user,
             emailActionSettings("/auth?mode=login&verified=1")
           );
+
+          return user;
+        } catch (verificationError) {
+          // Registration is not considered complete if Saintagram
+          // cannot send the verification email.
+          try {
+            await deleteUser(credential.user);
+          } catch (cleanupError) {
+            console.error(
+              "Could not clean up failed registration.",
+              cleanupError
+            );
+          }
+
+          throw verificationError;
         } finally {
-          await signOut(services.auth);
+          if (services.auth.currentUser) {
+            await signOut(services.auth);
+          }
         }
-        return user;
       }
 
       await ensureLocalSeed();
+
       const normalizedEmail = email.trim().toLocaleLowerCase();
       const accounts = localAccounts();
-      if (accounts.some((account) => account.user.email === normalizedEmail)) {
-        throw Object.assign(new Error(), { code: "auth/email-already-in-use" });
+
+      if (
+        accounts.some(
+          (account) => account.user.email === normalizedEmail
+        )
+      ) {
+        throw Object.assign(new Error(), {
+          code: "auth/email-already-in-use"
+        });
       }
-      const user = createUserRecord(newId("local-"), normalizedEmail);
-      accounts.push({ user, passwordHash: await hashPassword(password) });
+
+      const user = createUserRecord(
+        newId("local-"),
+        normalizedEmail
+      );
+
+      accounts.push({
+        user,
+        passwordHash: await hashPassword(password)
+      });
+
       saveLocalAccounts(accounts);
       writeSessionUid(user.id);
+
       return user;
     } catch (error) {
-      throw friendlyAuthError(error);
+      console.error("GUEST ACCOUNT FAILED:", error);
+
+      if (error instanceof Error) {
+        throw error;
+      }
+
+      throw new Error("Guest account creation failed.");
     }
   },
 
@@ -2954,8 +3044,13 @@ export const appService = {
   async continueAsGuest(): Promise<AppUser> {
     try {
       const services = getFirebaseServices();
-      if (!services) throw new Error("Guest access is currently unavailable.");
+
+      if (!services) {
+        throw new Error("Guest access is currently unavailable.");
+      }
+
       await services.persistenceReady;
+
       if (services.auth.currentUser?.isAnonymous) {
         return await getFirebaseUserRecord(
           services.auth.currentUser.uid,
@@ -2963,14 +3058,22 @@ export const appService = {
           "guest"
         );
       }
+
       const credential = await signInAnonymously(services.auth);
+
       return await getFirebaseUserRecord(
         credential.user.uid,
         "",
         "guest"
       );
     } catch (error) {
-      throw friendlyAuthError(error);
+      console.error("GUEST ACCOUNT FAILED:", error);
+
+      if (error instanceof Error) {
+        throw error;
+      }
+
+      throw new Error("Guest account creation failed.");
     }
   },
 
@@ -3649,6 +3752,10 @@ export const appService = {
           updated
         );
 
+      const profileImageChanged =
+        existing.imagePath !==
+        updated.imagePath;
+
       const profileRef =
         doc(
           services.db,
@@ -3847,8 +3954,8 @@ export const appService = {
       /*
       * JOURNEY HISTORY
       *
-      * Only create an event when
-      * something actually changed.
+      * Record the actual saved image path
+      * when the profile picture changes.
       */
       if (changes.length > 0) {
         const eventRef =
@@ -3867,6 +3974,14 @@ export const appService = {
             userId,
 
             changes,
+
+            ...(profileImageChanged &&
+            updated.imagePath
+              ? {
+                  imagePath:
+                    updated.imagePath
+                }
+              : {}),
 
             createdAt: now
           }
