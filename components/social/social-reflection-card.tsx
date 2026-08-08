@@ -1015,91 +1015,67 @@ export function SocialReflectionCard({
 
   return (
     <article
-        id={`reflection-${post.id}`}
-        className="scroll-mt-24 overflow-hidden rounded-3xl border border-sage-100 bg-white shadow-sm"
-    >
-      {/* AUTHOR HEADER */}
-      <header className="flex items-start justify-between gap-4 px-5 pb-3 pt-5 sm:px-6 sm:pt-6">
-        <Link
-          href={`/users/${post.author.userId}`}
-          className="group flex min-w-0 items-center gap-3"
-        >
-          <SocialAvatar
-            imagePath={
-              post.author.imagePath
-            }
-            profileName={
-              post.author.profileName
-            }
-          />
+    id={`reflection-${post.id}`}
+    className="scroll-mt-24 overflow-hidden rounded-3xl border border-sage-100 bg-white shadow-sm"
+>
+  {/* AUTHOR HEADER & REFLECTION COMBINED FOR X-STYLE LAYOUT */}
+  <header className="px-5 pt-5 sm:px-6 sm:pt-6">
+    <div className="flex items-start justify-between gap-4">
+      <Link
+        href={`/users/${post.author.userId}`}
+        className="group flex min-w-0 items-start gap-3"
+      >
+        <SocialAvatar
+          imagePath={post.author.imagePath}
+          profileName={post.author.profileName}
+        />
 
-          <div className="min-w-0">
-            <p className="truncate font-serif text-base font-bold text-ink transition group-hover:text-sage-700">
-              {
-                post.author
-                  .profileName
-              }
-            </p>
-
-            {post.author
-              .heavenlyHashtag && (
-              <p className="mt-0.5 truncate text-xs font-semibold text-sage-600">
-                {
-                  post.author
-                    .heavenlyHashtag
-                }
-              </p>
-            )}
-          </div>
-        </Link>
-
-        <Link
-          href={`/users/${post.author.userId}`}
-          className="profile-view-link shrink-0 rounded-full px-3 py-2 text-xs font-bold text-sage-700 transition hover:bg-sage-50"
-        >
-          View profile
-        </Link>
-      </header>
-
-      {/* REFLECTION */}
-      <div className="px-5 pb-5 sm:px-6 sm:pb-6">
-        <div className="ml-[3.75rem]">
-          <div className="flex flex-wrap items-center gap-2 text-xs text-muted">
-            <span className="inline-flex items-center gap-1.5">
-              <CalendarDays
-                className="size-3.5"
-                aria-hidden="true"
-              />
-
-              <time
-                dateTime={
-                  post.createdAt
-                }
-              >
-                {formatFriendlyDate(
-                  post.createdAt
-                )}
-              </time>
+        <div className="min-w-0">
+          {/* X-Style Inline Row: Name, Hashtag/Handle, and Timestamp */}
+          <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
+            <span className="truncate font-serif text-base font-bold text-ink transition group-hover:text-sage-700">
+              {post.author.profileName}
             </span>
 
-            {post.editedAt && (
-              <span>
-                Edited
+            {post.author.heavenlyHashtag && (
+              <span className="text-xs font-semibold text-sage-600">
+                {post.author.heavenlyHashtag}
               </span>
             )}
+
+            <span className="text-xs text-muted" aria-hidden="true">·</span>
+
+            <div className="flex items-center gap-1 text-xs text-muted">
+              <time dateTime={post.createdAt}>
+                {formatFriendlyDate(post.createdAt)}
+              </time>
+              {post.editedAt && <span>(Edited)</span>}
+            </div>
           </div>
 
-          {post.title && (
-            <h2 className="user-content mt-3 font-serif text-lg font-bold leading-7 text-ink">
-              {post.title}
-            </h2>
-          )}
+          {/* REFLECTION CONTENT */}
+          <div className="mt-3">
+            {post.title && (
+              <h2 className="user-content font-serif text-lg font-bold leading-7 text-ink">
+                {post.title}
+              </h2>
+            )}
 
-          <p className="user-content mt-3 whitespace-pre-wrap break-words text-base leading-7 text-ink">
-            {post.content}
-          </p>
+            <p className="user-content mt-2 whitespace-pre-wrap break-words text-base leading-7 text-ink">
+              {post.content}
+            </p>
+          </div>
         </div>
-      </div>
+      </Link>
+
+      <Link
+        href={`/users/${post.author.userId}`}
+        className="shrink-0 rounded-full px-3 py-2 text-xs font-bold text-sage-700 transition hover:bg-sage-50"
+      >
+        View profile
+      </Link>
+    </div>
+  </header>
 
       {/* LIKE + COMMENT ACTIONS */}
       <div className="border-t border-sage-100">

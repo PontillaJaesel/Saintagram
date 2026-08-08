@@ -46,7 +46,7 @@ export function CommunityHub() {
           aria-controls="community-feed-panel"
           className={`flex min-h-12 items-center justify-center gap-2 rounded-2xl px-4 text-sm font-bold transition ${
             tab === "following"
-              ? "bg-sage-100 text-sage-800"
+              ? "community-tab-active bg-brand-50 text-brand-500"
               : "text-muted hover:bg-sage-50 hover:text-ink"
           }`}
           onClick={() =>
@@ -71,7 +71,7 @@ export function CommunityHub() {
           aria-controls="community-feed-panel"
           className={`flex min-h-12 items-center justify-center gap-2 rounded-2xl px-4 text-sm font-bold transition ${
             tab === "discover"
-              ? "bg-sage-100 text-sage-800"
+              ? "community-tab-active bg-brand-50 text-brand-500"
               : "text-muted hover:bg-sage-50 hover:text-ink"
           }`}
           onClick={() =>

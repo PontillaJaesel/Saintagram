@@ -8,6 +8,8 @@ import {
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
+import { useTheme } from "@/components/providers/theme-provider";
+
 import {
   Footprints,
   Home,
@@ -86,6 +88,8 @@ export function AppShell({
 }) {
   const pathname =
     usePathname();
+
+  const { theme } = useTheme();
 
   const isProfile =
     pathname === "/profile";
@@ -178,10 +182,10 @@ export function AppShell({
                     key={href}
                     href={href}
                     prefetch={true}
-                    className={`flex min-h-12 items-center gap-3 rounded-xl px-3 text-sm font-semibold transition-colors ${
+                    className={`sidebar-nav-link flex min-h-12 items-center gap-3 rounded-xl px-3 text-sm font-semibold transition-colors ${
                       active
-                        ? "sidebar-nav-active bg-sage-100 text-sage-800"
-                        : "text-ink hover:bg-sage-50"
+                        ? "sidebar-nav-active bg-sage-100"
+                        : "hover:bg-sage-50"
                     }`}
                     aria-current={
                       active

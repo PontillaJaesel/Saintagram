@@ -125,18 +125,21 @@ function ReviewSection({
     <section
       className={`rounded-[var(--radius-card)] border p-5 ${
         privateSection
-          ? "border-amber-300/80 bg-amber-50/90 text-amber-950 dark:border-violet-400/40 dark:bg-violet-500/15 dark:text-violet-100"
+          ? "border-amber-300/80 bg-amber-50/90 text-amber-950 dark:border-gold-500/60 dark:bg-gold-500/10 dark:text-gold-100"
           : "border-sage-100 bg-white"
       }`}
     >
       <div className="flex items-center justify-between gap-3">
         <h3 className={`flex items-center gap-2 text-sm font-bold ${privateSection ? "text-amber-950 dark:text-violet-100" : "text-ink dark:text-slate-100"}`}>
           {privateSection && (
-            <ShieldCheck className="size-4 text-amber-700 dark:text-amber-300" aria-hidden="true" />
+            <ShieldCheck className="size-4 text-gold-500" aria-hidden="true" />
           )}
           {title}
           {privateSection && (
-            <span className="rounded-full bg-white/80 px-2 py-1 text-[10px] uppercase tracking-wider text-amber-700 dark:bg-amber-500/20 dark:text-amber-200">
+            <span
+              className="rounded-full bg-white px-2 py-1 text-[10px] uppercase tracking-wider text-red-700 dark:text-red-700"
+              style={{ backgroundColor: "rgb(255 255 255)" }}
+            >
               Private
             </span>
           )}
@@ -784,7 +787,7 @@ export function ProfileWizard() {
             </label>
             <textarea
               id="hidden-story"
-              className="field min-h-48 resize-y border-violet-400 hover:border-gold-700 focus:border-gold-700 dark:border-violet-400/40 dark:hover:border-gold-600 transition-colors"
+              className="field min-h-48 resize-y border-gold-400 hover:border-gold-700 focus:border-gold-700 dark:border-gold-500/40 dark:hover:border-gold-600 transition-colors"
               value={data.hiddenStory}
               onChange={(event) =>
                 updateData("hiddenStory", event.target.value)
@@ -967,8 +970,8 @@ export function ProfileWizard() {
                 {data.hiddenStory || <em>Not answered</em>}
               </ReviewSection>
             </div>
-            <div className="mt-5 rounded-[var(--radius-base)] border border-sage-200 bg-sage-50 p-4 text-sm leading-6 text-muted">
-              <strong className="text-ink">Privacy check:</strong> Your Hidden
+            <div className="mt-5 rounded-[var(--radius-base)] border border-red-300 bg-red-50 p-4 text-sm leading-6 text-red-800 privacy-check dark:border-gold-500 dark:bg-gold-500/12 dark:text-slate-300">
+              <strong className="text-red-800 privacy-check-strong">Privacy check:</strong> Your Hidden
               Story will not appear on the profile you are about to open. It is
               available only behind the Private Reflections confirmation.
             </div>
@@ -988,7 +991,7 @@ export function ProfileWizard() {
 
       <main className="mx-auto max-w-7xl px-4 py-6 pb-28 sm:px-6 sm:py-10">
         <div className="grid gap-7 lg:grid-cols-[17rem_minmax(0,1fr)] lg:gap-10">
-          <aside className="lg:sticky lg:top-8 lg:self-start">
+          <aside className="sticky top-8 self-start z-20">
             <div className="surface p-5">
               {restoredAt && (
                 <div
@@ -1041,19 +1044,24 @@ export function ProfileWizard() {
                 </span>
               </div>
               <div
-                className="mt-3 h-2 overflow-hidden rounded-full bg-sage-100"
+                className="mt-3 h-2 overflow-hidden rounded-full"
                 role="progressbar"
                 aria-label="Profile creation progress"
                 aria-valuemin={0}
                 aria-valuemax={100}
                 aria-valuenow={Math.round(progress)}
+                style={{ backgroundColor: "#F9DBDB" }}
               >
                 <div
-                  className="h-full rounded-full bg-sage-600 transition-[width]"
-                  style={{ width: `${progress}%` }}
+                  className="h-full rounded-full transition-[width]"
+                  style={{
+                    width: `${progress}%`,
+                    backgroundColor: "#8E1B1B",
+                    boxShadow: "0 2px 6px rgba(142,27,27,0.2)"
+                  }}
                 />
               </div>
-              <ol className="mt-5 hidden space-y-1 lg:block">
+              <ol className="mt-5 hidden space-y-1 lg:block profile-wizard-sidebar">
                 {STEPS.map((item, index) => {
                   const ItemIcon = item.icon;
                   return (
@@ -1062,10 +1070,10 @@ export function ProfileWizard() {
                         type="button"
                         className={`flex min-h-10 w-full items-center gap-3 rounded-xl px-3 text-left text-xs font-semibold transition ${
                           index === step
-                            ? "bg-sage-700 text-white"
+                            ? "bg-sage-700 text-white dark:bg-slate-800 dark:text-slate-200"
                             : index < step
-                              ? "text-sage-700 hover:bg-sage-50"
-                              : "text-muted"
+                              ? "text-slate-600 dark:text-slate-400 hover:bg-sage-50 dark:hover:bg-slate-700"
+                              : "text-slate-600 dark:text-slate-400 hover:bg-sage-50 dark:hover:bg-slate-700"
                         }`}
                         disabled
                         aria-current={index === step ? "step" : undefined}
@@ -1073,10 +1081,10 @@ export function ProfileWizard() {
                         <span
                           className={`grid size-6 place-items-center rounded-full ${
                             index < step
-                              ? "bg-sage-100 text-sage-700"
+                              ? "bg-sage-100 text-sage-700 dark:bg-slate-700 dark:text-slate-300"
                               : index === step
-                                ? "bg-white/15"
-                                : "bg-sage-50"
+                                ? "bg-white/15 dark:bg-slate-700"
+                                : "bg-sage-50 dark:bg-slate-800"
                           }`}
                         >
                           {index < step ? (
@@ -1121,7 +1129,7 @@ export function ProfileWizard() {
           </aside>
 
           <div className="min-w-0">
-            <section className="surface overflow-hidden">
+            <section className="surface overflow-hidden review-surface">
               <div className="border-b border-sage-100 bg-gradient-to-r from-sage-50 to-gold-50/50 p-5 sm:p-8">
                 <div className="mb-4 grid size-11 place-items-center rounded-[var(--radius-base)] bg-white text-sage-600 shadow-sm">
                   <CurrentIcon className="size-5" aria-hidden="true" />
@@ -1152,11 +1160,9 @@ export function ProfileWizard() {
                 )}
                 <div
                   ref={stepContentRef}
-                  className={
-                    stepError
-                      ? "rounded-[var(--radius-base)] border border-clay-300 bg-clay-50/40 p-4"
-                      : ""
-                  }
+                  className={`rounded-[var(--radius-base)] p-4 step-content ${
+                    stepError ? "border border-clay-300" : ""
+                  }`}
                   aria-describedby={
                     stepError ? "wizard-step-error" : undefined
                   }

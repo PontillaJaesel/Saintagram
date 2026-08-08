@@ -69,11 +69,7 @@ function EditorSection({
           <Icon className="size-5" aria-hidden="true" />
         </div>
         <div>
-          <h2
-            className={`font-serif text-xl font-bold ${
-              privateSection ? "text-clay-600 dark:text-clay-200" : "text-ink"
-            }`}
-          >
+          <h2 className="font-serif text-xl font-bold">
             {title}
           </h2>
           {description && (
