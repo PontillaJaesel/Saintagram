@@ -126,26 +126,6 @@ export function DiscoverFeed() {
     <section
       aria-labelledby="discover-feed-title"
     >
-      <div className="mb-6">
-        <p className="eyebrow">
-          Discover
-        </p>
-
-        <h2
-          id="discover-feed-title"
-          className="mt-1 font-serif text-2xl font-bold sm:text-3xl"
-        >
-          Reflections beyond your
-          following
-        </h2>
-
-        <p className="mt-2 text-sm leading-6 text-muted">
-          Public reflections from
-          people you do not currently
-          follow.
-        </p>
-      </div>
-
       <div className="space-y-5">
         {posts.map((post) => (
           <SocialReflectionCard

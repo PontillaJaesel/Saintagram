@@ -14,6 +14,15 @@ const PROFILE_IMAGE_MIME_EXTENSIONS = {
   "image/webp": "webp"
 } as const;
 
+const profileImageUrlCache =
+  new Map<string, string>();
+
+const profileImageUrlPromiseCache =
+  new Map<
+    string,
+    Promise<string>
+  >();
+
 const LOCAL_IMAGE_SOURCE =
   /^data:image\/(?:jpeg|png|webp);base64,[a-z0-9+/=\s]+$/i;
 const FIREBASE_UID = /^[A-Za-z0-9_-]{1,128}$/;
@@ -161,7 +170,7 @@ export async function uploadFirebaseProfileImage(
     `${profileImageFolder(userId)}/${crypto.randomUUID()}.${extension}`;
   try {
     await uploadBytes(ref(storage.storage, imagePath), file, {
-      cacheControl: "300",
+      cacheControl: "public,max-age=31536000,immutable",
       contentType: file.type
     });
   } catch (error) {
@@ -173,19 +182,67 @@ export async function uploadFirebaseProfileImage(
 export async function downloadFirebaseProfileImage(
   imagePath: string
 ): Promise<string> {
-  const storage = await authorizedStorage();
-
   if (!isFirebaseProfileImagePath(imagePath)) {
-    throw new Error("That profile image path is not valid.");
+    throw new Error(
+      "That profile image path is not valid."
+    );
   }
 
-  try {
-    return await getDownloadURL(
-      ref(storage.storage, imagePath)
+  const cached =
+    profileImageUrlCache.get(
+      imagePath
     );
-  } catch (error) {
-    throw profileImageError("downloaded", error);
+
+  if (cached) {
+    return cached;
   }
+
+  const existingPromise =
+    profileImageUrlPromiseCache.get(
+      imagePath
+    );
+
+  if (existingPromise) {
+    return existingPromise;
+  }
+
+  const promise = (async () => {
+    const storage =
+      await authorizedStorage();
+
+    try {
+      const downloadUrl =
+        await getDownloadURL(
+          ref(
+            storage.storage,
+            imagePath
+          )
+        );
+
+      profileImageUrlCache.set(
+        imagePath,
+        downloadUrl
+      );
+
+      return downloadUrl;
+    } catch (error) {
+      throw profileImageError(
+        "downloaded",
+        error
+      );
+    } finally {
+      profileImageUrlPromiseCache.delete(
+        imagePath
+      );
+    }
+  })();
+
+  profileImageUrlPromiseCache.set(
+    imagePath,
+    promise
+  );
+
+  return promise;
 }
 
 export async function deleteFirebaseProfileImage(

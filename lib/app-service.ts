@@ -3649,6 +3649,10 @@ export const appService = {
           updated
         );
 
+      const profileImageChanged =
+        existing.imagePath !==
+        updated.imagePath;
+
       const profileRef =
         doc(
           services.db,
@@ -3847,8 +3851,8 @@ export const appService = {
       /*
       * JOURNEY HISTORY
       *
-      * Only create an event when
-      * something actually changed.
+      * Record the actual saved image path
+      * when the profile picture changes.
       */
       if (changes.length > 0) {
         const eventRef =
@@ -3867,6 +3871,14 @@ export const appService = {
             userId,
 
             changes,
+
+            ...(profileImageChanged &&
+            updated.imagePath
+              ? {
+                  imagePath:
+                    updated.imagePath
+                }
+              : {}),
 
             createdAt: now
           }
