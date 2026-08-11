@@ -970,7 +970,7 @@ export function ProfileWizard() {
                 {data.hiddenStory || <em>Not answered</em>}
               </ReviewSection>
             </div>
-            <div className="mt-5 rounded-[var(--radius-base)] border border-red-300 bg-red-50 p-4 text-sm leading-6 text-red-800 privacy-check dark:border-gold-500 dark:bg-gold-500/12 dark:text-slate-300">
+            <div className="mt-5 rounded-[var(--radius-base)] border border-red-300 bg-red-50 p-4 text-sm leading-6 text-red-800 privacy-check dark:border-gold-500 dark:bg-gold-500/12">
               <strong className="text-red-800 privacy-check-strong">Privacy check:</strong> Your Hidden
               Story will not appear on the profile you are about to open. It is
               available only behind the Private Reflections confirmation.

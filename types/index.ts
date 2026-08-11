@@ -15,6 +15,7 @@ export interface PrivacyPreferences {
 export interface AppUser {
   id: string;
   email: string;
+  username?: string;
   isGuest?: boolean;
   authProvider?: "password" | "google" | "guest";
   createdAt: string;
@@ -22,6 +23,7 @@ export interface AppUser {
   privacyConsentAt: string | null;
   spiritualIntroSeenAt?: string | null;
   profileCompleted: boolean;
+  mustChangePassword?: boolean;
   privacyPreferences?: PrivacyPreferences;
 }
 

@@ -34,8 +34,13 @@ import {
   where,
   writeBatch
 } from "firebase/firestore";
-import { DEMO_EMAIL, DEMO_PASSWORD, LIMITS } from "@/lib/constants";
+import { DEMO_EMAIL, DEMO_TEMP_PASSWORD, DEMO_USERNAME, LIMITS } from "@/lib/constants";
 import { getFirebaseServices, isFirebaseConfigured } from "@/lib/firebase";
+import {
+  findTemporaryAccount,
+  TEMPORARY_ACCOUNTS,
+  usernameAccountEmail
+} from "@/lib/temporary-accounts";
 import {
   deleteAllFirebaseProfileImages,
   deleteFirebaseProfileImage,
@@ -89,6 +94,7 @@ const LOCAL_KEYS = {
 interface LocalAccount {
   user: AppUser;
   passwordHash: string;
+  mustChangePassword?: boolean;
 }
 
 interface PrivateProfileRecord {
@@ -208,12 +214,15 @@ function emailActionSettings(path: string) {
 function createUserRecord(
   id: string,
   email: string,
-  authProvider: "password" | "google" | "guest" = "password"
+  authProvider: "password" | "google" | "guest" = "password",
+  username?: string,
+  mustChangePassword?: boolean
 ): AppUser {
   const now = nowIso();
   return {
     id,
     email: email.trim().toLocaleLowerCase(),
+    ...(username ? { username: username.trim().toLocaleLowerCase() } : {}),
     ...(authProvider === "guest" ? { isGuest: true } : {}),
     authProvider,
     createdAt: now,
@@ -221,6 +230,7 @@ function createUserRecord(
     privacyConsentAt: null,
     spiritualIntroSeenAt: null,
     profileCompleted: false,
+    mustChangePassword,
     privacyPreferences: DEFAULT_PRIVACY_PREFERENCES
   };
 }
@@ -724,19 +734,39 @@ async function ensureLocalSeed(): Promise<void> {
   const user: AppUser = {
     id: userId,
     email: DEMO_EMAIL,
+    username: DEMO_USERNAME,
     createdAt,
     updatedAt,
     privacyConsentAt: createdAt,
     spiritualIntroSeenAt: createdAt,
     profileCompleted: true,
+    mustChangePassword: true,
     privacyPreferences: DEFAULT_PRIVACY_PREFERENCES
   };
-  saveLocalAccounts([
-    {
-      user,
-      passwordHash: await hashPassword(DEMO_PASSWORD)
-    }
-  ]);
+  const issuedAccounts = await Promise.all(
+    TEMPORARY_ACCOUNTS.map(async ({ username, temporaryPassword }) => {
+      if (username === DEMO_USERNAME) {
+        return {
+          user,
+          passwordHash: await hashPassword(temporaryPassword),
+          mustChangePassword: true
+        };
+      }
+      const normalizedUsername = username.toLocaleLowerCase();
+      return {
+        user: createUserRecord(
+          `issued-${normalizedUsername}`,
+          `${normalizedUsername}@accounts.saintagram.local`,
+          "password",
+          username,
+          true
+        ),
+        passwordHash: await hashPassword(temporaryPassword),
+        mustChangePassword: true
+      };
+    })
+  );
+  saveLocalAccounts(issuedAccounts);
 
   const profile: PublicSpiritualProfile = {
     id: userId,
@@ -2982,9 +3012,22 @@ export const appService = {
         const services = getFirebaseServices();
         if (!services) throw new Error("Firebase is not available.");
         await services.persistenceReady;
+        const issued = findTemporaryAccount(email);
+        const loginEmail = issued ? usernameAccountEmail(issued.username) : email.trim();
+        if (issued?.temporaryPassword === password) {
+          const prepared = await fetch("/api/bootstrap-account", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ username: issued.username, password })
+          });
+          if (!prepared.ok) {
+            const result = (await prepared.json().catch(() => ({}))) as { error?: string };
+            throw new Error(result.error ?? "Sign-in could not be prepared.");
+          }
+        }
         const credential = await signInWithEmailAndPassword(
           services.auth,
-          email.trim(),
+          loginEmail,
           password
         );
         await credential.user.reload();
@@ -3006,13 +3049,18 @@ export const appService = {
       }
 
       await ensureLocalSeed();
-      const normalizedEmail = email.trim().toLocaleLowerCase();
+      const normalizedLogin = email.trim().toLocaleLowerCase();
       const hash = await hashPassword(password);
-      const account = localAccounts().find(
-        (candidate) =>
-          candidate.user.email === normalizedEmail &&
+      const account = localAccounts().find((candidate) => {
+        const matchesEmail = candidate.user.email === normalizedLogin;
+        const matchesUsername =
+          typeof candidate.user.username === "string" &&
+          candidate.user.username.toLocaleLowerCase() === normalizedLogin;
+        return (
+          (matchesEmail || matchesUsername) &&
           candidate.passwordHash === hash
-      );
+        );
+      });
       if (!account) {
         throw Object.assign(new Error(), { code: "auth/invalid-credential" });
       }
@@ -3242,6 +3290,7 @@ export const appService = {
       if (isFirebaseConfigured) {
         assertFirebaseOwner(userId);
         const services = getFirebaseServices();
+        if (!services) throw new Error("Firebase is not available.");
         const firebaseUser = services?.auth.currentUser;
         if (!firebaseUser?.email) throw new Error("Please log in again.");
         await reauthenticateWithCredential(
@@ -3249,6 +3298,10 @@ export const appService = {
           EmailAuthProvider.credential(firebaseUser.email, currentPassword)
         );
         await updatePassword(firebaseUser, newPassword);
+        await updateDoc(doc(services.db, "users", userId), {
+          mustChangePassword: false,
+          updatedAt: nowIso()
+        });
         return;
       }
 
@@ -3262,6 +3315,12 @@ export const appService = {
         throw Object.assign(new Error(), { code: "auth/wrong-password" });
       }
       accounts[index].passwordHash = await hashPassword(newPassword);
+      accounts[index].mustChangePassword = false;
+      accounts[index].user = {
+        ...accounts[index].user,
+        mustChangePassword: false,
+        updatedAt: nowIso()
+      };
       saveLocalAccounts(accounts);
     } catch (error) {
       throw friendlyAuthError(error);

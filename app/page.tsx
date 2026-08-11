@@ -14,12 +14,8 @@ export default function WelcomePage() {
   const router = useRouter();
   const { user, loading } = useAuth();
   const [leaving, setLeaving] = useState(false);
-  const primaryHref = user ? resolvePostAuthRoute(user) : "/auth?mode=signup";
-  const primaryLabel = user
-    ? user.profileCompleted
-      ? "Open My Profile"
-      : "Continue My Profile"
-    : "Create My Profile";
+  const primaryHref = user ? resolvePostAuthRoute(user) : "/auth?mode=login";
+  const primaryLabel = user ? "Open My Profile" : "Explore More";
 
   const navigateSmoothly = (
     event: MouseEvent<HTMLAnchorElement>,
@@ -77,7 +73,7 @@ export default function WelcomePage() {
           {APP_TAGLINE}
         </p>
 
-        <div className="mt-9 flex w-full max-w-md flex-col gap-3 sm:w-auto sm:max-w-none sm:flex-row sm:items-center sm:justify-center">
+        <div className="mt-9 flex w-full max-w-md flex-col gap-3 sm:w-auto sm:flex-row sm:items-center sm:justify-center">
           <Link
             href={primaryHref}
             onClick={(event) => navigateSmoothly(event, primaryHref)}
@@ -86,17 +82,6 @@ export default function WelcomePage() {
             {primaryLabel}
             <ArrowRight className="size-4" aria-hidden="true" />
           </Link>
-          {!user && !loading && (
-            <Link
-              href="/auth?mode=login"
-              onClick={(event) =>
-                navigateSmoothly(event, "/auth?mode=login")
-              }
-              className="btn-secondary w-full text-base sm:w-auto"
-            >
-              I already have an account
-            </Link>
-          )}
         </div>
       </section>
     </main>

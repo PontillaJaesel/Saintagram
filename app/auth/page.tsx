@@ -9,6 +9,7 @@ import {
   useState
 } from "react";
 import Link from "next/link";
+import type { AppUser } from "@/types";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
   ArrowLeft,
@@ -17,25 +18,18 @@ import {
   EyeOff,
   KeyRound,
   LoaderCircle,
-  LockKeyhole,
-  Mail,
-  UserRound
+  LockKeyhole
 } from "lucide-react";
 import { Logo } from "@/components/brand/logo";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { useAuth } from "@/components/providers/auth-provider";
-import { DEMO_EMAIL, DEMO_PASSWORD } from "@/lib/constants";
+import { DEMO_USERNAME, DEMO_TEMP_PASSWORD } from "@/lib/constants";
 import { resolvePostAuthRoute } from "@/lib/routes";
-import {
-  isValidEmail,
-  passwordError,
-  registrationEmailError
-} from "@/lib/validation";
+import { passwordError } from "@/lib/validation";
 
-type AuthMode = "login" | "signup" | "reset";
-type AuthMethod = "email";
+type AuthMode = "login";
 type AuthErrorField =
-  | "email"
+  | "username"
   | "password"
   | "confirmPassword"
   | "credentials"
@@ -45,61 +39,39 @@ function AuthForm() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const auth = useAuth();
-  const requestedMode = searchParams.get("mode");
-  const mode: AuthMode =
-    requestedMode === "signup" || requestedMode === "reset"
-      ? requestedMode
-      : "login";
-  const [email, setEmail] = useState("");
-  const [authMethod, setAuthMethod] = useState<AuthMethod | null>(null);
+  const mode: AuthMode = "login";
+  const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
   const [errorField, setErrorField] = useState<AuthErrorField>(null);
   const [message, setMessage] = useState("");
   const [submitting, setSubmitting] = useState(false);
-  const emailRef = useRef<HTMLInputElement>(null);
+  const [stage, setStage] = useState<"login" | "changePassword">("login");
+  const usernameRef = useRef<HTMLInputElement>(null);
   const passwordRef = useRef<HTMLInputElement>(null);
+  const newPasswordRef = useRef<HTMLInputElement>(null);
   const confirmPasswordRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    setError("");
-    setErrorField(null);
-    setMessage("");
-    setAuthMethod(mode === "reset" ? "email" : null);
-  }, [mode]);
+    if (auth.user?.mustChangePassword) {
+      setStage("changePassword");
+      setUsername(auth.user.username ?? "");
+      setMessage("Set a new permanent password before continuing.");
+    }
+  }, [auth.user]);
 
-  useEffect(() => {
-    if (searchParams.get("verified") === "1") {
-      setMessage("Email verified. You can log in now.");
-    } else if (searchParams.get("verification") === "sent") {
-      setMessage(
-        "We sent a verification link to your email. Open it before logging in."
-      );
-    }
-  }, [searchParams]);
-
-  const copy = useMemo(() => {
-    if (mode === "signup") {
-      return {
-        eyebrow: "Create your private space",
-        title: "Begin as you are."
-      };
-    }
-    if (mode === "reset") {
-      return {
-        eyebrow: "Password help",
-        title: "Find your way back.",
-        description:
-          "Enter the email connected to your account and we’ll send reset instructions."
-      };
-    }
-    return {
+  const copy = useMemo(
+    () => ({
       eyebrow: "Welcome back",
-      title: "Return to your reflection."
-    };
-  }, [mode]);
+      title: "Return to your reflection.",
+      description:
+        "Use the one-time credentials below, then choose a permanent password before continuing."
+    }),
+    []
+  );
 
   const navigateAfterLogin = (nextUser: Awaited<ReturnType<typeof auth.login>>) => {
     const destination = resolvePostAuthRoute(nextUser);
@@ -117,63 +89,59 @@ function AuthForm() {
     setError("");
     setErrorField(null);
     setMessage("");
-    if (!isValidEmail(email)) {
-      setError("Enter a valid email address.");
-      setErrorField("email");
-      window.requestAnimationFrame(() => emailRef.current?.focus());
-      return;
-    }
-    if (mode === "signup") {
-      const emailValidation = registrationEmailError(email);
-      if (emailValidation) {
-        setError(emailValidation);
-        setErrorField("email");
-        window.requestAnimationFrame(() => emailRef.current?.focus());
+
+    if (stage === "login") {
+      if (!username.trim()) {
+        setError("Enter your username.");
+        setErrorField("username");
+        window.requestAnimationFrame(() => usernameRef.current?.focus());
         return;
       }
       if (!password.trim()) {
-        setError("Enter a password.");
+        setError("Enter your password.");
         setErrorField("password");
         window.requestAnimationFrame(() => passwordRef.current?.focus());
         return;
       }
-      const validation = passwordError(password);
+    } else {
+      if (!newPassword.trim()) {
+        setError("Enter a new password.");
+        setErrorField("password");
+        window.requestAnimationFrame(() => newPasswordRef.current?.focus());
+        return;
+      }
+      const validation = passwordError(newPassword);
       if (validation) {
         setError(validation);
         setErrorField("password");
-        window.requestAnimationFrame(() => passwordRef.current?.focus());
+        window.requestAnimationFrame(() => newPasswordRef.current?.focus());
         return;
       }
-    } else if (mode === "login" && !password.trim()) {
-      setError("Enter your password.");
-      setErrorField("password");
-      window.requestAnimationFrame(() => passwordRef.current?.focus());
-      return;
-    }
-    if (mode === "signup" && password !== confirmPassword) {
-      setError("Those passwords do not match yet.");
-      setErrorField("confirmPassword");
-      window.requestAnimationFrame(() => confirmPasswordRef.current?.focus());
-      return;
+      if (newPassword !== confirmPassword) {
+        setError("Those passwords do not match yet.");
+        setErrorField("confirmPassword");
+        window.requestAnimationFrame(() => confirmPasswordRef.current?.focus());
+        return;
+      }
     }
 
     setSubmitting(true);
     try {
-      if (mode === "reset") {
-        await auth.requestPasswordReset(email);
-        setMessage(
-          "If an account uses that email, password-reset instructions will arrive shortly."
-        );
-      } else if (mode === "signup") {
-        const nextUser = await auth.register(email, password);
-        if (auth.mode === "firebase") {
-          router.replace("/auth?mode=login&verification=sent");
-        } else {
-          navigateAfterLogin(nextUser);
+      if (stage === "login") {
+        const nextUser = await auth.login(username.trim(), password);
+        if (nextUser.mustChangePassword) {
+          setStage("changePassword");
+          setMessage(
+            "Temporary password accepted. Set a new permanent password before continuing."
+          );
+          return;
         }
-      } else {
-        const nextUser = await auth.login(email, password);
         navigateAfterLogin(nextUser);
+      } else {
+        await auth.changePassword(password, newPassword);
+        const refreshedUser = await auth.refreshUser();
+        if (!refreshedUser) throw new Error("Unable to refresh your account.");
+        navigateAfterLogin(refreshedUser);
       }
     } catch (submitError) {
       setError(
@@ -181,63 +149,19 @@ function AuthForm() {
           ? submitError.message
           : "Something went wrong. Please try again."
       );
-      setErrorField(
-        mode === "reset"
-          ? "email"
-          : mode === "login"
-            ? "credentials"
-            : null
-      );
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
-  const authenticateWithGoogle = async () => {
-    if (submitting) return;
-    setSubmitting(true);
-    setError("");
-    setMessage("");
-    try {
-      const nextUser = await auth.signInWithGoogle();
-      navigateAfterLogin(nextUser);
-    } catch (authenticationError) {
-      setError(
-        authenticationError instanceof Error
-          ? authenticationError.message
-          : "Authentication could not be completed. Please try again."
-      );
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
-  const continueAsGuest = async () => {
-    if (submitting) return;
-    setSubmitting(true);
-    setError("");
-    setMessage("");
-    try {
-      const nextUser = await auth.continueAsGuest();
-      navigateAfterLogin(nextUser);
-    } catch (authenticationError) {
-      setError(
-        authenticationError instanceof Error
-          ? authenticationError.message
-          : "Guest account creation could not be completed. Please try again."
-      );
+      setErrorField(stage === "login" ? "credentials" : "password");
     } finally {
       setSubmitting(false);
     }
   };
 
   const useDemoAccount = () => {
-    setEmail(DEMO_EMAIL);
-    setPassword(DEMO_PASSWORD);
+    setUsername(DEMO_USERNAME);
+    setPassword(DEMO_TEMP_PASSWORD);
     setError("");
   };
 
-  const formOnRight = mode !== "signup";
+  const formOnRight = true;
 
   return (
     <main className="auth-screen-enter relative min-h-screen overflow-hidden lg:grid lg:place-items-center lg:bg-canvas lg:p-4">
@@ -269,207 +193,139 @@ function AuthForm() {
             </p>
           )}
 
-          {!authMethod && mode !== "reset" && (
-            <div className="mt-8 space-y-4" role="group" aria-label="Choose authentication method">
-              <p className="text-sm font-bold text-ink">
-                How would you like to {mode === "signup" ? "create your account" : "log in"}?
-              </p>
-              <button
-                type="button"
-                className="btn-secondary w-full justify-start"
-                disabled={submitting}
-                onClick={() => void authenticateWithGoogle()}
-              >
-                <span className="grid size-5 place-items-center font-bold" aria-hidden="true">G</span>
-                Sign in with Google
-              </button>
-              <button type="button" className="btn-secondary w-full justify-start" onClick={() => setAuthMethod("email")}>
-                <Mail className="size-5" aria-hidden="true" /> Continue with email
-              </button>
-              {mode === "signup" && (
-                <>
-                  <button
-                    type="button"
-                    className="btn-secondary w-full justify-start"
-                    disabled={submitting}
-                    onClick={() => void continueAsGuest()}
-                  >
-                    <UserRound className="size-5" aria-hidden="true" />
-                    Continue as a guest
-                  </button>
-                  <p className="text-xs leading-5 text-muted">
-                    Guest data remains saved until you log out or delete the
-                    guest account. Either action permanently deletes it.
-                  </p>
-                </>
-              )}
-              {error && (
-                <div className="rounded-[var(--radius-base)] border border-clay-200 bg-clay-50 px-4 py-3 text-sm font-semibold text-clay-600" role="alert">
-                  {error}
-                </div>
-              )}
-            </div>
-          )}
-
-          {authMethod && (
           <form className="mt-8 space-y-5" onSubmit={submit} noValidate>
-            {mode !== "reset" && (
-              <button
-                type="button"
-                className="text-sm font-bold text-sage-700 underline-offset-4 hover:underline"
-                onClick={() => {
-                  setAuthMethod(null);
-                  setError("");
-                  setMessage("");
-                }}
-              >
-                Change sign-in method
-              </button>
-            )}
-            {authMethod === "email" && (
             <div>
-              <label htmlFor="email" className="label">
-                Email address
+              <label htmlFor="username" className="label">
+                Username
               </label>
+              <input
+                ref={usernameRef}
+                id="username"
+                type="text"
+                autoComplete="username"
+                className="field"
+                value={username}
+                onChange={(event) => {
+                  setUsername(event.target.value);
+                  if (errorField === "username" || errorField === "credentials") {
+                    setError("");
+                    setErrorField(null);
+                  }
+                }}
+                placeholder="Enter your username"
+                disabled={stage === "changePassword"}
+                required
+                aria-invalid={errorField === "username" || errorField === "credentials"}
+                aria-describedby={
+                  error && (errorField === "username" || errorField === "credentials")
+                    ? "auth-error"
+                    : undefined
+                }
+              />
+            </div>
+            <div>
+              <div className="flex items-center justify-between">
+                <label htmlFor="password" className="label">
+                  {stage === "login" ? "Temporary password" : "Current temporary password"}
+                </label>
+              </div>
               <div className="relative">
-                <Mail
+                <LockKeyhole
                   className="pointer-events-none absolute left-4 top-1/2 size-5 -translate-y-1/2 text-sage-400"
                   aria-hidden="true"
                 />
                 <input
-                  ref={emailRef}
-                  id="email"
-                  type="email"
-                  autoComplete="email"
-                  className="field pl-12"
-                  value={email}
+                  ref={passwordRef}
+                  id="password"
+                  type={showPassword ? "text" : "password"}
+                  autoComplete={stage === "login" ? "current-password" : "current-password"}
+                  className="field px-12"
+                  value={password}
                   onChange={(event) => {
-                    setEmail(event.target.value);
-                    if (
-                      errorField === "email" ||
-                      errorField === "credentials"
-                    ) {
+                    setPassword(event.target.value);
+                    if (errorField === "password" || errorField === "credentials") {
                       setError("");
                       setErrorField(null);
                     }
                   }}
-                  placeholder="you@example.com"
                   required
-                  aria-invalid={
-                    errorField === "email" || errorField === "credentials"
-                  }
+                  aria-invalid={errorField === "password" || errorField === "credentials"}
                   aria-describedby={
-                    error &&
-                    (errorField === "email" || errorField === "credentials")
-                      ? "auth-error"
-                      : undefined
+                    error && (errorField === "password" || errorField === "credentials")
+                      ? "password-help auth-error"
+                      : "password-help"
                   }
                 />
-              </div>
-            </div>
-            )}
-
-            {authMethod === "email" && mode !== "reset" && (
-              <div>
-                <div className="flex items-center justify-between">
-                  <label htmlFor="password" className="label">
-                    Password
-                  </label>
-                  {mode === "login" && (
-                    <Link
-                      href="/auth?mode=reset"
-                      className="mb-2 text-xs font-bold text-sage-700 underline-offset-4 hover:underline"
-                    >
-                      Forgot password?
-                    </Link>
+                <button
+                  type="button"
+                  className="absolute right-1 top-1/2 grid min-h-11 min-w-11 -translate-y-1/2 place-items-center rounded-full text-muted hover:bg-sage-50"
+                  onClick={() => setShowPassword((visible) => !visible)}
+                  aria-label={showPassword ? "Hide password" : "Show password"}
+                >
+                  {showPassword ? (
+                    <EyeOff className="size-5" aria-hidden="true" />
+                  ) : (
+                    <Eye className="size-5" aria-hidden="true" />
                   )}
-                </div>
-                <div className="relative">
-                  <LockKeyhole
-                    className="pointer-events-none absolute left-4 top-1/2 size-5 -translate-y-1/2 text-sage-400"
-                    aria-hidden="true"
-                  />
+                </button>
+              </div>
+              <p id="password-help" className="mt-2 text-xs text-muted">
+                Your one-time temporary password is required to sign in.
+              </p>
+            </div>
+            {stage === "changePassword" && (
+              <>
+                <div>
+                  <label htmlFor="new-password" className="label">
+                    New password
+                  </label>
                   <input
-                    ref={passwordRef}
-                    id="password"
+                    ref={newPasswordRef}
+                    id="new-password"
                     type={showPassword ? "text" : "password"}
-                    autoComplete={
-                      mode === "signup" ? "new-password" : "current-password"
-                    }
-                    className="field px-12"
-                    value={password}
+                    autoComplete="new-password"
+                    className="field"
+                    value={newPassword}
                     onChange={(event) => {
-                      setPassword(event.target.value);
-                      if (
-                        errorField === "password" ||
-                        errorField === "credentials"
-                      ) {
+                      setNewPassword(event.target.value);
+                      if (errorField === "password") {
                         setError("");
                         setErrorField(null);
                       }
                     }}
                     required
-                    aria-invalid={
-                      errorField === "password" ||
-                      errorField === "credentials"
-                    }
+                    aria-invalid={errorField === "password"}
                     aria-describedby={
-                      error &&
-                      (errorField === "password" ||
-                        errorField === "credentials")
-                        ? "password-help auth-error"
-                        : "password-help"
+                      error && errorField === "password" ? "auth-error" : undefined
                     }
                   />
-                  <button
-                    type="button"
-                    className="absolute right-1 top-1/2 grid min-h-11 min-w-11 -translate-y-1/2 place-items-center rounded-full text-muted hover:bg-sage-50"
-                    onClick={() => setShowPassword((visible) => !visible)}
-                    aria-label={showPassword ? "Hide password" : "Show password"}
-                  >
-                    {showPassword ? (
-                      <EyeOff className="size-5" aria-hidden="true" />
-                    ) : (
-                      <Eye className="size-5" aria-hidden="true" />
-                    )}
-                  </button>
                 </div>
-                <p id="password-help" className="mt-2 text-xs text-muted">
-                  At least 8 characters, including a letter and a number.
-                </p>
-              </div>
-            )}
-
-            {authMethod === "email" && mode === "signup" && (
-              <div>
-                <label htmlFor="confirm-password" className="label">
-                  Confirm password
-                </label>
-                <input
-                  ref={confirmPasswordRef}
-                  id="confirm-password"
-                  type={showPassword ? "text" : "password"}
-                  autoComplete="new-password"
-                  className="field"
-                  value={confirmPassword}
-                  onChange={(event) => {
-                    setConfirmPassword(event.target.value);
-                    if (errorField === "confirmPassword") {
-                      setError("");
-                      setErrorField(null);
+                <div>
+                  <label htmlFor="confirm-password" className="label">
+                    Confirm new password
+                  </label>
+                  <input
+                    id="confirm-password"
+                    type={showPassword ? "text" : "password"}
+                    autoComplete="new-password"
+                    className="field"
+                    value={confirmPassword}
+                    onChange={(event) => {
+                      setConfirmPassword(event.target.value);
+                      if (errorField === "confirmPassword") {
+                        setError("");
+                        setErrorField(null);
+                      }
+                    }}
+                    required
+                    aria-invalid={errorField === "confirmPassword"}
+                    aria-describedby={
+                      error && errorField === "confirmPassword" ? "auth-error" : undefined
                     }
-                  }}
-                  required
-                  aria-invalid={errorField === "confirmPassword"}
-                  aria-describedby={
-                    error && errorField === "confirmPassword"
-                      ? "auth-error"
-                      : undefined
-                  }
-                />
-              </div>
+                  />
+                </div>
+              </>
             )}
-
             {error && (
               <div
                 id="auth-error"
@@ -487,7 +343,6 @@ function AuthForm() {
                 {message}
               </div>
             )}
-
             <button
               type="submit"
               className="btn-primary w-full text-base"
@@ -498,70 +353,34 @@ function AuthForm() {
                   className="size-5 animate-spin"
                   aria-hidden="true"
                 />
-              ) : mode === "reset" ? (
-                <KeyRound className="size-5" aria-hidden="true" />
               ) : null}
-              {submitting
-                ? "Please wait…"
-                : mode === "signup"
-                  ? "Create my account"
-                  : mode === "reset"
-                    ? "Request reset link"
-                    : "Log in"}
-              {!submitting && mode !== "reset" && (
-                <ArrowRight className="size-4" aria-hidden="true" />
-              )}
+              {submitting ? "Please wait…" : stage === "login" ? "Log in" : "Change password"}
+              {!submitting && <ArrowRight className="size-4" aria-hidden="true" />}
             </button>
           </form>
-          )}
 
-          {auth.mode === "local" && mode === "login" && (
+          {auth.mode === "local" && (
             <div className="mt-5 rounded-[var(--radius-base)] border border-gray-200 bg-white p-4">
               <p className="text-sm font-bold text-gold-700">
-                Try the completed sample profile
+                Use this temporary test account
               </p>
               <p className="mt-1 text-xs leading-5 text-muted">
-                {DEMO_EMAIL} · {DEMO_PASSWORD}
+                Username: {DEMO_USERNAME}
+                <br />
+                Temporary password: {DEMO_TEMP_PASSWORD}
               </p>
               <button
                 type="button"
                 className="mt-3 min-h-11 rounded-[var(--radius-base)] bg-white px-4 text-xs font-bold text-sage-700 shadow-sm transition hover:bg-sage-50"
                 onClick={useDemoAccount}
               >
-                Fill demo credentials
+                Fill test credentials
               </button>
             </div>
           )}
 
           <p className="mt-7 text-center text-sm text-muted">
-            {mode === "signup" ? (
-              <>
-                Already have an account?{" "}
-                <Link
-                  href="/auth?mode=login"
-                  className="font-bold text-sage-700 underline-offset-4 hover:underline"
-                >
-                  Log in
-                </Link>
-              </>
-            ) : mode === "reset" ? (
-              <Link
-                href="/auth?mode=login"
-                className="font-bold text-sage-700 underline-offset-4 hover:underline"
-              >
-                Return to login
-              </Link>
-            ) : (
-              <>
-                New to Saintagram?{" "}
-                <Link
-                  href="/auth?mode=signup"
-                  className="font-bold text-sage-700 underline-offset-4 hover:underline"
-                >
-                  Create an account
-                </Link>
-              </>
-            )}
+            Need help signing in? Contact support for access.
           </p>
         </div>
       </section>

@@ -90,6 +90,24 @@ describe("RouteGuard", () => {
     expect(screen.queryByText("Private profile")).not.toBeInTheDocument();
   });
 
+  it("blocks protected content until a temporary password is changed", async () => {
+    mocks.useAuth.mockReturnValue({
+      user: makeUser({ mustChangePassword: true }),
+      loading: false
+    });
+
+    render(
+      <RouteGuard requireProfile>
+        <p>Private profile</p>
+      </RouteGuard>
+    );
+
+    await waitFor(() =>
+      expect(mocks.replace).toHaveBeenCalledWith("/auth?changePassword=1")
+    );
+    expect(screen.queryByText("Private profile")).not.toBeInTheDocument();
+  });
+
   it("can render the privacy flow before consent when consent is not required", () => {
     mocks.useAuth.mockReturnValue({
       user: makeUser({ privacyConsentAt: null, profileCompleted: false }),
