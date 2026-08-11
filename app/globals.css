@@ -716,6 +716,36 @@ body {
     color: rgb(var(--clay-500) / 0.9);
   }
 
+  /* The gold authentication illustration stays light in dark mode, so its
+     copy needs an explicit dark-gray override with matching specificity. */
+  :root[data-theme="dark"] aside .auth-aside-dark-text {
+    color: rgb(55 65 81);
+  }
+
+  aside .auth-privacy-dark-text {
+    color: white;
+  }
+
+  :root[data-theme="dark"] aside .auth-privacy-dark-text {
+    color: rgb(55 65 81);
+  }
+
+  :root[data-theme="dark"] aside .auth-aside-orbit {
+    border: 0;
+    padding: 1.5px;
+    background: linear-gradient(
+      135deg,
+      rgb(161 125 2 / 0.9),
+      rgb(202 158 2 / 0.68) 52%,
+      rgb(239 191 4 / 0.48)
+    );
+    -webkit-mask:
+      linear-gradient(#000 0 0) content-box,
+      linear-gradient(#000 0 0);
+    -webkit-mask-composite: xor;
+    mask-composite: exclude;
+  }
+
   :root[data-theme="dark"] :is(.text-black, .text-sage-700, .text-sage-800, .text-sage-900) {
     color: rgb(var(--ink));
   }

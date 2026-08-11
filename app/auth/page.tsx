@@ -14,6 +14,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import {
   ArrowLeft,
   ArrowRight,
+  AlertTriangle,
   Eye,
   EyeOff,
   KeyRound,
@@ -171,18 +172,21 @@ function AuthForm() {
           formOnRight ? "lg:translate-x-full" : "lg:translate-x-0"
         }`}
       >
-        <div className="flex items-center justify-between">
-          <Logo />
+        <div className="flex items-start justify-between">
+          <div className="flex flex-col items-start gap-5">
+            <Logo />
+            <Link
+              href="/"
+              className="grid size-11 shrink-0 place-items-center rounded-full border border-sage-200 bg-paper text-sage-700 shadow-sm transition hover:border-sage-300 hover:bg-sage-50"
+              aria-label="Back to welcome"
+              title="Back to welcome"
+            >
+              <ArrowLeft className="size-5" aria-hidden="true" />
+            </Link>
+          </div>
           <ThemeToggle />
         </div>
         <div className="mx-auto flex w-full max-w-md flex-1 flex-col justify-center py-10">
-          <Link
-            href="/"
-            className="mb-7 inline-flex min-h-11 w-fit items-center gap-2 self-start rounded-[var(--radius-base)] border border-sage-200 bg-paper px-3 text-sm font-bold text-sage-700 shadow-sm transition hover:bg-sage-50"
-          >
-            <ArrowLeft className="size-4" aria-hidden="true" />
-            Back to welcome
-          </Link>
           <p className="eyebrow">{copy.eyebrow}</p>
           <h1 className="mt-3 font-serif text-4xl font-bold tracking-tight sm:text-5xl">
             {copy.title}
@@ -337,10 +341,20 @@ function AuthForm() {
             )}
             {message && (
               <div
-                className="rounded-[var(--radius-base)] border border-sage-200 bg-sage-50 px-4 py-3 text-sm font-semibold text-sage-700"
-                role="status"
+                className={`flex items-start gap-3 rounded-[var(--radius-base)] border px-4 py-3 text-sm font-semibold ${
+                  stage === "changePassword"
+                    ? "border-gold-300 bg-gold-50 text-gold-700"
+                    : "border-sage-200 bg-sage-50 text-sage-700"
+                }`}
+                role={stage === "changePassword" ? "alert" : "status"}
               >
-                {message}
+                {stage === "changePassword" && (
+                  <AlertTriangle
+                    className="mt-0.5 size-5 shrink-0"
+                    aria-hidden="true"
+                  />
+                )}
+                <span>{message}</span>
               </div>
             )}
             <button
@@ -391,11 +405,11 @@ function AuthForm() {
         }`}
       >
         <div
-          className="absolute -right-28 -top-28 size-96 rounded-full border border-gold-500/50"
+          className="auth-aside-orbit absolute -right-28 -top-28 size-96 rounded-full border border-gold-500/50"
           aria-hidden="true"
         />
         <div
-          className="absolute -right-10 -top-10 size-56 rounded-full border border-gold-400/50"
+          className="auth-aside-orbit absolute -right-10 -top-10 size-56 rounded-full border border-gold-400/50"
           aria-hidden="true"
         />
         <div
@@ -403,23 +417,23 @@ function AuthForm() {
           aria-hidden="true"
         />
         <div className="relative max-w-lg">
-          <p className="text-xs font-bold uppercase tracking-[0.2em] text-clay-500">
+          <p className="auth-aside-dark-text text-xs font-bold uppercase tracking-[0.2em] text-white/90">
             Matthew 5:3
           </p>
-          <blockquote className="mt-7 font-serif text-4xl font-bold leading-tight text-clay-500">
+          <blockquote className="auth-aside-dark-text mt-7 font-serif text-4xl font-bold leading-tight text-white">
             "Blessed are the poor in spirit, for theirs is the kingdom of
             heaven."
           </blockquote>
-          <p className="mt-7 max-w-md text-base leading-7 text-clay-500">
+          <p className="auth-aside-dark-text mt-7 max-w-md text-base leading-7 text-white/90">
             You do not need a perfect image here. Honesty, humility, and a need
             for God are welcome.
           </p>
         </div>
-        <div className="relative rounded-[var(--radius-card)] border border-gold-500/50 bg-gold-500/10 dark:bg-gold-600/20 p-6">
-          <p className="text-sm font-bold text-clay-500">
+        <div className="relative rounded-[var(--radius-card)] border border-white/50 bg-white/45 p-6 shadow-sm backdrop-blur-sm dark:border-white/20 dark:bg-white/15">
+          <p className="auth-privacy-dark-text text-sm font-bold">
             Your reflections belong to you.
           </p>
-          <p className="mt-2 text-sm leading-6 text-clay-500">
+          <p className="auth-privacy-dark-text mt-2 text-sm leading-6">
             Hidden Stories and private journal entries never appear on the
             standard profile screen.
           </p>
