@@ -255,3 +255,21 @@ App Check, abuse monitoring, and an approved pastoral/privacy review of prompts
 and copy. Deleting a Firebase user prevents token refresh but an already-issued
 ID token can remain valid until it expires, so high-assurance deletion needs
 that delayed privileged cleanup.
+# Administration
+
+The administrator portal is available at `/admin` after both the site access gate and Firebase sign-in. Authorization is enforced by protected server APIs using the Firebase Authentication custom claim `admin: true`; local/demo users are never treated as administrators.
+
+Grant or revoke the claim with server credentials in `.env.production`:
+
+```bash
+npm run admin:claim -- --email admin@example.com --grant
+npm run admin:claim -- --uid FIREBASE_UID --revoke
+```
+
+The account must refresh its Firebase ID token (usually by signing out and back in) after a claim change.
+
+Tracked entry URLs are `/open/qr?campaign=event-2026&next=/` and `/open/common?next=/`. `campaign` accepts up to 64 letters, numbers, underscores, and hyphens; `next` must be a safe internal Saintagram path. These routes store server time and approximate Cloudflare city/region/country when supplied, never raw IP addresses. Events are associated with a signed-in account through a short-lived, HTTP-only pending-event cookie.
+
+The Export Data page produces one `.xlsx` workbook with separate worksheets. Exports and sensitive user-data views are written to `adminAuditLogs`.
+
+Deploy `firestore.rules` with `firebase deploy --only firestore:rules` after review. Firebase Admin variables and the site-access secrets must be configured in the Cloudflare production environment. `.env.production` is ignored and must never be committed.

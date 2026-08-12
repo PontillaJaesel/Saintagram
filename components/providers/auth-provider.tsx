@@ -25,6 +25,7 @@ interface AuthContextValue {
   logout: () => Promise<void>;
   requestPasswordReset: (email: string) => Promise<void>;
   signInWithGoogle: () => Promise<AppUser>;
+  signInWithApple: () => Promise<AppUser>;
   continueAsGuest: () => Promise<AppUser>;
   upgradeGuestWithGoogle: () => Promise<AppUser>;
   upgradeGuestWithEmail: (email: string, password: string) => Promise<void>;
@@ -84,6 +85,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signInWithGoogle = useCallback(async () => {
     const nextUser = await appService.signInWithGoogle();
+    setUser(nextUser);
+    return nextUser;
+  }, []);
+
+  const signInWithApple = useCallback(async () => {
+    const nextUser = await appService.signInWithApple();
     setUser(nextUser);
     return nextUser;
   }, []);
@@ -171,6 +178,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       logout,
       requestPasswordReset,
       signInWithGoogle,
+      signInWithApple,
       continueAsGuest,
       upgradeGuestWithGoogle,
       upgradeGuestWithEmail,
@@ -188,6 +196,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       logout,
       requestPasswordReset,
       signInWithGoogle,
+      signInWithApple,
       continueAsGuest,
       upgradeGuestWithGoogle,
       upgradeGuestWithEmail,

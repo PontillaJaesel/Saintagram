@@ -6,11 +6,12 @@ import {
   useState
 } from "react";
 
-import { Bell } from "lucide-react";
+import { Bell, Sparkles } from "lucide-react";
 import { useRouter } from "next/navigation";
 
 import { useAuth } from "@/components/providers/auth-provider";
 import { appService } from "@/lib/app-service";
+import { markSystemNotificationRead, subscribeSystemNotifications } from "@/lib/system-notifications";
 
 import {
   downloadFirebaseProfileImage,
@@ -19,7 +20,8 @@ import {
 
 import type {
   SocialNotification,
-  SocialProfile
+  SocialProfile,
+  SystemNotification
 } from "@/types";
 
 function notificationTime(
@@ -198,6 +200,7 @@ export function NotificationBell() {
   ] = useState<
     SocialNotification[]
   >([]);
+  const [systemNotifications, setSystemNotifications] = useState<SystemNotification[]>([]);
 
   const [
     profiles,
@@ -235,6 +238,11 @@ export function NotificationBell() {
           setError(message);
         }
       );
+  }, [user]);
+
+  useEffect(() => {
+    if (!user) { setSystemNotifications([]); return; }
+    return subscribeSystemNotifications(user.id, setSystemNotifications, setError);
   }, [user]);
 
   useEffect(() => {
@@ -327,7 +335,13 @@ export function NotificationBell() {
     notifications.filter(
       (notification) =>
         !notification.readAt
-    ).length;
+    ).length + systemNotifications.filter((notification) => !notification.readAt).length;
+
+  const openSystemNotification = async (notification: SystemNotification) => {
+    setOpen(false);
+    try { await markSystemNotificationRead(notification.id); } catch { /* Navigation still proceeds. */ }
+    router.push(notification.type === "admin_reflection" && notification.reflectionId ? `/reflections/${notification.reflectionId}` : user?.profileCompleted ? "/profile/edit" : "/create");
+  };
 
   const openNotification =
     async (
@@ -454,8 +468,7 @@ export function NotificationBell() {
             </h2>
 
             <p className="mt-1 text-xs text-muted">
-            New followers, likes, and
-            comments will appear here.
+            Social activity and Saintagram reminders appear here.
             </p>
           </div>
 
@@ -468,7 +481,7 @@ export function NotificationBell() {
             </p>
           )}
 
-          {!notifications.length ? (
+          {!notifications.length && !systemNotifications.length ? (
             <div className="px-5 py-8 text-center">
               <Bell
                 className="mx-auto size-6 text-muted"
@@ -486,6 +499,13 @@ export function NotificationBell() {
             </div>
           ) : (
             <div className="max-h-96 overflow-y-auto">
+              {systemNotifications.map((notification) => (
+                <button key={notification.id} type="button" className={`flex w-full items-start gap-3 border-b border-sage-100 px-5 py-4 text-left transition hover:bg-sage-50 ${!notification.readAt ? "bg-sage-50/60" : ""}`} onClick={() => void openSystemNotification(notification)}>
+                  <span className="grid size-10 shrink-0 place-items-center rounded-full bg-sage-100 text-sage-700"><Sparkles className="size-5" aria-hidden="true" /></span>
+                  <span className="min-w-0 flex-1"><strong className="block text-sm">{notification.title}</strong><span className="mt-1 block text-xs leading-5 text-muted">{notification.message}</span><span className="mt-1 block text-xs text-muted">{notificationTime(notification.createdAt)}</span></span>
+                  {!notification.readAt && <span className="mt-2 size-2 shrink-0 rounded-full bg-sage-600" aria-label="Unread" />}
+                </button>
+              ))}
               {notifications.map(
                 (notification) => {
                   const actor =

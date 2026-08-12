@@ -23,11 +23,13 @@ import { useAuth } from "@/components/providers/auth-provider";
 import { useToast } from "@/components/providers/toast-provider";
 
 import { appService } from "@/lib/app-service";
+import { fiatCategoryLabel } from "@/lib/fiat";
 
 import {
   downloadFirebaseProfileImage,
   isLocalProfileImageSource
 } from "@/lib/profile-images";
+import { ReflectionMediaView } from "@/components/reflections/reflection-media-view";
 
 import {
   formatFriendlyDate
@@ -1042,7 +1044,6 @@ export function SocialReflectionCard({
                 {post.author.heavenlyHashtag}
               </span>
             )}
-
             <span className="text-xs text-muted" aria-hidden="true">·</span>
 
             <div className="flex items-center gap-1 text-xs text-muted">
@@ -1051,6 +1052,7 @@ export function SocialReflectionCard({
               </time>
               {post.editedAt && <span>(Edited)</span>}
             </div>
+            {post.fiatCategory && <span className="rounded-full bg-gold-50 px-2.5 py-1 font-bold text-gold-700">Fi@ · {post.fiatCategory==="other"&&post.fiatOther?post.fiatOther:fiatCategoryLabel(post.fiatCategory)}</span>}
           </div>
 
           {/* REFLECTION CONTENT */}
@@ -1064,6 +1066,7 @@ export function SocialReflectionCard({
             <p className="user-content mt-2 whitespace-pre-wrap break-words text-base leading-7 text-ink">
               {post.content}
             </p>
+            <ReflectionMediaView media={post.media} />
           </div>
         </div>
       </Link>

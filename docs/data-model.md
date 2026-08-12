@@ -146,3 +146,16 @@ For production, a privileged retryable backend should verify and repeat the
 cascade. In particular, an already-issued Firebase ID token can remain valid
 until expiry even after the Firebase user is deleted, so high-assurance
 deletion should schedule a second Storage cleanup after the token window.
+# Administrator and tracked-entry collections
+
+Normal Firestore clients remain subject to the owner and social rules described below. Privileged administrator APIs verify a Firebase Authentication `admin: true` custom claim and use the Firebase Admin SDK; they can inspect account data, including sensitive `privateProfiles` and unfinished drafts, for administration. Admin access does not grant broader client-side Firestore permissions.
+
+- `linkOpenEvents/{eventId}` is server-managed and records `source` (`qr` or `common`), optional validated `campaign`, server `openedAt`, nullable `userId`/`claimedAt`, approximate Cloudflare city/region/country, a location label/source, and a safe internal destination. It never intentionally stores raw IP addresses.
+- `systemNotifications/{notificationId}` contains server-created `profile_reminder` messages. Recipients may read their own documents and update only `readAt`.
+- `adminAuditLogs/{logId}` records protected actions (`profile_reminder_sent`, `user_data_viewed`, and `export_generated`), the admin UID, optional target UID, server time, and non-secret metadata.
+
+## FiAt reflection fields and leaderboard privacy
+
+`reflectionPosts` may optionally include `fiatCategory` and its stable local-calendar `fiatDateKey`. Valid categories are `prayer`, `forgiveness`, `service`, `sacrifice`, `act-of-love`, `responsible-choice`, and `other`. Existing reflections without these fields remain valid.
+
+Personal FiAt streaks are derived from the owner's reflection records, including private records, with one streak day per distinct `fiatDateKey`. The authenticated `/api/fiat/leaderboard` endpoint derives numeric activity using Firebase Admin, caps credit at three entries per user per day, joins only public `socialProfiles`, and returns no reflection content or privacy metadata. Firestore client rules remain unchanged for cross-user reflection access; private reflections never become directly readable for leaderboard purposes.

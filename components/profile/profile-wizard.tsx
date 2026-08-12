@@ -54,25 +54,8 @@ import {
 } from "@/types";
 
 const STEPS = [
-  { title: "Profile name", short: "Name", icon: UserRound },
-  { title: "Picture or symbol", short: "Image", icon: ImageIcon },
-  { title: "Spiritual bio", short: "Bio", icon: FileText },
-  {
-    title: "Who helps me lead closer to God?",
-    short: "Guides",
-    icon: UsersRound
-  },
-  {
-    title: "Who or what am I following in my life right now?",
-    short: "Influences",
-    icon: ChevronRight
-  },
-  { title: "Posts God sees", short: "Moments", icon: Sparkles },
-  { title: "Likes", short: "Likes", icon: Heart },
-  { title: "Hidden Story", short: "Private", icon: EyeOff },
-  { title: "God’s Comment", short: "Comment", icon: MessageCircleHeart },
-  { title: "Heavenly hashtag", short: "Hashtag", icon: Cloud },
-  { title: "Review your profile", short: "Review", icon: CheckCircle2 }
+  { title: "Display name", short: "Name", icon: UserRound },
+  { title: "Choose a profile symbol or photo", short: "Image", icon: ImageIcon }
 ] as const;
 
 type SaveStatus = "idle" | "saving" | "saved" | "error";
@@ -391,14 +374,12 @@ export function ProfileWizard() {
   const validationMessage = (targetStep: number): string => {
     const messages = [
       !data.profileName.trim()
-        ? "Add a profile name before continuing."
+        ? "Add a display name before continuing."
         : "",
       !data.imagePath && !data.selectedSymbol
         ? "Choose a profile picture or spiritual symbol before continuing."
         : "",
-      !data.spiritualBio.trim()
-        ? "Answer the spiritual bio question before continuing."
-        : "",
+      "",
       data.spiritualGuides.length === 0
         ? "Add at least one person or holy companion before continuing."
         : "",
@@ -491,7 +472,7 @@ export function ProfileWizard() {
   const complete = async () => {
     if (!user) return;
     const firstIncompleteStep = Array.from(
-      { length: STEPS.length - 1 },
+      { length: STEPS.length },
       (_item, index) => index
     ).find((index) => validationMessage(index));
     if (firstIncompleteStep !== undefined) {
@@ -539,12 +520,11 @@ export function ProfileWizard() {
         return (
           <div>
             <label htmlFor="profile-name" className="label text-base">
-              What would you like this profile to be called?{" "}
+              What display name would you like to use?{" "}
               <span className="text-clay-600">*</span>
             </label>
             <p className="mb-4 text-sm leading-6 text-muted">
-              Use your real name or a faith-centered identity that feels honest
-              today.
+              This is the name people will see on your profile. Your email remains your fixed username.
             </p>
             <input
               ref={nameRef}
@@ -605,34 +585,6 @@ export function ProfileWizard() {
             profileName={data.profileName}
             onChange={updateImageChoice}
           />
-        );
-      case 2:
-        return (
-          <div>
-            <label htmlFor="spiritual-bio" className="label text-base">
-              Before God, I am someone who…
-            </label>
-            <p className="mb-4 text-sm leading-6 text-muted">
-              Complete the sentence in your own words. This is a description,
-              not a performance.
-            </p>
-            <textarea
-              id="spiritual-bio"
-              className="field min-h-44 resize-y"
-              value={data.spiritualBio}
-              onChange={(event) =>
-                updateData("spiritualBio", event.target.value)
-              }
-              maxLength={LIMITS.bio}
-              placeholder="…is learning to trust, ask for help, and begin again."
-              aria-describedby="spiritual-bio-count"
-            />
-            <CharacterCount
-              id="spiritual-bio-count"
-              value={data.spiritualBio}
-              limit={LIMITS.bio}
-            />
-          </div>
         );
       case 3:
         return (
@@ -1006,9 +958,7 @@ export function ProfileWizard() {
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
                   <p className="eyebrow">
-                    {step === STEPS.length - 1
-                      ? "Final review"
-                      : `Step ${step + 1} of 10`}
+                    {`Step ${step + 1} of ${STEPS.length}`}
                   </p>
                   <div
                     className={`mt-2 flex items-center gap-2 text-xs font-semibold ${
@@ -1135,9 +1085,7 @@ export function ProfileWizard() {
                   <CurrentIcon className="size-5" aria-hidden="true" />
                 </div>
                 <p className="eyebrow">
-                  {step === STEPS.length - 1
-                    ? "Almost there"
-                    : `Step ${step + 1}`}
+                  {`Step ${step + 1} of ${STEPS.length}`}
                 </p>
                 <h1
                   id="wizard-step-title"
@@ -1218,7 +1166,7 @@ export function ProfileWizard() {
                     ) : (
                       <CheckCircle2 className="size-4" aria-hidden="true" />
                     )}
-                    {finishing ? "Saving your profile…" : "Save and View My Profile"}
+                    {finishing ? "Creating your profile…" : "Create My Profile"}
                   </button>
                 )}
               </div>

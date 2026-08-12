@@ -257,12 +257,12 @@ export function ProfileEditor() {
 
       <div className="space-y-5">
         <EditorSection
-          title="Profile Name"
-          description="Choose the name shown at the top of your profile."
+          title="Display Name"
+          description="Choose the display name shown at the top of your profile."
           icon={UserRound}
         >
           <label htmlFor="edit-profile-name" className="label">
-            Profile name <span className="text-clay-600">*</span>
+            Display name <span className="text-clay-600">*</span>
           </label>
           <input
             ref={nameRef}
@@ -284,7 +284,7 @@ export function ProfileEditor() {
               id="edit-profile-name-error"
               className="mt-2 text-sm font-semibold text-muted"
             >
-              A profile name is required.
+              A display name is required.
             </p>
           )}
           <div className="mt-4 rounded-[var(--radius-base)] border border-sage-100 bg-sage-50/70 p-4">
@@ -311,6 +311,21 @@ export function ProfileEditor() {
           <p className="mt-4 text-right text-xs text-muted">
             {profile.profileName.length} / {LIMITS.profileName}
           </p>
+          <div className="mt-5 border-t border-sage-100 pt-5">
+            <label htmlFor="profile-username" className="label">
+              Username
+            </label>
+            <input
+              id="profile-username"
+              className="field bg-sage-50 text-muted"
+              value={user?.email || "Guest account"}
+              readOnly
+              aria-describedby="profile-username-help"
+            />
+            <p id="profile-username-help" className="mt-2 text-xs text-muted">
+              Your username is based on the email used to create your account and cannot be changed.
+            </p>
+          </div>
         </EditorSection>
 
         <EditorSection
