@@ -31,7 +31,7 @@ for (const document of snapshot.docs) {
     if (!exists) continue;
     const [metadata] = await file.getMetadata();
     await file.setMetadata({
-      metadata: { ...(metadata.metadata ?? {}), visibility }
+      metadata: { ...metadata.metadata, visibility }
     });
     updated += 1;
   }

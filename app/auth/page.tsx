@@ -44,8 +44,8 @@ function AuthForm() {
   const passwordRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    if (auth.user?.mustChangePassword) {
-      router.replace("/settings");
+    if (auth.user) {
+      router.replace(resolvePostAuthRoute(auth.user));
     }
   }, [auth.user, router]);
 

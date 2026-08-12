@@ -80,7 +80,7 @@ export function RecordedUserData({ userId }: { userId: string }) {
   useEffect(() => { void Promise.all([adminFetch<AdminUserData>(`/api/admin/user-data?userId=${encodeURIComponent(userId)}`), adminFetch<{ users: AdminUserSummary[] }>("/api/admin/users")]).then(([userData, userList]) => { setData(userData); setUsers(userList.users); }).catch((loadError) => setError(loadError instanceof Error ? loadError.message : "User data could not be loaded.")); }, [userId]);
   const profileName = String(data?.profile?.profileName || data?.user.email || "User");
   const references = useMemo(() => { const map = new Map<string, string>(); if (!data) return map; users.forEach((user) => map.set(user.id, `${user.name} (${user.email || "Guest account"})`)); map.set(userId, `${profileName} (${String(data.user.email || "Guest account")})`); Object.values(data.collections).forEach((rows) => rows.forEach((row, index) => { if (typeof row.id !== "string") return; const assigned = row.title || row.name || row.profileName || row.content; map.set(row.id, typeof assigned === "string" ? assigned.slice(0, 80) : `Record ${index + 1}`); })); return map; }, [data, profileName, userId, users]);
-  const resolve: Resolver = (key, value, row, rowIndex = 0, collection = "record") => {
+  const resolve: Resolver = (key, value, row, rowIndex = 0) => {
     if (key === "imagePath" && typeof value === "string" && value) return <ProfileImageDownload path={value} />;
     if ((key === "id" || key.endsWith("Id")) && typeof value === "string") return references.get(value) || `Record ${rowIndex + 1}`;
     return plainValue(value, row);

@@ -8,7 +8,6 @@ import {
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
-import { useTheme } from "@/components/providers/theme-provider";
 
 import {
   Footprints,
@@ -88,8 +87,6 @@ export function AppShell({
 }) {
   const pathname =
     usePathname();
-
-  const { theme } = useTheme();
 
   const isProfile =
     pathname === "/profile";

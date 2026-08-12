@@ -76,7 +76,7 @@ describe("RouteGuard", () => {
 
   it("requires privacy consent before protected content is shown", async () => {
     mocks.useAuth.mockReturnValue({
-      user: makeUser({ privacyConsentAt: null, profileCompleted: false }),
+      user: makeUser({ privacyConsentAt: null, profileCompleted: true }),
       loading: false
     });
 
@@ -90,9 +90,9 @@ describe("RouteGuard", () => {
     expect(screen.queryByText("Private profile")).not.toBeInTheDocument();
   });
 
-  it("blocks protected content until a temporary password is changed", async () => {
+  it("sends an incomplete temporary-password user to profile creation first", async () => {
     mocks.useAuth.mockReturnValue({
-      user: makeUser({ mustChangePassword: true }),
+      user: makeUser({ mustChangePassword: true, profileCompleted: false }),
       loading: false
     });
 
@@ -103,7 +103,7 @@ describe("RouteGuard", () => {
     );
 
     await waitFor(() =>
-      expect(mocks.replace).toHaveBeenCalledWith("/settings")
+      expect(mocks.replace).toHaveBeenCalledWith("/create")
     );
     expect(screen.queryByText("Private profile")).not.toBeInTheDocument();
   });
@@ -111,7 +111,7 @@ describe("RouteGuard", () => {
   it("allows a temporary-password user to open Settings", () => {
     mocks.pathname.mockReturnValue("/settings");
     mocks.useAuth.mockReturnValue({
-      user: makeUser({ mustChangePassword: true }),
+      user: makeUser({ mustChangePassword: true, profileCompleted: true }),
       loading: false
     });
 
@@ -127,7 +127,7 @@ describe("RouteGuard", () => {
 
   it("can render the privacy flow before consent when consent is not required", () => {
     mocks.useAuth.mockReturnValue({
-      user: makeUser({ privacyConsentAt: null, profileCompleted: false }),
+      user: makeUser({ privacyConsentAt: null, profileCompleted: true }),
       loading: false
     });
 
@@ -143,7 +143,7 @@ describe("RouteGuard", () => {
     expect(mocks.replace).not.toHaveBeenCalled();
   });
 
-  it("redirects to the introduction when it is required and unread", async () => {
+  it("sends an incomplete user directly to profile creation", async () => {
     mocks.useAuth.mockReturnValue({
       user: makeUser({
         spiritualIntroSeenAt: null,
@@ -159,7 +159,7 @@ describe("RouteGuard", () => {
     );
 
     await waitFor(() =>
-      expect(mocks.replace).toHaveBeenCalledWith("/introduction")
+      expect(mocks.replace).toHaveBeenCalledWith("/create")
     );
     expect(screen.queryByText("Introduction complete")).not.toBeInTheDocument();
   });

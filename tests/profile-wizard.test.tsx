@@ -57,7 +57,8 @@ const TEST_USER: AppUser = {
   updatedAt: "2026-01-03T00:00:00.000Z",
   privacyConsentAt: "2026-01-02T00:00:00.000Z",
   spiritualIntroSeenAt: "2026-01-03T00:00:00.000Z",
-  profileCompleted: false
+  profileCompleted: false,
+  mustChangePassword: true
 };
 
 const COMPLETED_DRAFT: ProfileDraftData = {
@@ -119,37 +120,12 @@ describe("ProfileWizard completion", () => {
         COMPLETED_DRAFT
       );
       expect(mocks.refreshUser).toHaveBeenCalledTimes(1);
-      expect(mocks.replace).toHaveBeenCalledWith("/profile?created=1");
+      expect(mocks.replace).toHaveBeenCalledWith("/settings#change-password");
     });
     expect(mocks.completeProfile.mock.invocationCallOrder[0])
       .toBeLessThan(mocks.refreshUser.mock.invocationCallOrder[0]);
     expect(mocks.refreshUser.mock.invocationCallOrder[0])
       .toBeLessThan(mocks.replace.mock.invocationCallOrder[0]);
-  });
-
-  it("cancels signup by deleting the unfinished account and its email", async () => {
-    const user = userEvent.setup();
-    render(<ProfileWizard />);
-
-    await user.click(
-      await screen.findByRole("button", {
-        name: "Cancel account creation"
-      })
-    );
-    expect(
-      screen.getByRole("alertdialog", { name: "Cancel account creation?" })
-    ).toHaveTextContent(
-      "The account and email address you used to sign up will not be saved."
-    );
-
-    await user.click(
-      screen.getByRole("button", { name: "Cancel and delete account" })
-    );
-
-    await waitFor(() => {
-      expect(mocks.cancelAccountCreation).toHaveBeenCalledTimes(1);
-      expect(mocks.replace).toHaveBeenCalledWith("/");
-    });
   });
 
   it("shows the save error and does not navigate when completion fails", async () => {

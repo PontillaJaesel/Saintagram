@@ -309,7 +309,11 @@ service cloud.firestore {
           'isPrivate',
           'createdAt',
           'updatedAt',
-          'editedAt'
+          'editedAt',
+          'fiatCategory',
+          'fiatDateKey',
+          'fiatOther',
+          'media'
         ])
         && data.keys().hasAll([
           'id',
@@ -328,7 +332,24 @@ service cloud.firestore {
         && data.isPrivate is bool
         && isIsoDate(data.createdAt)
         && isIsoDate(data.updatedAt)
-        && (!('editedAt' in data) || isIsoDate(data.editedAt));
+        && (!('editedAt' in data) || isIsoDate(data.editedAt))
+        && (
+          !('fiatCategory' in data)
+          || (
+            data.fiatCategory in ['prayer', 'service', 'sacrifice', 'kindness', 'other']
+            && data.fiatDateKey is string
+            && data.fiatDateKey.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$')
+            && (
+              (data.fiatCategory == 'other'
+                && isShortString(data.fiatOther, 25)
+                && data.fiatOther.size() > 0)
+              || (data.fiatCategory != 'other' && !('fiatOther' in data))
+            )
+          )
+        )
+        && (!('fiatDateKey' in data) || 'fiatCategory' in data)
+        && (!('fiatOther' in data) || data.fiatCategory == 'other')
+        && (!('media' in data) || data.media is list);
     }
 
     function hasValidSocialProfileShape(data) {
@@ -1278,6 +1299,19 @@ service cloud.firestore {
           resource.data.userId == request.auth.uid
           || resource.data.actorUserId == request.auth.uid
         );
+    }
+
+    match /systemNotifications/{notificationId} {
+      allow get, list: if signedIn()
+        && resource.data.userId == request.auth.uid;
+
+      allow create, delete: if false;
+
+      allow update: if signedIn()
+        && resource.data.userId == request.auth.uid
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['readAt'])
+        && request.resource.data.readAt != null
+        && isIsoDate(request.resource.data.readAt);
     }
 
     /*

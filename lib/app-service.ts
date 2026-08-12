@@ -15,7 +15,6 @@ import {
   signInWithPopup,
   signInWithEmailAndPassword,
   signOut,
-  updatePassword,
   type Unsubscribe
 } from "firebase/auth";
 import {
@@ -105,7 +104,6 @@ const TEMPORARY_ACCOUNTS: readonly {
 }[] = [];
 const DEMO_USERNAME = "";
 const DEMO_EMAIL = "";
-const DEMO_TEMP_PASSWORD = "";
 
 interface PrivateProfileRecord {
   userId: string;
@@ -3401,11 +3399,14 @@ export const appService = {
           firebaseUser,
           EmailAuthProvider.credential(firebaseUser.email, currentPassword)
         );
-        await updatePassword(firebaseUser, newPassword);
-        await updateDoc(doc(services.db, "users", userId), {
-          mustChangePassword: false,
-          updatedAt: nowIso()
+        const token = await firebaseUser.getIdToken(true);
+        const response = await fetch("/api/change-password", {
+          method: "POST",
+          headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+          body: JSON.stringify({ newPassword })
         });
+        const body = await response.json() as { error?: string };
+        if (!response.ok) throw new Error(body.error || "Your password could not be saved.");
         return;
       }
 
@@ -3652,6 +3653,20 @@ export const appService = {
       assertStoredProfileImagePath(userId, data.imagePath);
       const services = getFirebaseServices();
       if (!services) throw new Error("Firebase is not available.");
+      const firebaseUser = services.auth.currentUser;
+      if (!firebaseUser || firebaseUser.uid !== userId) throw new Error("Please log in again.");
+      const token = await firebaseUser.getIdToken();
+      const completionResponse = await fetch("/api/complete-profile", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ profile: data })
+      });
+      const completionBody = await completionResponse.json() as { profile?: SpiritualProfile; error?: string };
+      if (!completionResponse.ok || !completionBody.profile) throw new Error(completionBody.error || "Your profile could not be created.");
+      if (storageAvailable()) window.localStorage.removeItem(firebaseDraftCacheKey(userId));
+      return completionBody.profile;
+
+      /* Legacy direct-write path kept unreachable for compatibility while deployments migrate.
       const existing = await this.getProfileView(userId);
       const fullProfile: SpiritualProfile = {
         id: userId,
@@ -3707,6 +3722,7 @@ export const appService = {
         fullProfile.imagePath
       );
       return fullProfile;
+      */
     }
 
     assertLocalOwner(userId);

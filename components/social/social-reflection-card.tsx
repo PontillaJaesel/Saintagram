@@ -11,7 +11,6 @@ import {
 import Link from "next/link";
 
 import {
-  CalendarDays,
   Heart,
   LoaderCircle,
   MessageCircle,

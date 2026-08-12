@@ -8,9 +8,8 @@ export type AuthDestination =
   | "/profile";
 
 export function resolvePostAuthRoute(user: AppUser): AuthDestination {
+  if (!user.profileCompleted) return "/create";
   if (user.mustChangePassword) return "/settings";
   if (!user.privacyConsentAt) return "/privacy";
-  if (!user.profileCompleted && !user.spiritualIntroSeenAt) return "/introduction";
-  if (!user.profileCompleted) return "/create";
   return "/profile";
 }

@@ -12,29 +12,21 @@ import {
   ArrowRight,
   Check,
   CheckCircle2,
-  ChevronRight,
   CircleAlert,
-  Cloud,
-  EyeOff,
-  FileText,
-  Heart,
   Image as ImageIcon,
   LoaderCircle,
-  MessageCircleHeart,
   Plus,
   Save,
   ShieldCheck,
   Sparkles,
   Trash2,
-  UserRound,
-  UsersRound
+  UserRound
 } from "lucide-react";
 import { Logo } from "@/components/brand/logo";
 import { ImageSymbolPicker } from "@/components/forms/image-symbol-picker";
 import { TagEditor } from "@/components/forms/tag-editor";
 import { useAuth } from "@/components/providers/auth-provider";
 import { useToast } from "@/components/providers/toast-provider";
-import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { LoadingState } from "@/components/ui/loading-state";
 import { ProfileAvatar } from "@/components/ui/profile-avatar";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
@@ -143,7 +135,7 @@ function ReviewSection({
 }
 
 export function ProfileWizard() {
-  const { user, refreshUser, cancelAccountCreation } = useAuth();
+  const { user, refreshUser } = useAuth();
   const { notify } = useToast();
   const router = useRouter();
   const [data, setData] = useState<ProfileDraftData>(cloneEmptyDraft);
@@ -153,8 +145,6 @@ export function ProfileWizard() {
   const [saveStatus, setSaveStatus] = useState<SaveStatus>("idle");
   const [error, setError] = useState("");
   const [stepError, setStepError] = useState("");
-  const [discardOpen, setDiscardOpen] = useState(false);
-  const [discarding, setDiscarding] = useState(false);
   const [finishing, setFinishing] = useState(false);
   const [persistedImagePath, setPersistedImagePath] = useState("");
   const finishingRef = useRef(false);
@@ -441,34 +431,6 @@ export function ProfileWizard() {
     setStep((current) => Math.max(0, current - 1));
   };
 
-  const discardDraft = async () => {
-    if (!user) return;
-    setDiscarding(true);
-    finishingRef.current = true;
-    try {
-      await waitForPendingSave();
-      await cancelAccountCreation();
-      skipNextAutosaveRef.current = true;
-      persistedImagePathRef.current = "";
-      latestImagePathRef.current = "";
-      knownImagePathsRef.current.clear();
-      setPersistedImagePath("");
-      setDiscardOpen(false);
-      notify("Account creation was cancelled. Your email was not saved.");
-      router.replace("/");
-    } catch (discardError) {
-      notify(
-        discardError instanceof Error
-          ? discardError.message
-          : "Account creation could not be cancelled.",
-        "error"
-      );
-    } finally {
-      finishingRef.current = false;
-      setDiscarding(false);
-    }
-  };
-
   const complete = async () => {
     if (!user) return;
     const firstIncompleteStep = Array.from(
@@ -493,7 +455,7 @@ export function ProfileWizard() {
       await cleanupKnownImages(data.imagePath, false);
       if (data.imagePath) knownImagePathsRef.current.add(data.imagePath);
       await refreshUser();
-      router.replace("/profile?created=1");
+      router.replace(user.mustChangePassword ? "/settings#change-password" : "/profile?created=1");
     } catch (completeError) {
       finishingRef.current = false;
       setFinishing(false);
@@ -1066,14 +1028,6 @@ export function ProfileWizard() {
                   )}
                   Save draft
                 </button>
-                <button
-                  type="button"
-                  className="btn-destructive inline-flex min-h-10 items-center justify-center gap-2 px-3 text-[11px] font-bold"
-                  onClick={() => setDiscardOpen(true)}
-                >
-                  <Trash2 className="size-3.5" aria-hidden="true" />
-                  Cancel account creation
-                </button>
               </div>
             </div>
           </aside>
@@ -1175,16 +1129,6 @@ export function ProfileWizard() {
         </div>
       </main>
 
-      <ConfirmDialog
-        open={discardOpen}
-        title="Cancel account creation?"
-        description="All profile changes and uploaded images will be permanently removed. The account and email address you used to sign up will not be saved. This cannot be undone."
-        confirmLabel="Cancel and delete account"
-        destructive
-        busy={discarding}
-        onClose={() => setDiscardOpen(false)}
-        onConfirm={() => void discardDraft()}
-      />
     </div>
   );
 }

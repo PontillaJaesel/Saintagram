@@ -27,7 +27,7 @@ function safe(value: unknown, record: Record<string, unknown>): string | number 
 }
 
 function uniqueSheetName(name: string, used: Set<string>): string {
-  const clean = name.replace(/[\\/?*\[\]:]/g, " ").trim().slice(0, 31) || "User";
+  const clean = name.replace(/[\\/?*[\]:]/g, " ").trim().slice(0, 31) || "User";
   let candidate = clean; let suffix = 2;
   while (used.has(candidate.toLocaleLowerCase())) { const marker = ` ${suffix++}`; candidate = `${clean.slice(0, 31 - marker.length)}${marker}`; }
   used.add(candidate.toLocaleLowerCase()); return candidate;

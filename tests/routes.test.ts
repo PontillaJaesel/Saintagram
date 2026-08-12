@@ -20,19 +20,19 @@ describe("resolvePostAuthRoute", () => {
     {
       state: "is using a temporary password",
       user: makeUser({ mustChangePassword: true }),
-      expected: "/settings"
+      expected: "/create"
     },
     {
       state: "has not accepted privacy",
       user: makeUser(),
-      expected: "/privacy"
+      expected: "/create"
     },
     {
       state: "accepted privacy but has not read the introduction",
       user: makeUser({
         privacyConsentAt: "2026-01-02T00:00:00.000Z"
       }),
-      expected: "/introduction"
+      expected: "/create"
     },
     {
       state: "read the introduction but has not completed a profile",
@@ -62,5 +62,11 @@ describe("resolvePostAuthRoute", () => {
     });
 
     expect(resolvePostAuthRoute(user)).toBe("/profile");
+  });
+
+  it("requires a completed temporary-password user to change the password", () => {
+    const user = makeUser({ profileCompleted: true, mustChangePassword: true });
+
+    expect(resolvePostAuthRoute(user)).toBe("/settings");
   });
 });

@@ -12,7 +12,7 @@ import { resolvePostAuthRoute } from "@/lib/routes";
 
 export default function WelcomePage() {
   const router = useRouter();
-  const { user, loading } = useAuth();
+  const { user } = useAuth();
   const [leaving, setLeaving] = useState(false);
   const primaryHref = user ? resolvePostAuthRoute(user) : "/auth?mode=login";
   const primaryLabel = user ? "Open My Profile" : "Explore More";
