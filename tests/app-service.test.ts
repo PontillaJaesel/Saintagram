@@ -154,4 +154,17 @@ describe("local profile persistence", () => {
       ])
     );
   });
+
+  it("saves, changes, and removes an optional FiAt category", async () => {
+    const user = await appService.register("fiat@example.test", "Faithful123");
+    const normal = await appService.saveReflection(user.id, { content: "A normal reflection.", isPrivate: false });
+    expect(normal.fiatCategory).toBeUndefined();
+    const fiat = await appService.saveReflection(user.id, { id: normal.id, content: normal.content, isPrivate: false, createdAt: "2026-08-11T12:00:00.000Z", fiatCategory: "prayer" });
+    expect(fiat).toMatchObject({ fiatCategory: "prayer", fiatDateKey: "2026-08-11" });
+    const changed = await appService.saveReflection(user.id, { id: fiat.id, content: fiat.content, isPrivate: false, createdAt: fiat.createdAt, fiatCategory: "service" });
+    expect(changed.fiatCategory).toBe("service");
+    const removed = await appService.saveReflection(user.id, { id: changed.id, content: changed.content, isPrivate: false, createdAt: changed.createdAt });
+    expect(removed.fiatCategory).toBeUndefined();
+    await expect(appService.saveReflection(user.id, { content: "Invalid", isPrivate: false, fiatCategory: "points" })).rejects.toThrow(/valid FiAt category/i);
+  });
 });

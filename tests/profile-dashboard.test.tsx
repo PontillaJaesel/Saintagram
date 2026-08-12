@@ -23,6 +23,7 @@ const mocks = vi.hoisted(() => ({
   getPublicReflections: vi.fn(),
   getPrivateStory: vi.fn(),
   getPrivateReflections: vi.fn(),
+  getReflections: vi.fn(),
   downloadFirebaseProfileImage: vi.fn()
 }));
 
@@ -51,6 +52,7 @@ vi.mock("@/lib/app-service", () => ({
     getPublicReflections: mocks.getPublicReflections,
     getPrivateStory: mocks.getPrivateStory,
     getPrivateReflections: mocks.getPrivateReflections
+    ,getReflections: mocks.getReflections
   }
 }));
 
@@ -111,6 +113,7 @@ const PROFILE_IMAGE_HISTORY = {
 
 describe("ProfileDashboard private content", () => {
   beforeEach(() => {
+    mocks.getReflections.mockResolvedValue([]);
     TEST_USER.privacyPreferences = {
       requirePrivateCheck: true,
       showReflectionDates: true

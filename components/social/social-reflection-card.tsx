@@ -23,6 +23,7 @@ import { useAuth } from "@/components/providers/auth-provider";
 import { useToast } from "@/components/providers/toast-provider";
 
 import { appService } from "@/lib/app-service";
+import { fiatCategoryLabel } from "@/lib/fiat";
 
 import {
   downloadFirebaseProfileImage,
@@ -1087,6 +1088,7 @@ export function SocialReflectionCard({
                 Edited
               </span>
             )}
+            {post.fiatCategory && <span className="rounded-full bg-gold-50 px-2.5 py-1 font-bold text-gold-700">Fi@ · {fiatCategoryLabel(post.fiatCategory)}</span>}
           </div>
 
           {post.title && (

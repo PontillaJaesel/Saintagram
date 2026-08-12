@@ -16,6 +16,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { LoadingState } from "@/components/ui/loading-state";
 
 import { appService } from "@/lib/app-service";
+import { calculateFiatStats } from "@/lib/fiat";
 import {
   downloadFirebaseProfileImage,
   isLocalProfileImageSource
@@ -225,6 +226,7 @@ export function SocialProfileView({
   }
 
   const isOwnProfile = user?.id === profile.userId;
+  const publicFiatStats = calculateFiatStats(posts);
 
   return (
     <div className="space-y-6">
@@ -269,6 +271,7 @@ export function SocialProfileView({
                   </p>
                 )}
               </div>
+              {publicFiatStats.currentStreak > 0 && <span className="fiat-streak-badge" aria-label={`Public FiAt streak: ${publicFiatStats.currentStreak} days`}><strong>Fi@ {publicFiatStats.currentStreak}</strong></span>}
             </div>
 
             <div className="shrink-0">

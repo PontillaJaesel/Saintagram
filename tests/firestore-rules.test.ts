@@ -16,6 +16,7 @@ import {
   updateDoc,
   where
 } from "firebase/firestore";
+import { Timestamp } from "firebase/firestore";
 import { afterAll, beforeAll, beforeEach, describe, it } from "vitest";
 
 const ALICE_ID = "alice";
@@ -397,6 +398,26 @@ describe("Saintagram Firestore ownership rules", () => {
     );
   });
 
+  it("protects server-created system notifications", async () => {
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      await setDoc(doc(context.firestore(), "systemNotifications", "reminder-1"), {
+        id: "reminder-1", userId: ALICE_ID, type: "profile_reminder",
+        title: "Complete your Saintagram profile", message: "A reminder.",
+        missingFields: ["Bio"], createdByAdminId: "admin",
+        createdAt: Timestamp.fromDate(new Date(NOW)), readAt: null
+      });
+    });
+    const aliceDb = testEnv.authenticatedContext(ALICE_ID, VERIFIED_EMAIL).firestore();
+    const bobDb = testEnv.authenticatedContext(BOB_ID, VERIFIED_EMAIL).firestore();
+    const ref = doc(aliceDb, "systemNotifications", "reminder-1");
+    await assertSucceeds(getDoc(ref));
+    await assertFails(getDoc(doc(bobDb, "systemNotifications", "reminder-1")));
+    await assertFails(setDoc(doc(aliceDb, "systemNotifications", "fake"), { userId: ALICE_ID }));
+    await assertSucceeds(updateDoc(ref, { readAt: Timestamp.now() }));
+    await assertFails(updateDoc(ref, { title: "Changed", readAt: Timestamp.now() }));
+    await assertFails(deleteDoc(ref));
+  });
+
   it("allows only the owner to access a reflection post", async () => {
     const aliceDb = testEnv.authenticatedContext(ALICE_ID, VERIFIED_EMAIL).firestore();
     const bobDb = testEnv.authenticatedContext(BOB_ID, VERIFIED_EMAIL).firestore();
@@ -449,5 +470,13 @@ describe("Saintagram Firestore ownership rules", () => {
       deleteDoc(doc(bobDb, "reflectionPosts", aliceReflection.id))
     );
     await assertSucceeds(deleteDoc(aliceRef));
+  });
+
+  it("accepts only canonical optional FiAt fields on reflections", async () => {
+    const aliceDb = testEnv.authenticatedContext(ALICE_ID, VERIFIED_EMAIL).firestore();
+    const validRef = doc(aliceDb, "reflectionPosts", "fiat-valid");
+    await assertSucceeds(setDoc(validRef, { ...aliceReflection, id: "fiat-valid", fiatCategory: "prayer", fiatDateKey: "2026-07-28" }));
+    await assertFails(setDoc(doc(aliceDb, "reflectionPosts", "fiat-invalid"), { ...aliceReflection, id: "fiat-invalid", fiatCategory: "points", fiatDateKey: "2026-07-28" }));
+    await assertFails(setDoc(doc(aliceDb, "reflectionPosts", "fiat-missing-date"), { ...aliceReflection, id: "fiat-missing-date", fiatCategory: "service" }));
   });
 });

@@ -19,11 +19,13 @@
     "build:vinext": "node scripts/run-vinext-build.mjs && node scripts/validate-deployment-artifacts.mjs",
     "start:vinext": "wrangler dev --config dist/server/wrangler.json",
     "deploy:vinext": "npm run build && vinext-cloudflare deploy --config dist/server/wrangler.json"
+    ,"admin:claim": "node --env-file=.env.production scripts/set-admin-claim.mjs"
   },
   "dependencies": {
     "@fontsource/montserrat": "^5.3.0",
     "@fontsource/roboto": "^5.3.0",
     "@types/pdfmake": "^0.2.11",
+    "exceljs": "^4.4.0",
     "firebase": "^11.4.0",
     "firebase-admin": "^14.2.0",
     "lucide-react": "^0.468.0",

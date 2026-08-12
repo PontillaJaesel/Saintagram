@@ -307,7 +307,9 @@ service cloud.firestore {
           'isPrivate',
           'createdAt',
           'updatedAt',
-          'editedAt'
+          'editedAt',
+          'fiatCategory',
+          'fiatDateKey'
         ])
         && data.keys().hasAll([
           'id',
@@ -324,6 +326,18 @@ service cloud.firestore {
         && isShortString(data.content, 500)
         && data.content.size() > 0
         && data.isPrivate is bool
+        && (
+          !data.keys().hasAny(['fiatCategory', 'fiatDateKey'])
+          || (
+            data.keys().hasAll(['fiatCategory', 'fiatDateKey'])
+            && data.fiatCategory in [
+              'prayer', 'forgiveness', 'service', 'sacrifice',
+              'act-of-love', 'responsible-choice', 'other'
+            ]
+            && data.fiatDateKey is string
+            && data.fiatDateKey.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$')
+          )
+        )
         && isIsoDate(data.createdAt)
         && isIsoDate(data.updatedAt)
         && (!('editedAt' in data) || isIsoDate(data.editedAt));
@@ -1271,6 +1285,19 @@ service cloud.firestore {
           || resource.data.actorUserId == request.auth.uid
         );
     }
+
+    match /systemNotifications/{notificationId} {
+      allow get, list: if signedIn() && resource.data.userId == request.auth.uid;
+      allow create, delete: if false;
+      allow update: if signedIn()
+        && resource.data.userId == request.auth.uid
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['readAt'])
+        && request.resource.data.readAt is timestamp;
+    }
+
+    // Tracking and administrator audit data are server-managed only.
+    match /linkOpenEvents/{eventId} { allow read, write: if false; }
+    match /adminAuditLogs/{logId} { allow read, write: if false; }
 
     /*
     * This is NOT inside notifications.

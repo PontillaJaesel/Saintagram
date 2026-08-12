@@ -177,6 +177,11 @@ html {
   }
 }
 
+@keyframes fiat-glow {
+  0%, 100% { transform: scale(1); box-shadow: 0 0 0 rgb(var(--gold-400) / 0); }
+  50% { transform: scale(1.025); box-shadow: 0 0 20px rgb(var(--gold-400) / 0.32); }
+}
+
 body {
   min-height: 100vh;
   color: rgb(var(--ink));
@@ -643,6 +648,16 @@ body {
 
   .chip-selected {
     @apply border-sage-500 bg-sage-500 text-white;
+  }
+
+  .fiat-streak-badge {
+    @apply inline-flex min-h-11 items-center gap-2 rounded-full border border-gold-200 bg-paper px-4 py-2 text-gold-700 opacity-70 transition hover:opacity-100;
+  }
+
+  .fiat-streak-active {
+    @apply border-gold-400 bg-gold-50 opacity-100;
+    box-shadow: 0 0 18px rgb(var(--gold-400) / 0.26);
+    animation: fiat-glow 3.5s ease-in-out 2;
   }
 
   .theme-toggle {

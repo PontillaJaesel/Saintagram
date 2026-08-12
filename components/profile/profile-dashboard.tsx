@@ -37,6 +37,8 @@ import { LoadingState } from "@/components/ui/loading-state";
 import { ProfileAvatar } from "@/components/ui/profile-avatar";
 import { ReflectionCard } from "@/components/reflections/reflection-card";
 import { SocialReflectionCard } from "@/components/social/social-reflection-card";
+import { FiatProfileControls } from "@/components/fiat/fiat-profile-controls";
+import { fiatCategoryLabel } from "@/lib/fiat";
 import { appService } from "@/lib/app-service";
 import { downloadFirebaseProfileImage, isLocalProfileImageSource } from "@/lib/profile-images";
 import { formatFriendlyDate } from "@/lib/validation";
@@ -653,6 +655,7 @@ export function ProfileDashboard() {
               {posts.length} {posts.length === 1 ? "reflection" : "reflections"}
             </p>
           </div>
+          <FiatProfileControls />
         </div>
         <section className="profile-hero border-b border-sage-100">
           <div
@@ -871,6 +874,7 @@ export function ProfileDashboard() {
                         <p className="font-secondary mt-2 text-sm leading-6 text-ink">
                           {post.content}
                         </p>
+                        {post.fiatCategory && <span className="mt-2 inline-flex rounded-full bg-gold-50 px-2.5 py-1 text-xs font-bold text-gold-700">Fi@ · {fiatCategoryLabel(post.fiatCategory)}</span>}
                       </li>
                     ))}
                   <li className="relative">

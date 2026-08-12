@@ -8,6 +8,7 @@ import {
 
 const ACCESS_PAGE = "/access";
 const ACCESS_ENDPOINT = "/api/access";
+const TRACKED_ENTRY_PATHS = new Set(["/open/qr", "/open/common"]);
 
 function isFrameworkAsset(pathname: string): boolean {
   return (
@@ -25,7 +26,7 @@ export function proxy(request: NextRequest) {
 export async function enforceAccessGate(request: NextRequest) {
   const { pathname, search } = request.nextUrl;
 
-  if (isFrameworkAsset(pathname) || pathname === ACCESS_ENDPOINT) {
+  if (isFrameworkAsset(pathname) || pathname === ACCESS_ENDPOINT || TRACKED_ENTRY_PATHS.has(pathname)) {
     return NextResponse.next();
   }
 

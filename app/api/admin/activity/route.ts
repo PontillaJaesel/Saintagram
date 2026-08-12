@@ -1,0 +1,1 @@
+import{NextResponse}from"next/server";import{adminError,noStoreHeaders,requireAdmin}from"@/lib/admin-auth";import{loadLinkEvents}from"@/lib/admin-data";export async function GET(r:Request){try{await requireAdmin(r);return NextResponse.json({events:await loadLinkEvents()},{headers:noStoreHeaders});}catch(e){return adminError(e);}}

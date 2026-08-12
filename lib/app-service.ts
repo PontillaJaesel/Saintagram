@@ -35,6 +35,7 @@ import {
   writeBatch
 } from "firebase/firestore";
 import { DEMO_EMAIL, DEMO_PASSWORD, LIMITS } from "@/lib/constants";
+import { isFiatCategory, localDateKey } from "@/lib/fiat";
 import { getFirebaseServices, isFirebaseConfigured } from "@/lib/firebase";
 import {
   deleteAllFirebaseProfileImages,
@@ -363,7 +364,9 @@ function storedReflection(
     isPrivate: data.isPrivate,
     createdAt,
     updatedAt,
-    ...(editedAt ? { editedAt } : {})
+    ...(editedAt ? { editedAt } : {}),
+    ...(isFiatCategory(data.fiatCategory) ? { fiatCategory: data.fiatCategory } : {}),
+    ...(isFiatCategory(data.fiatCategory) && /^\d{4}-\d{2}-\d{2}$/.test(stringValue(data.fiatDateKey)) ? { fiatDateKey: stringValue(data.fiatDateKey) } : {})
   };
 }
 
@@ -4319,6 +4322,7 @@ export const appService = {
       id?: string;
       title?: string;
       createdAt?: string;
+      fiatCategory?: unknown;
     }
   ): Promise<ReflectionPost> {
     const content = cleanText(input.content, LIMITS.post);
@@ -4330,6 +4334,11 @@ export const appService = {
       throw new Error("Choose a valid creation date.");
     }
     const normalizedCreatedAt = new Date(requestedCreatedAt).toISOString();
+    if (input.fiatCategory !== undefined && input.fiatCategory !== "" && !isFiatCategory(input.fiatCategory)) {
+      throw new Error("Choose a valid FiAt category.");
+    }
+    const fiatCategory = isFiatCategory(input.fiatCategory) ? input.fiatCategory : undefined;
+    const fiatDateKey = fiatCategory ? localDateKey(normalizedCreatedAt) : undefined;
 
     if (isFirebaseConfigured) {
       assertFirebaseOwner(userId);
@@ -4354,6 +4363,7 @@ export const appService = {
         createdAt,
         updatedAt: now,
         ...(input.id ? { editedAt: now } : {})
+        ,...(fiatCategory ? { fiatCategory, fiatDateKey } : {})
       };
       await setDoc(postRef, {
         ...post,
@@ -4387,6 +4397,7 @@ export const appService = {
         : existingCreatedAt ?? now,
       updatedAt: now,
       ...(input.id ? { editedAt: now } : {})
+      ,...(fiatCategory ? { fiatCategory, fiatDateKey } : {})
     };
     reflections[id] = post;
     writeJson(LOCAL_KEYS.reflections, reflections);

@@ -18,9 +18,10 @@ import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { EmptyState } from "@/components/ui/empty-state";
 import { LoadingState } from "@/components/ui/loading-state";
 import { ReflectionCard } from "@/components/reflections/reflection-card";
+import { FiatCategorySelector } from "@/components/fiat/fiat-category-selector";
 import { appService } from "@/lib/app-service";
 import { LIMITS } from "@/lib/constants";
-import type { ReflectionPost } from "@/types";
+import type { FiatCategory, ReflectionPost } from "@/types";
 
 function todayInputValue(): string {
   const now = new Date();
@@ -46,6 +47,7 @@ export function ReflectionManager() {
   const [content, setContent] = useState("");
   const [title, setTitle] = useState("");
   const [isPrivate, setIsPrivate] = useState(false);
+  const [fiatCategory, setFiatCategory] = useState<FiatCategory>();
   const [creationDate, setCreationDate] = useState(todayInputValue);
   const [editing, setEditing] = useState<ReflectionPost | null>(null);
   const [saving, setSaving] = useState(false);
@@ -107,6 +109,7 @@ export function ReflectionManager() {
     setContent("");
     setTitle("");
     setIsPrivate(false);
+    setFiatCategory(undefined);
     setCreationDate(todayInputValue());
     setEditing(null);
     setError("");
@@ -139,7 +142,8 @@ export function ReflectionManager() {
         title,
         content,
         isPrivate,
-        createdAt
+        createdAt,
+        fiatCategory
       });
       if (saved.isPrivate) {
         if (privateUnlocked) {
@@ -182,6 +186,7 @@ export function ReflectionManager() {
     setTitle(post.title ?? "");
     setContent(post.content);
     setIsPrivate(post.isPrivate);
+    setFiatCategory(post.fiatCategory);
     setCreationDate(dateInputValue(post.createdAt));
     setError("");
     setErrorField(null);
@@ -317,6 +322,8 @@ export function ReflectionManager() {
           >
             {content.length} / {LIMITS.post}
           </p>
+
+          <FiatCategorySelector value={fiatCategory} onChange={setFiatCategory} />
 
           <div className="mt-5">
             <label htmlFor="creation-date" className="label">
