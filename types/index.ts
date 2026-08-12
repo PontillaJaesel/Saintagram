@@ -24,6 +24,8 @@ export interface AppUser {
   spiritualIntroSeenAt?: string | null;
   profileCompleted: boolean;
   mustChangePassword?: boolean;
+  fullName?: string;
+  role?: "user" | "tester";
   privacyPreferences?: PrivacyPreferences;
 }
 

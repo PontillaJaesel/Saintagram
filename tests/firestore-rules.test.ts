@@ -62,8 +62,8 @@ const aliceProfile = {
   imagePath: "",
   selectedSymbol: "seed",
   spiritualBio: "Before God, I am learning to receive grace.",
-  followers: ["Jesus", "My family"],
-  following: ["God's will"],
+  spiritualGuides: ["Jesus", "My family"],
+  lifeDirections: ["God's will"],
   heartSeeks: ["Peace", "Truth"],
   godsComment: "You are known and loved.",
   heavenlyHashtag: "#StillGrowing",
@@ -86,8 +86,8 @@ const aliceDraft = {
     imagePath: "",
     selectedSymbol: "seed",
     spiritualBio: "",
-    followers: [],
-    following: [],
+    spiritualGuides: [],
+    lifeDirections: [],
     onboardingPosts: [""],
     heartSeeks: [],
     hiddenStory: "",
@@ -142,14 +142,14 @@ describe("Saintagram Firestore ownership rules", () => {
     await assertFails(setDoc(doc(unverifiedDb, "users", ALICE_ID), aliceUser));
   });
 
-  it("allows an anonymous guest account", async () => {
+  it("rejects an anonymous guest account", async () => {
     const guestDb = testEnv
       .authenticatedContext("guest-user", {
         firebase: { sign_in_provider: "anonymous" }
       })
       .firestore();
 
-    await assertSucceeds(
+    await assertFails(
       setDoc(doc(guestDb, "users", "guest-user"), {
         ...aliceUser,
         id: "guest-user",
@@ -159,14 +159,14 @@ describe("Saintagram Firestore ownership rules", () => {
     );
   });
 
-  it("allows a guest to upgrade to a previously unused Google identity", async () => {
+  it("rejects legacy guest and Google-provider account writes", async () => {
     const guestId = "upgrading-guest";
     const guestDb = testEnv
       .authenticatedContext(guestId, {
         firebase: { sign_in_provider: "anonymous" }
       })
       .firestore();
-    await assertSucceeds(
+    await assertFails(
       setDoc(doc(guestDb, "users", guestId), {
         ...aliceUser,
         id: guestId,
@@ -184,7 +184,7 @@ describe("Saintagram Firestore ownership rules", () => {
         firebase: { sign_in_provider: "google.com" }
       })
       .firestore();
-    await assertSucceeds(
+    await assertFails(
       updateDoc(doc(googleDb, "users", guestId), {
         email: googleEmail,
         isGuest: false,
@@ -222,6 +222,34 @@ describe("Saintagram Firestore ownership rules", () => {
     );
     await assertFails(deleteDoc(doc(bobDb, "users", ALICE_ID)));
     await assertSucceeds(deleteDoc(aliceRef));
+  });
+
+  it("allows server-provisioned username and password-change metadata", async () => {
+    const aliceDb = testEnv
+      .authenticatedContext(ALICE_ID, {
+        email: aliceUser.email,
+        email_verified: true,
+        firebase: { sign_in_provider: "password" }
+      })
+      .firestore();
+    const aliceRef = doc(aliceDb, "users", ALICE_ID);
+
+    await assertSucceeds(
+      setDoc(aliceRef, {
+        ...aliceUser,
+        username: "USR001",
+        fullName: "Alice Example",
+        role: "user",
+        mustChangePassword: true
+      })
+    );
+
+    await assertSucceeds(
+      updateDoc(aliceRef, {
+        mustChangePassword: true,
+        updatedAt: NOW
+      })
+    );
   });
 
   it("allows owners, rejects cross-user access, and forbids hiddenStory on profiles", async () => {
@@ -416,7 +444,7 @@ describe("Saintagram Firestore ownership rules", () => {
         )
       )
     );
-    await assertFails(
+    await assertSucceeds(
       getDoc(doc(bobDb, "reflectionPosts", aliceReflection.id))
     );
     await assertFails(

@@ -30,8 +30,8 @@ export function RouteGuard({
       destination = isIntentionalAuthExitPending()
         ? "/"
         : `/auth?mode=login&next=${encodeURIComponent(pathname)}`;
-    } else if (user.mustChangePassword) {
-      destination = "/auth?changePassword=1";
+    } else if (user.mustChangePassword && pathname !== "/settings") {
+      destination = "/settings";
     } else if (requireConsent && !user.privacyConsentAt) {
       destination = "/privacy";
     } else if (

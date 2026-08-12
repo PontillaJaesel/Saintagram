@@ -488,6 +488,159 @@ export function ProfileEditor() {
           </fieldset>
         </EditorSection>
 
+        {/* Password management lives in Settings so account security has one
+            clear and mandatory destination. */}
+        {/* <EditorSection
+          title="Account security"
+          description="Update your sign-in password from your profile settings."
+          icon={KeyRound}
+        >
+          {user?.authProvider && user.authProvider !== "password" ? (
+            <p className="text-sm leading-6 text-muted">
+              This account does not use a password login.
+            </p>
+          ) : (
+            <form onSubmit={submitPassword} className="space-y-4" noValidate>
+              <div>
+                <label htmlFor="profile-current-password" className="label">
+                  Current password
+                </label>
+                <input
+                  ref={currentPasswordRef}
+                  id="profile-current-password"
+                  type="password"
+                  autoComplete="current-password"
+                  className={`field ${
+                    passwordFieldErrors.current
+                      ? "border-clay-500 ring-2 ring-clay-100"
+                      : ""
+                  }`}
+                  value={currentPassword}
+                  onChange={(event) => {
+                    setCurrentPassword(event.target.value);
+                    setPasswordErrorMessage("");
+                    setPasswordFieldErrors((current) => ({
+                      ...current,
+                      current: undefined
+                    }));
+                  }}
+                  required
+                  aria-invalid={Boolean(passwordFieldErrors.current)}
+                  aria-describedby={
+                    passwordFieldErrors.current
+                      ? "profile-current-password-error"
+                      : undefined
+                  }
+                />
+                {passwordFieldErrors.current && (
+                  <p
+                    id="profile-current-password-error"
+                    className="mt-2 text-sm font-semibold text-clay-600"
+                    role="alert"
+                  >
+                    {passwordFieldErrors.current}
+                  </p>
+                )}
+              </div>
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div>
+                  <label htmlFor="profile-new-password" className="label">
+                    New password
+                  </label>
+                  <input
+                    ref={newPasswordRef}
+                    id="profile-new-password"
+                    type="password"
+                    autoComplete="new-password"
+                    className={`field ${
+                      passwordFieldErrors.new
+                        ? "border-clay-500 ring-2 ring-clay-100"
+                        : ""
+                    }`}
+                    value={newPassword}
+                    onChange={(event) => {
+                      setNewPassword(event.target.value);
+                      setPasswordErrorMessage("");
+                      setPasswordFieldErrors((current) => ({
+                        ...current,
+                        new: undefined
+                      }));
+                    }}
+                    required
+                    aria-invalid={Boolean(passwordFieldErrors.new)}
+                    aria-describedby={
+                      passwordFieldErrors.new ? "profile-new-password-error" : undefined
+                    }
+                  />
+                  {passwordFieldErrors.new && (
+                    <p
+                      id="profile-new-password-error"
+                      className="mt-2 text-sm font-semibold text-clay-600"
+                      role="alert"
+                    >
+                      {passwordFieldErrors.new}
+                    </p>
+                  )}
+                </div>
+                <div>
+                  <label htmlFor="profile-confirm-new-password" className="label">
+                    Confirm new password
+                  </label>
+                  <input
+                    ref={confirmPasswordRef}
+                    id="profile-confirm-new-password"
+                    type="password"
+                    autoComplete="new-password"
+                    className={`field ${
+                      passwordFieldErrors.confirm
+                        ? "border-clay-500 ring-2 ring-clay-100"
+                        : ""
+                    }`}
+                    value={confirmPassword}
+                    onChange={(event) => {
+                      setConfirmPassword(event.target.value);
+                      setPasswordErrorMessage("");
+                      setPasswordFieldErrors((current) => ({
+                        ...current,
+                        confirm: undefined
+                      }));
+                    }}
+                    required
+                    aria-invalid={Boolean(passwordFieldErrors.confirm)}
+                    aria-describedby={
+                      passwordFieldErrors.confirm
+                        ? "profile-confirm-new-password-error"
+                        : undefined
+                    }
+                  />
+                  {passwordFieldErrors.confirm && (
+                    <p
+                      id="profile-confirm-new-password-error"
+                      className="mt-2 text-sm font-semibold text-clay-600"
+                      role="alert"
+                    >
+                      {passwordFieldErrors.confirm}
+                    </p>
+                  )}
+                </div>
+              </div>
+              {passwordErrorMessage && (
+                <p className="text-sm font-semibold text-clay-600" role="alert">
+                  {passwordErrorMessage}
+                </p>
+              )}
+              <button type="submit" className="btn-secondary" disabled={passwordBusy}>
+                {passwordBusy ? (
+                  <LoaderCircle className="size-4 animate-spin" aria-hidden="true" />
+                ) : (
+                  <KeyRound className="size-4" aria-hidden="true" />
+                )}
+                {passwordBusy ? "Changing…" : "Change password"}
+              </button>
+            </form>
+          )}
+        </EditorSection> */}
+
         <EditorSection
           title="Hidden Story"
           description="Owner-only content. It is saved separately and never loaded into your standard profile or journey."

@@ -20,7 +20,7 @@ describe("resolvePostAuthRoute", () => {
     {
       state: "is using a temporary password",
       user: makeUser({ mustChangePassword: true }),
-      expected: "/auth?changePassword=1"
+      expected: "/settings"
     },
     {
       state: "has not accepted privacy",

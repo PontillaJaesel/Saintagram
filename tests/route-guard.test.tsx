@@ -103,9 +103,26 @@ describe("RouteGuard", () => {
     );
 
     await waitFor(() =>
-      expect(mocks.replace).toHaveBeenCalledWith("/auth?changePassword=1")
+      expect(mocks.replace).toHaveBeenCalledWith("/settings")
     );
     expect(screen.queryByText("Private profile")).not.toBeInTheDocument();
+  });
+
+  it("allows a temporary-password user to open Settings", () => {
+    mocks.pathname.mockReturnValue("/settings");
+    mocks.useAuth.mockReturnValue({
+      user: makeUser({ mustChangePassword: true }),
+      loading: false
+    });
+
+    render(
+      <RouteGuard requireConsent={false}>
+        <p>Password settings</p>
+      </RouteGuard>
+    );
+
+    expect(screen.getByText("Password settings")).toBeInTheDocument();
+    expect(mocks.replace).not.toHaveBeenCalled();
   });
 
   it("can render the privacy flow before consent when consent is not required", () => {

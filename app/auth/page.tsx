@@ -9,30 +9,23 @@ import {
   useState
 } from "react";
 import Link from "next/link";
-import type { AppUser } from "@/types";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
   ArrowLeft,
   ArrowRight,
-  AlertTriangle,
   Eye,
   EyeOff,
-  KeyRound,
   LoaderCircle,
   LockKeyhole
 } from "lucide-react";
 import { Logo } from "@/components/brand/logo";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { useAuth } from "@/components/providers/auth-provider";
-import { DEMO_USERNAME, DEMO_TEMP_PASSWORD } from "@/lib/constants";
 import { resolvePostAuthRoute } from "@/lib/routes";
-import { passwordError } from "@/lib/validation";
 
-type AuthMode = "login";
 type AuthErrorField =
   | "username"
   | "password"
-  | "confirmPassword"
   | "credentials"
   | null;
 
@@ -40,29 +33,21 @@ function AuthForm() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const auth = useAuth();
-  const mode: AuthMode = "login";
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
-  const [newPassword, setNewPassword] = useState("");
-  const [confirmPassword, setConfirmPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
   const [errorField, setErrorField] = useState<AuthErrorField>(null);
   const [message, setMessage] = useState("");
   const [submitting, setSubmitting] = useState(false);
-  const [stage, setStage] = useState<"login" | "changePassword">("login");
   const usernameRef = useRef<HTMLInputElement>(null);
   const passwordRef = useRef<HTMLInputElement>(null);
-  const newPasswordRef = useRef<HTMLInputElement>(null);
-  const confirmPasswordRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (auth.user?.mustChangePassword) {
-      setStage("changePassword");
-      setUsername(auth.user.username ?? "");
-      setMessage("Set a new permanent password before continuing.");
+      router.replace("/settings");
     }
-  }, [auth.user]);
+  }, [auth.user, router]);
 
   const copy = useMemo(
     () => ({
@@ -91,75 +76,33 @@ function AuthForm() {
     setErrorField(null);
     setMessage("");
 
-    if (stage === "login") {
-      if (!username.trim()) {
+    if (!username.trim()) {
         setError("Enter your username.");
         setErrorField("username");
         window.requestAnimationFrame(() => usernameRef.current?.focus());
         return;
-      }
-      if (!password.trim()) {
+    }
+    if (!password.trim()) {
         setError("Enter your password.");
         setErrorField("password");
         window.requestAnimationFrame(() => passwordRef.current?.focus());
         return;
-      }
-    } else {
-      if (!newPassword.trim()) {
-        setError("Enter a new password.");
-        setErrorField("password");
-        window.requestAnimationFrame(() => newPasswordRef.current?.focus());
-        return;
-      }
-      const validation = passwordError(newPassword);
-      if (validation) {
-        setError(validation);
-        setErrorField("password");
-        window.requestAnimationFrame(() => newPasswordRef.current?.focus());
-        return;
-      }
-      if (newPassword !== confirmPassword) {
-        setError("Those passwords do not match yet.");
-        setErrorField("confirmPassword");
-        window.requestAnimationFrame(() => confirmPasswordRef.current?.focus());
-        return;
-      }
     }
 
     setSubmitting(true);
     try {
-      if (stage === "login") {
-        const nextUser = await auth.login(username.trim(), password);
-        if (nextUser.mustChangePassword) {
-          setStage("changePassword");
-          setMessage(
-            "Temporary password accepted. Set a new permanent password before continuing."
-          );
-          return;
-        }
-        navigateAfterLogin(nextUser);
-      } else {
-        await auth.changePassword(password, newPassword);
-        const refreshedUser = await auth.refreshUser();
-        if (!refreshedUser) throw new Error("Unable to refresh your account.");
-        navigateAfterLogin(refreshedUser);
-      }
+      const nextUser = await auth.login(username.trim(), password);
+      navigateAfterLogin(nextUser);
     } catch (submitError) {
       setError(
         submitError instanceof Error
           ? submitError.message
           : "Something went wrong. Please try again."
       );
-      setErrorField(stage === "login" ? "credentials" : "password");
+      setErrorField("credentials");
     } finally {
       setSubmitting(false);
     }
-  };
-
-  const useDemoAccount = () => {
-    setUsername(DEMO_USERNAME);
-    setPassword(DEMO_TEMP_PASSWORD);
-    setError("");
   };
 
   const formOnRight = true;
@@ -217,7 +160,6 @@ function AuthForm() {
                   }
                 }}
                 placeholder="Enter your username"
-                disabled={stage === "changePassword"}
                 required
                 aria-invalid={errorField === "username" || errorField === "credentials"}
                 aria-describedby={
@@ -230,7 +172,7 @@ function AuthForm() {
             <div>
               <div className="flex items-center justify-between">
                 <label htmlFor="password" className="label">
-                  {stage === "login" ? "Temporary password" : "Current temporary password"}
+                  Temporary password
                 </label>
               </div>
               <div className="relative">
@@ -242,7 +184,7 @@ function AuthForm() {
                   ref={passwordRef}
                   id="password"
                   type={showPassword ? "text" : "password"}
-                  autoComplete={stage === "login" ? "current-password" : "current-password"}
+                  autoComplete="current-password"
                   className="field px-12"
                   value={password}
                   onChange={(event) => {
@@ -277,59 +219,6 @@ function AuthForm() {
                 Your one-time temporary password is required to sign in.
               </p>
             </div>
-            {stage === "changePassword" && (
-              <>
-                <div>
-                  <label htmlFor="new-password" className="label">
-                    New password
-                  </label>
-                  <input
-                    ref={newPasswordRef}
-                    id="new-password"
-                    type={showPassword ? "text" : "password"}
-                    autoComplete="new-password"
-                    className="field"
-                    value={newPassword}
-                    onChange={(event) => {
-                      setNewPassword(event.target.value);
-                      if (errorField === "password") {
-                        setError("");
-                        setErrorField(null);
-                      }
-                    }}
-                    required
-                    aria-invalid={errorField === "password"}
-                    aria-describedby={
-                      error && errorField === "password" ? "auth-error" : undefined
-                    }
-                  />
-                </div>
-                <div>
-                  <label htmlFor="confirm-password" className="label">
-                    Confirm new password
-                  </label>
-                  <input
-                    id="confirm-password"
-                    type={showPassword ? "text" : "password"}
-                    autoComplete="new-password"
-                    className="field"
-                    value={confirmPassword}
-                    onChange={(event) => {
-                      setConfirmPassword(event.target.value);
-                      if (errorField === "confirmPassword") {
-                        setError("");
-                        setErrorField(null);
-                      }
-                    }}
-                    required
-                    aria-invalid={errorField === "confirmPassword"}
-                    aria-describedby={
-                      error && errorField === "confirmPassword" ? "auth-error" : undefined
-                    }
-                  />
-                </div>
-              </>
-            )}
             {error && (
               <div
                 id="auth-error"
@@ -341,19 +230,9 @@ function AuthForm() {
             )}
             {message && (
               <div
-                className={`flex items-start gap-3 rounded-[var(--radius-base)] border px-4 py-3 text-sm font-semibold ${
-                  stage === "changePassword"
-                    ? "border-gold-300 bg-gold-50 text-gold-700"
-                    : "border-sage-200 bg-sage-50 text-sage-700"
-                }`}
-                role={stage === "changePassword" ? "alert" : "status"}
+                className="flex items-start gap-3 rounded-[var(--radius-base)] border border-sage-200 bg-sage-50 px-4 py-3 text-sm font-semibold text-sage-700"
+                role="status"
               >
-                {stage === "changePassword" && (
-                  <AlertTriangle
-                    className="mt-0.5 size-5 shrink-0"
-                    aria-hidden="true"
-                  />
-                )}
                 <span>{message}</span>
               </div>
             )}
@@ -368,30 +247,10 @@ function AuthForm() {
                   aria-hidden="true"
                 />
               ) : null}
-              {submitting ? "Please wait…" : stage === "login" ? "Log in" : "Change password"}
+              {submitting ? "Please wait…" : "Log in"}
               {!submitting && <ArrowRight className="size-4" aria-hidden="true" />}
             </button>
           </form>
-
-          {auth.mode === "local" && (
-            <div className="mt-5 rounded-[var(--radius-base)] border border-gray-200 bg-white p-4">
-              <p className="text-sm font-bold text-gold-700">
-                Use this temporary test account
-              </p>
-              <p className="mt-1 text-xs leading-5 text-muted">
-                Username: {DEMO_USERNAME}
-                <br />
-                Temporary password: {DEMO_TEMP_PASSWORD}
-              </p>
-              <button
-                type="button"
-                className="mt-3 min-h-11 rounded-[var(--radius-base)] bg-white px-4 text-xs font-bold text-sage-700 shadow-sm transition hover:bg-sage-50"
-                onClick={useDemoAccount}
-              >
-                Fill test credentials
-              </button>
-            </div>
-          )}
 
           <p className="mt-7 text-center text-sm text-muted">
             Need help signing in? Contact support for access.

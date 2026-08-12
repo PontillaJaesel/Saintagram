@@ -4,12 +4,16 @@ service firebase.storage {
   match /b/{bucket}/o {
     function isOwner(userId) {
       return request.auth != null
+        && request.auth.token.get('email_verified', false) == true
+        && request.auth.token.firebase.sign_in_provider == 'password'
         && request.auth.uid == userId;
     }
 
     match /users/{userId}/profile/{imageName} {
       // Any signed-in Saintagram user may VIEW profile images.
-      allow read: if request.auth != null;
+      allow read: if request.auth != null
+        && request.auth.token.get('email_verified', false) == true
+        && request.auth.token.firebase.sign_in_provider == 'password';
 
       // Only the owner may UPLOAD.
       allow create: if isOwner(userId)

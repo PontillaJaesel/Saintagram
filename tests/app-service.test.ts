@@ -1,6 +1,5 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import { appService } from "@/lib/app-service";
-import { DEMO_TEMP_PASSWORD, DEMO_USERNAME } from "@/lib/constants";
 import type { ProfileDraftData } from "@/types";
 
 const draft: ProfileDraftData = {
@@ -20,21 +19,6 @@ const draft: ProfileDraftData = {
 describe("local profile persistence", () => {
   beforeEach(() => {
     localStorage.clear();
-  });
-
-  it("requires the test account to replace its one-time password", async () => {
-    const user = await appService.login(DEMO_USERNAME.toUpperCase(), DEMO_TEMP_PASSWORD);
-    expect(user.mustChangePassword).toBe(true);
-
-    await appService.changePassword(user.id, DEMO_TEMP_PASSWORD, "Permanent123!");
-    await appService.logout();
-
-    await expect(
-      appService.login(DEMO_USERNAME, DEMO_TEMP_PASSWORD)
-    ).rejects.toThrow(/do not match/i);
-
-    const signedInAgain = await appService.login(DEMO_USERNAME, "Permanent123!");
-    expect(signedInAgain.mustChangePassword).toBe(false);
   });
 
   it("saves a completed profile, clears its draft, and keeps Hidden Story out of the standard projection", async () => {

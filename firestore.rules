@@ -4,11 +4,8 @@ service cloud.firestore {
   match /databases/{database}/documents {
     function signedIn() {
       return request.auth != null
-        && (
-          request.auth.token.get('email_verified', false) == true
-          || request.auth.token.firebase.sign_in_provider == 'google.com'
-          || request.auth.token.firebase.sign_in_provider == 'anonymous'
-        );
+        && request.auth.token.get('email_verified', false) == true
+        && request.auth.token.firebase.sign_in_provider == 'password';
     }
 
     function isCurrentUser(userId) {
@@ -16,11 +13,7 @@ service cloud.firestore {
     }
 
     function authProviderName() {
-      return request.auth.token.firebase.sign_in_provider == 'anonymous'
-        ? 'guest'
-        : request.auth.token.firebase.sign_in_provider == 'google.com'
-          ? 'google'
-          : 'password';
+      return 'password';
     }
 
     function ownsExistingDocument() {
@@ -85,6 +78,9 @@ service cloud.firestore {
       return data.keys().hasOnly([
           'id',
           'email',
+          'username',
+          'fullName',
+          'role',
           'isGuest',
           'authProvider',
           'createdAt',
@@ -92,6 +88,7 @@ service cloud.firestore {
           'privacyConsentAt',
           'spiritualIntroSeenAt',
           'profileCompleted',
+          'mustChangePassword',
           'privacyPreferences'
         ])
         && data.keys().hasAll([
@@ -104,11 +101,16 @@ service cloud.firestore {
         && data.id is string
         && data.email is string
         && data.email.size() <= 320
+        && (!('username' in data) || data.username is string)
+        && (!('username' in data) || data.username.size() <= 80)
+        && (!('fullName' in data) || isShortString(data.fullName, 120))
+        && (!('role' in data) || data.role in ['user', 'tester'])
         && (!('isGuest' in data) || data.isGuest is bool)
-        && (!('authProvider' in data) || data.authProvider in ['password', 'google', 'guest'])
+        && (!('authProvider' in data) || data.authProvider == 'password')
         && isIsoDate(data.createdAt)
         && isIsoDate(data.updatedAt)
         && data.profileCompleted is bool
+        && (!('mustChangePassword' in data) || data.mustChangePassword is bool)
         && (
           !('privacyConsentAt' in data)
           || data.privacyConsentAt == null
@@ -758,7 +760,7 @@ service cloud.firestore {
           || request.resource.data.email == request.auth.token.get('email', null)
         )
         && request.resource.data.get('isGuest', false)
-          == (request.auth.token.firebase.sign_in_provider == 'anonymous')
+          == false
         && request.resource.data.get('authProvider', 'password')
           == authProviderName()
         && hasValidUserShape(request.resource.data);
@@ -783,7 +785,13 @@ service cloud.firestore {
             && authProviderName() != 'guest'
           )
         )
-        && request.resource.data.createdAt == resource.data.createdAt;
+        && request.resource.data.createdAt == resource.data.createdAt
+        && request.resource.data.get('username', '')
+          == resource.data.get('username', '')
+        && request.resource.data.get('fullName', '')
+          == resource.data.get('fullName', '')
+        && request.resource.data.get('role', 'user')
+          == resource.data.get('role', 'user');
 
       allow delete: if isCurrentUser(userId);
     }

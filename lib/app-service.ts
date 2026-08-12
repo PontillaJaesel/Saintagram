@@ -34,13 +34,9 @@ import {
   where,
   writeBatch
 } from "firebase/firestore";
-import { DEMO_EMAIL, DEMO_TEMP_PASSWORD, DEMO_USERNAME, LIMITS } from "@/lib/constants";
+import { LIMITS } from "@/lib/constants";
 import { getFirebaseServices, isFirebaseConfigured } from "@/lib/firebase";
-import {
-  findTemporaryAccount,
-  TEMPORARY_ACCOUNTS,
-  usernameAccountEmail
-} from "@/lib/temporary-accounts";
+import { usernameAccountEmail } from "@/lib/account-identity";
 import {
   deleteAllFirebaseProfileImages,
   deleteFirebaseProfileImage,
@@ -96,6 +92,16 @@ interface LocalAccount {
   passwordHash: string;
   mustChangePassword?: boolean;
 }
+
+// Provisioned credentials are server-only. The browser-local adapter retains
+// generic test-account support but never receives the issued account list.
+const TEMPORARY_ACCOUNTS: readonly {
+  username: string;
+  temporaryPassword: string;
+}[] = [];
+const DEMO_USERNAME = "";
+const DEMO_EMAIL = "";
+const DEMO_TEMP_PASSWORD = "";
 
 interface PrivateProfileRecord {
   userId: string;
@@ -726,28 +732,28 @@ function storedProfileImageHistoryEntry(
 }
 
 async function ensureLocalSeed(): Promise<void> {
-  if (!storageAvailable() || localAccounts().length > 0) return;
+  if (!storageAvailable()) return;
 
   const userId = "demo-grace";
   const createdAt = "2026-01-06T08:00:00.000Z";
   const updatedAt = "2026-07-24T18:30:00.000Z";
-  const user: AppUser = {
-    id: userId,
-    email: DEMO_EMAIL,
-    username: DEMO_USERNAME,
-    createdAt,
-    updatedAt,
-    privacyConsentAt: createdAt,
-    spiritualIntroSeenAt: createdAt,
-    profileCompleted: true,
-    mustChangePassword: true,
-    privacyPreferences: DEFAULT_PRIVACY_PREFERENCES
-  };
-  const issuedAccounts = await Promise.all(
+  const existingAccounts = localAccounts();
+  const expectedAccounts = await Promise.all(
     TEMPORARY_ACCOUNTS.map(async ({ username, temporaryPassword }) => {
       if (username === DEMO_USERNAME) {
         return {
-          user,
+          user: {
+            id: userId,
+            email: DEMO_EMAIL,
+            username: DEMO_USERNAME,
+            createdAt,
+            updatedAt,
+            privacyConsentAt: createdAt,
+            spiritualIntroSeenAt: createdAt,
+            profileCompleted: true,
+            mustChangePassword: true,
+            privacyPreferences: DEFAULT_PRIVACY_PREFERENCES
+          } satisfies AppUser,
           passwordHash: await hashPassword(temporaryPassword),
           mustChangePassword: true
         };
@@ -766,7 +772,32 @@ async function ensureLocalSeed(): Promise<void> {
       };
     })
   );
-  saveLocalAccounts(issuedAccounts);
+
+  const requiresReset =
+    existingAccounts.length === 0 ||
+    expectedAccounts.some((expected) => {
+      const actual = existingAccounts.find((candidate) => {
+        const sameUsername =
+          candidate.user.username?.trim().toLocaleLowerCase() ===
+          expected.user.username?.trim().toLocaleLowerCase();
+        const sameEmail = candidate.user.email === expected.user.email;
+        const sameUserId = candidate.user.id === expected.user.id;
+        return sameUsername || sameEmail || sameUserId;
+      });
+      if (!actual) return true;
+
+      const isStillInTemporaryFlow = Boolean(
+        actual.user.mustChangePassword ||
+        actual.mustChangePassword ||
+        actual.mustChangePassword
+      );
+
+      if (!isStillInTemporaryFlow) return false;
+      return actual.passwordHash !== expected.passwordHash;
+    });
+
+  if (!requiresReset) return;
+  saveLocalAccounts(expectedAccounts);
 
   const profile: PublicSpiritualProfile = {
     id: userId,
@@ -852,6 +883,8 @@ function friendlyAuthError(error: unknown): Error {
   const messages: Record<string, string> = {
     "auth/email-already-in-use":
       "An account already uses that email. Try logging in instead.",
+    "auth/temp-password-used":
+      "This temporary password has already been used. Change your password in Settings before logging in again.",
     "auth/invalid-credential":
       "That email and password do not match. Please try again.",
     "auth/user-not-found":
@@ -3012,24 +3045,52 @@ export const appService = {
         const services = getFirebaseServices();
         if (!services) throw new Error("Firebase is not available.");
         await services.persistenceReady;
-        const issued = findTemporaryAccount(email);
-        const loginEmail = issued ? usernameAccountEmail(issued.username) : email.trim();
-        if (issued?.temporaryPassword === password) {
+
+        const loginEmail = usernameAccountEmail(email);
+        if (!loginEmail) {
+          throw Object.assign(new Error(), { code: "auth/invalid-credential" });
+        }
+
+        let credential;
+        try {
+          credential = await signInWithEmailAndPassword(
+            services.auth,
+            loginEmail,
+            password
+          );
+        } catch (initialError) {
+          const code =
+            typeof initialError === "object" && initialError && "code" in initialError
+              ? String(initialError.code)
+              : "";
+          if (![
+            "auth/invalid-credential",
+            "auth/user-not-found",
+            "auth/wrong-password"
+          ].includes(code)) {
+            throw initialError;
+          }
+
           const prepared = await fetch("/api/bootstrap-account", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ username: issued.username, password })
+            body: JSON.stringify({ username: email.trim(), password })
           });
           if (!prepared.ok) {
-            const result = (await prepared.json().catch(() => ({}))) as { error?: string };
-            throw new Error(result.error ?? "Sign-in could not be prepared.");
+            const result = (await prepared.json().catch(() => ({}))) as {
+              error?: string;
+            };
+            throw Object.assign(
+              new Error(result.error ?? "The username and password do not match."),
+              { code: prepared.status === 401 ? "auth/invalid-credential" : "auth/provisioning-failed" }
+            );
           }
+          credential = await signInWithEmailAndPassword(
+            services.auth,
+            loginEmail,
+            password
+          );
         }
-        const credential = await signInWithEmailAndPassword(
-          services.auth,
-          loginEmail,
-          password
-        );
         await credential.user.reload();
         if (!credential.user.emailVerified) {
           try {
@@ -3042,16 +3103,18 @@ export const appService = {
           }
           throw Object.assign(new Error(), { code: "auth/email-not-verified" });
         }
-        return getFirebaseUserRecord(
+        const nextUser = await getFirebaseUserRecord(
           credential.user.uid,
           credential.user.email ?? email
         );
+        return nextUser;
       }
 
       await ensureLocalSeed();
       const normalizedLogin = email.trim().toLocaleLowerCase();
       const hash = await hashPassword(password);
-      const account = localAccounts().find((candidate) => {
+      const accounts = localAccounts();
+      const account = accounts.find((candidate) => {
         const matchesEmail = candidate.user.email === normalizedLogin;
         const matchesUsername =
           typeof candidate.user.username === "string" &&
@@ -3314,12 +3377,13 @@ export const appService = {
       ) {
         throw Object.assign(new Error(), { code: "auth/wrong-password" });
       }
+      const updatedAt = nowIso();
       accounts[index].passwordHash = await hashPassword(newPassword);
       accounts[index].mustChangePassword = false;
       accounts[index].user = {
         ...accounts[index].user,
         mustChangePassword: false,
-        updatedAt: nowIso()
+        updatedAt
       };
       saveLocalAccounts(accounts);
     } catch (error) {

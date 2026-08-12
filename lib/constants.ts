@@ -63,11 +63,6 @@ export const HASHTAG_IDEAS = [
   "#LearningToTrust"
 ];
 
-export const DEMO_USERNAME = "USRTEST";
-export const DEMO_EMAIL = "grace@saintagram.demo";
-export const DEMO_TEMP_PASSWORD = "TempPass123!";
-export const DEMO_PASSWORD = DEMO_TEMP_PASSWORD;
-
 export const LIMITS = {
   profileName: 60,
   bio: 320,
