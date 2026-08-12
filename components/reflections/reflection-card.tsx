@@ -3,6 +3,7 @@
 import { CalendarDays, Edit3, LockKeyhole, Trash2 } from "lucide-react";
 import { formatFriendlyDate } from "@/lib/validation";
 import { fiatCategoryLabel } from "@/lib/fiat";
+import { ReflectionMediaView } from "@/components/reflections/reflection-media-view";
 import type { ReflectionPost } from "@/types";
 
 export function ReflectionCard({
@@ -50,7 +51,7 @@ export function ReflectionCard({
             {post.editedAt && (
               <span aria-label="This reflection was edited">Edited</span>
             )}
-            {post.fiatCategory && <span className="rounded-full bg-gold-50 px-2.5 py-1 font-bold text-gold-700">Fi@ · {fiatCategoryLabel(post.fiatCategory)}</span>}
+            {post.fiatCategory && <span className="rounded-full bg-gold-50 px-2.5 py-1 font-bold text-gold-700">Fi@ · {post.fiatCategory==="other"&&post.fiatOther?post.fiatOther:fiatCategoryLabel(post.fiatCategory)}</span>}
           </div>
           {post.title && (
             <h3 className="user-content mt-2 text-base font-bold text-ink">
@@ -60,6 +61,7 @@ export function ReflectionCard({
           <p className="user-content mt-3 whitespace-pre-wrap text-base leading-7 text-ink">
             {post.content}
           </p>
+          <ReflectionMediaView media={post.media} compact />
         </div>
       </div>
       {showActions && (

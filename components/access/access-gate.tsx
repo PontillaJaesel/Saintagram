@@ -1,11 +1,12 @@
 "use client";
 
 import { FormEvent, useRef, useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import { RefreshCw } from "lucide-react";
 import { Logo } from "@/components/brand/logo";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { getSafeAccessDestination } from "@/lib/access-path";
+import { replaceBrowserLocation } from "@/lib/browser-navigation";
 
 interface AccessResponse {
   error?: string;
@@ -17,7 +18,6 @@ const INVALID_CODE_MESSAGE =
   "That access code was not recognized. Please try again.";
 
 export function AccessGate() {
-  const router = useRouter();
   const searchParams = useSearchParams();
   const [code, setCode] = useState("");
   const [error, setError] = useState("");
@@ -59,8 +59,8 @@ export function AccessGate() {
         return;
       }
 
-      router.replace(getSafeAccessDestination(result.next));
-      router.refresh();
+      // Cross the HttpOnly session boundary with a fresh server request.
+      replaceBrowserLocation(getSafeAccessDestination(result.next));
     } catch {
       setError(
         "We could not reach the private entrance. Check your connection and try again."

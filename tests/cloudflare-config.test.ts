@@ -3,7 +3,9 @@ import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 
 interface WranglerConfig {
+  name?: string;
   main?: string;
+  vars?: Record<string, string>;
   assets?: {
     run_worker_first?: boolean | string[];
   };
@@ -15,7 +17,8 @@ describe("Cloudflare Worker configuration", () => {
       readFileSync(join(process.cwd(), "package.json"), "utf8")
     ) as { scripts?: Record<string, string> };
 
-    expect(packageJson.scripts?.["deploy:vinext"]).toContain("npm run build");
+    expect(packageJson.scripts?.deploy).toContain("npm run build");
+    expect(packageJson.scripts?.["deploy:vinext"]).toBe("npm run deploy");
     expect(packageJson.scripts?.build).toContain(
       "scripts/validate-deployment-artifacts.mjs"
     );
@@ -28,6 +31,21 @@ describe("Cloudflare Worker configuration", () => {
     ) as WranglerConfig;
 
     expect(config.main).toBe("worker.ts");
+    expect(config.name).toBe("saintagram");
+    expect(config.vars?.SAINTAGRAM_APP_MODE).toBe("normal");
+  });
+
+  it("uses separate fail-closed deployment targets", () => {
+    const packageJson = JSON.parse(
+      readFileSync(join(process.cwd(), "package.json"), "utf8")
+    ) as { scripts?: Record<string, string> };
+
+    expect(packageJson.scripts?.deploy).toContain(
+      "dist/server/wrangler.json saintagram normal"
+    );
+    expect(packageJson.scripts?.["deploy:admin"]).toContain(
+      "dist/server/wrangler.admin.json saintagram-admin admin"
+    );
   });
 
   it("runs hashed static assets through the cache-policy Worker", () => {

@@ -3,6 +3,7 @@ import {
   deleteUser,
   EmailAuthProvider,
   GoogleAuthProvider,
+  OAuthProvider,
   linkWithCredential,
   linkWithPopup,
   onAuthStateChanged,
@@ -43,6 +44,7 @@ import {
   isOwnedProfileImagePath,
   uploadFirebaseProfileImage
 } from "@/lib/profile-images";
+import { deleteAllReflectionMedia } from "@/lib/reflection-media";
 import {
   normalizeDraft,
   normalizeProfileImageReference,
@@ -65,6 +67,7 @@ import {
   type ProfileDraftData,
   type PublicSpiritualProfile,
   type ReflectionPost,
+  type ReflectionMedia,
   type FollowRelationship,
   type SocialNotification,
   type SocialFeedPost,
@@ -209,7 +212,7 @@ function emailActionSettings(path: string) {
 function createUserRecord(
   id: string,
   email: string,
-  authProvider: "password" | "google" | "guest" = "password"
+  authProvider: "password" | "google" | "apple" | "guest" = "password"
 ): AppUser {
   const now = nowIso();
   return {
@@ -346,6 +349,16 @@ function storedReflection(
   const createdAt = dateValue(data.createdAt);
   const updatedAt = dateValue(data.updatedAt);
   const editedAt = dateValue(data.editedAt);
+  const fiatOther = cleanText(stringValue(data.fiatOther), LIMITS.fiatOther);
+  const media = Array.isArray(data.media)
+    ? data.media.filter((item): item is ReflectionMedia => {
+        if (!item || typeof item !== "object") return false;
+        const value = item as Record<string, unknown>;
+        return (value.type === "image" || value.type === "video") &&
+          typeof value.path === "string" &&
+          value.path.startsWith(`users/${userId}/reflections/${id}/`);
+      })
+    : [];
   if (
     userId !== expectedUserId ||
     !content ||
@@ -366,7 +379,9 @@ function storedReflection(
     updatedAt,
     ...(editedAt ? { editedAt } : {}),
     ...(isFiatCategory(data.fiatCategory) ? { fiatCategory: data.fiatCategory } : {}),
+    ...(data.fiatCategory === "other" && fiatOther ? { fiatOther } : {}),
     ...(isFiatCategory(data.fiatCategory) && /^\d{4}-\d{2}-\d{2}$/.test(stringValue(data.fiatDateKey)) ? { fiatDateKey: stringValue(data.fiatDateKey) } : {})
+    ,...(media.length ? { media } : {})
   };
 }
 
@@ -1188,7 +1203,7 @@ async function deleteFirebaseOwnedDocuments(
 async function getFirebaseUserRecord(
   userId: string,
   email = "",
-  authProvider?: "password" | "google" | "guest"
+  authProvider?: "password" | "google" | "apple" | "guest"
 ): Promise<AppUser> {
   const services = getFirebaseServices();
 
@@ -2848,7 +2863,11 @@ export const appService = {
                         (provider) => provider.providerId === "google.com"
                       )
                     ? "google"
-                    : "password"
+                    : firebaseUser.providerData.some(
+                          (provider) => provider.providerId === "apple.com"
+                        )
+                      ? "apple"
+                      : "password"
               )
             );
           } catch {
@@ -3038,6 +3057,25 @@ export const appService = {
         credential.user.uid,
         credential.user.email ?? "",
         "google"
+      );
+    } catch (error) {
+      throw friendlyAuthError(error);
+    }
+  },
+
+  async signInWithApple(): Promise<AppUser> {
+    try {
+      const services = getFirebaseServices();
+      if (!services) throw new Error("Apple sign-in is currently unavailable.");
+      await services.persistenceReady;
+      const provider = new OAuthProvider("apple.com");
+      provider.addScope("email");
+      provider.addScope("name");
+      const credential = await signInWithPopup(services.auth, provider);
+      return await getFirebaseUserRecord(
+        credential.user.uid,
+        credential.user.email ?? "",
+        "apple"
       );
     } catch (error) {
       throw friendlyAuthError(error);
@@ -4323,6 +4361,9 @@ export const appService = {
       title?: string;
       createdAt?: string;
       fiatCategory?: unknown;
+      fiatOther?: unknown;
+      newId?: string;
+      media?: ReflectionMedia[];
     }
   ): Promise<ReflectionPost> {
     const content = cleanText(input.content, LIMITS.post);
@@ -4338,6 +4379,8 @@ export const appService = {
       throw new Error("Choose a valid FiAt category.");
     }
     const fiatCategory = isFiatCategory(input.fiatCategory) ? input.fiatCategory : undefined;
+    const fiatOther = cleanText(typeof input.fiatOther === "string" ? input.fiatOther : "", LIMITS.fiatOther);
+    if (fiatCategory === "other" && !fiatOther) throw new Error("Describe your other FiAt before saving.");
     const fiatDateKey = fiatCategory ? localDateKey(normalizedCreatedAt) : undefined;
 
     if (isFirebaseConfigured) {
@@ -4346,14 +4389,19 @@ export const appService = {
       if (!services) throw new Error("Firebase is not available.");
       const postRef = input.id
         ? doc(services.db, "reflectionPosts", input.id)
-        : doc(collection(services.db, "reflectionPosts"));
+        : input.newId
+          ? doc(services.db, "reflectionPosts", input.newId)
+          : doc(collection(services.db, "reflectionPosts"));
       const createdAt = normalizedCreatedAt;
+      let existingMedia: ReflectionMedia[] = [];
       if (input.id) {
         const existing = await getDoc(postRef);
         if (!existing.exists() || existing.data().userId !== userId) {
           throw new Error("That reflection could not be found.");
         }
+        existingMedia = storedReflection(existing.id, existing.data(), userId)?.media ?? [];
       }
+      const media = input.media ?? existingMedia;
       const post: ReflectionPost = {
         id: postRef.id,
         userId,
@@ -4363,7 +4411,8 @@ export const appService = {
         createdAt,
         updatedAt: now,
         ...(input.id ? { editedAt: now } : {})
-        ,...(fiatCategory ? { fiatCategory, fiatDateKey } : {})
+        ,...(fiatCategory ? { fiatCategory, fiatDateKey, ...(fiatCategory === "other" ? { fiatOther } : {}) } : {})
+        ,...(media.length ? { media } : {})
       };
       await setDoc(postRef, {
         ...post,
@@ -4382,7 +4431,7 @@ export const appService = {
     if (input.id && reflections[input.id]?.userId !== userId) {
       throw new Error("That reflection could not be found.");
     }
-    const id = input.id ?? newId("reflection-");
+    const id = input.id ?? input.newId ?? newId("reflection-");
     const existingCreatedAt = input.id
       ? reflections[input.id]?.createdAt
       : undefined;
@@ -4397,7 +4446,8 @@ export const appService = {
         : existingCreatedAt ?? now,
       updatedAt: now,
       ...(input.id ? { editedAt: now } : {})
-      ,...(fiatCategory ? { fiatCategory, fiatDateKey } : {})
+      ,...(fiatCategory ? { fiatCategory, fiatDateKey, ...(fiatCategory === "other" ? { fiatOther } : {}) } : {})
+      ,...(input.media?.length ? { media: input.media } : input.id && reflections[input.id]?.media?.length ? { media: reflections[input.id].media } : {})
     };
     reflections[id] = post;
     writeJson(LOCAL_KEYS.reflections, reflections);
@@ -4482,6 +4532,7 @@ export const appService = {
 
       try {
         await deleteAllFirebaseProfileImages(userId);
+        await deleteAllReflectionMedia(userId);
       } catch (imageCleanupError) {
         if (await hasStoredProfileImageReference(userId)) {
           console.error("Private image cleanup failed during cancellation.", imageCleanupError);

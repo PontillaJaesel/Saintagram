@@ -1,2 +1,2 @@
-import { NextResponse } from "next/server"; import { PENDING_OPEN_COOKIE, recordLinkOpen } from "@/lib/link-tracking";
-export async function GET(request: Request) { try { const event=await recordLinkOpen(request,"qr"); const response=NextResponse.redirect(new URL(event.destination,request.url)); response.cookies.set(PENDING_OPEN_COOKIE,event.id,{httpOnly:true,sameSite:"lax",secure:new URL(request.url).protocol==="https:",maxAge:60*30,path:"/"}); return response; } catch { return NextResponse.redirect(new URL("/",request.url)); } }
+import { handleTrackedEntry } from "@/lib/link-entry-route";
+export async function GET(request: Request) { return handleTrackedEntry(request, "qr"); }

@@ -7,6 +7,7 @@ import {
 } from "firebase-admin/app";
 import { getAuth, type Auth } from "firebase-admin/auth";
 import { getFirestore, type Firestore } from "firebase-admin/firestore";
+import { getStorage, type Storage } from "firebase-admin/storage";
 
 const FIREBASE_ADMIN_APP_NAME = "saintagram-firebase-admin";
 
@@ -73,4 +74,8 @@ export function getFirebaseAdminAuth(): Auth {
 
 export function getFirebaseAdminFirestore(): Firestore {
   return getFirestore(firebaseAdminApp());
+}
+
+export function getFirebaseAdminStorage(): Storage {
+  return getStorage(firebaseAdminApp());
 }

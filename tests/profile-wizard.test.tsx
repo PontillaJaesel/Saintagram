@@ -64,7 +64,7 @@ const COMPLETED_DRAFT: ProfileDraftData = {
   profileName: "Beloved Child of God",
   imagePath: "",
   selectedSymbol: "cross",
-  spiritualBio: "Learning to trust grace.",
+  spiritualBio: "Beloved",
   spiritualGuides: ["Mary"],
   lifeDirections: ["Jesus"],
   onboardingPostTitles: [""],
@@ -109,7 +109,7 @@ describe("ProfileWizard completion", () => {
     render(<ProfileWizard />);
 
     const saveButton = await screen.findByRole("button", {
-      name: "Save and View My Profile"
+      name: "Create My Profile"
     });
     await user.click(saveButton);
 
@@ -161,7 +161,7 @@ describe("ProfileWizard completion", () => {
 
     await user.click(
       await screen.findByRole("button", {
-        name: "Save and View My Profile"
+        name: "Create My Profile"
       })
     );
 
@@ -180,18 +180,18 @@ describe("ProfileWizard completion", () => {
     render(<ProfileWizard />);
 
     const name = await screen.findByLabelText(
-      /What would you like this profile to be called/
+      /What display name would you like to use/
     );
     await user.type(name, "   ");
     await user.click(screen.getByRole("button", { name: "Next" }));
 
     expect(screen.getByRole("alert")).toHaveTextContent(
-      "Add a profile name before continuing."
+      "Add a display name before continuing."
     );
     await waitFor(() => expect(name).toHaveFocus());
     expect(name).toHaveAttribute("aria-invalid", "true");
     expect(
-      screen.getByRole("heading", { name: "Profile name" })
+      screen.getByRole("heading", { name: "Display name" })
     ).toBeInTheDocument();
 
     await user.type(name, "Still Growing");
@@ -205,42 +205,32 @@ describe("ProfileWizard completion", () => {
     render(<ProfileWizard />);
 
     const name = await screen.findByLabelText(
-      /What would you like this profile to be called/
+      /What display name would you like to use/
     );
     expect(screen.getByRole("button", { name: "Image" })).toBeDisabled();
 
     await user.type(name, "Still Growing");
     await user.click(screen.getByRole("button", { name: "Next" }));
     expect(
-      screen.getByRole("heading", { name: "Picture or symbol" })
+      screen.getByRole("heading", { name: "Choose a profile symbol or photo" })
     ).toBeInTheDocument();
 
-    await user.click(screen.getByRole("button", { name: "Next" }));
+    await user.click(screen.getByRole("button", { name: "Create My Profile" }));
     expect(screen.getByRole("alert")).toHaveTextContent(
       "Choose a profile picture or spiritual symbol before continuing."
     );
     expect(
-      screen.getByRole("heading", { name: "Picture or symbol" })
+      screen.getByRole("heading", { name: "Choose a profile symbol or photo" })
     ).toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: /Seed/ }));
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
-    await user.click(screen.getByRole("button", { name: "Next" }));
-
-    const bio = screen.getByLabelText(/Before God, I am someone who/);
     expect(
-      screen.getByRole("heading", { name: "Spiritual bio" })
+      screen.getByRole("button", { name: "Create My Profile" })
     ).toBeInTheDocument();
-    await user.click(screen.getByRole("button", { name: "Next" }));
-    expect(screen.getByRole("alert")).toHaveTextContent(
-      "Answer the spiritual bio question before continuing."
-    );
-    await waitFor(() => expect(bio).toHaveFocus());
 
     await user.click(screen.getByRole("button", { name: "Previous" }));
-    expect(
-      screen.getByRole("heading", { name: "Picture or symbol" })
-    ).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Display name" })).toBeInTheDocument();
   });
 
   it("keeps a restored image until its replacement draft is durable", async () => {

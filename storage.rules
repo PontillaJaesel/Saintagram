@@ -23,5 +23,35 @@ service firebase.storage {
       // Existing image objects cannot be overwritten.
       allow update: if false;
     }
+
+    function isAdmin() {
+      return request.auth != null && request.auth.token.admin == true;
+    }
+
+    match /users/{userId}/reflections/{reflectionId}/{mediaName} {
+      allow read: if request.auth != null
+        && (
+          request.auth.uid == userId
+          || isAdmin()
+          || resource.metadata.visibility == 'public'
+        );
+
+      allow create: if isOwner(userId)
+        && request.resource.metadata.visibility in ['public', 'private']
+        && mediaName.matches('^[A-Za-z0-9_-]+\\.(jpg|png|webp|mp4|webm|mov)$')
+        && (
+          (
+            request.resource.size < 10485760
+            && request.resource.contentType.matches('image/(jpeg|png|webp)')
+          )
+          || (
+            request.resource.size < 52428800
+            && request.resource.contentType.matches('video/(mp4|webm|quicktime)')
+          )
+        );
+
+      allow delete: if isOwner(userId);
+      allow update: if false;
+    }
   }
 }

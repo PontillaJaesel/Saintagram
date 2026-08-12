@@ -5,6 +5,13 @@ import {
   MINIMUM_SESSION_SECRET_LENGTH,
   verifyAccessSessionToken
 } from "@/lib/access-session";
+import {
+  getSaintagramAppMode,
+  isAdminApiPath,
+  isAdminPagePath,
+  isLocalDevelopmentHostname
+} from "@/lib/admin-routing";
+import { VISIT_ID_PATTERN, VISIT_SESSION_COOKIE } from "@/lib/link-tracking";
 
 const ACCESS_PAGE = "/access";
 const ACCESS_ENDPOINT = "/api/access";
@@ -19,15 +26,58 @@ function isFrameworkAsset(pathname: string): boolean {
   );
 }
 
+function adminWorkerResponse(request: NextRequest): NextResponse {
+  const pathname = request.nextUrl.pathname;
+  if (isFrameworkAsset(pathname) || isAdminPagePath(pathname) || isAdminApiPath(pathname)) {
+    return NextResponse.next();
+  }
+
+  if (pathname === "/") {
+    return NextResponse.rewrite(new URL("/admin", request.url));
+  }
+
+  if (pathname.startsWith("/api/")) {
+    return NextResponse.json(
+      { error: "This endpoint is not available on the administrator Worker." },
+      { status: 404, headers: { "Cache-Control": "no-store" } }
+    );
+  }
+
+  return new NextResponse("Not Found", {
+    status: 404,
+    headers: { "Cache-Control": "no-store", "Content-Type": "text/plain; charset=utf-8" }
+  });
+}
+
 export function proxy(request: NextRequest) {
   return enforceAccessGate(request);
 }
 
 export async function enforceAccessGate(request: NextRequest) {
   const { pathname, search } = request.nextUrl;
+  const hostname = request.nextUrl.hostname || request.headers.get("host") || "";
+
+  if (getSaintagramAppMode() === "admin") return adminWorkerResponse(request);
+
+  // Local development uses /admin because a separate hostname is unnecessary.
+  if (
+    isLocalDevelopmentHostname(hostname) &&
+    (isAdminPagePath(pathname) || isAdminApiPath(pathname))
+  ) {
+    return NextResponse.next();
+  }
+
+  if (pathname === "/qr") {
+    return NextResponse.redirect(new URL(`/open/qr${search}`, request.url));
+  }
 
   if (isFrameworkAsset(pathname) || pathname === ACCESS_ENDPOINT || TRACKED_ENTRY_PATHS.has(pathname)) {
     return NextResponse.next();
+  }
+
+  const visitId = request.cookies.get(VISIT_SESSION_COOKIE)?.value;
+  if (pathname === "/" && (!visitId || !VISIT_ID_PATTERN.test(visitId))) {
+    return NextResponse.redirect(new URL("/open/common", request.url));
   }
 
   const sessionSecret = process.env.SITE_ACCESS_SESSION_SECRET;

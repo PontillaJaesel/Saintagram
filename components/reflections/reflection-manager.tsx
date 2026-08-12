@@ -18,9 +18,11 @@ import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { EmptyState } from "@/components/ui/empty-state";
 import { LoadingState } from "@/components/ui/loading-state";
 import { ReflectionCard } from "@/components/reflections/reflection-card";
+import { ReflectionMediaPicker } from "@/components/reflections/reflection-media-picker";
 import { FiatCategorySelector } from "@/components/fiat/fiat-category-selector";
 import { appService } from "@/lib/app-service";
 import { LIMITS } from "@/lib/constants";
+import { deleteReflectionMedia, reflectionMediaId, uploadReflectionMedia, validateReflectionMedia } from "@/lib/reflection-media";
 import type { FiatCategory, ReflectionPost } from "@/types";
 
 function todayInputValue(): string {
@@ -45,15 +47,17 @@ export function ReflectionManager() {
   const [loading, setLoading] = useState(true);
   const [privateLoading, setPrivateLoading] = useState(false);
   const [content, setContent] = useState("");
+  const [mediaFiles, setMediaFiles] = useState<File[]>([]);
   const [title, setTitle] = useState("");
   const [isPrivate, setIsPrivate] = useState(false);
   const [fiatCategory, setFiatCategory] = useState<FiatCategory>();
+  const [fiatOther, setFiatOther] = useState("");
   const [creationDate, setCreationDate] = useState(todayInputValue);
   const [editing, setEditing] = useState<ReflectionPost | null>(null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [errorField, setErrorField] = useState<
-    "content" | "date" | "form" | null
+    "content" | "date" | "fiatOther" | "form" | null
   >(null);
   const [deleteTarget, setDeleteTarget] = useState<ReflectionPost | null>(null);
   const [deleting, setDeleting] = useState(false);
@@ -107,9 +111,11 @@ export function ReflectionManager() {
 
   const resetComposer = () => {
     setContent("");
+    setMediaFiles([]);
     setTitle("");
     setIsPrivate(false);
     setFiatCategory(undefined);
+    setFiatOther("");
     setCreationDate(todayInputValue());
     setEditing(null);
     setError("");
@@ -126,6 +132,11 @@ export function ReflectionManager() {
       window.requestAnimationFrame(() => textareaRef.current?.focus());
       return;
     }
+    if (fiatCategory === "other" && !fiatOther.trim()) {
+      setError("Please describe your other FiAt before saving.");
+      setErrorField("fiatOther");
+      return;
+    }
     if (!creationDate || Number.isNaN(new Date(`${creationDate}T12:00:00`).getTime())) {
       setError("Choose a valid creation date.");
       setErrorField("date");
@@ -135,16 +146,26 @@ export function ReflectionManager() {
     setSaving(true);
     setError("");
     setErrorField(null);
+    let uploadedMedia: ReflectionPost["media"];
     try {
+      await validateReflectionMedia(mediaFiles);
       const createdAt = new Date(`${creationDate}T12:00:00`).toISOString();
+      const reflectionId = editing?.id ?? reflectionMediaId();
+      uploadedMedia = mediaFiles.length ? await uploadReflectionMedia(user.id, reflectionId, mediaFiles, isPrivate) : undefined;
       const saved = await appService.saveReflection(user.id, {
         id: editing?.id,
+        newId: editing ? undefined : reflectionId,
         title,
         content,
         isPrivate,
         createdAt,
-        fiatCategory
+        fiatCategory,
+        fiatOther,
+        media: uploadedMedia
       });
+      if (uploadedMedia && editing?.media?.length) {
+        void deleteReflectionMedia(editing.media).catch(() => undefined);
+      }
       if (saved.isPrivate) {
         if (privateUnlocked) {
           setPrivatePosts((posts) => [
@@ -170,8 +191,19 @@ export function ReflectionManager() {
       );
       resetComposer();
     } catch (saveError) {
+      if (uploadedMedia?.length) {
+        await deleteReflectionMedia(uploadedMedia).catch(() => undefined);
+      }
+      const firebaseCode = typeof saveError === "object" && saveError && "code" in saveError
+        ? String(saveError.code)
+        : "";
+      const permissionDenied = firebaseCode.includes("permission-denied") || firebaseCode.includes("unauthorized");
       setError(
-        saveError instanceof Error
+        permissionDenied && mediaFiles.length > 0
+          ? "This reflection could not be published because Firebase Storage or Firestore rules are not configured for reflection media. Publish both rules files, then try again."
+          : permissionDenied
+          ? "This reflection was rejected by Firestore. Publish the latest firestore.rules, then try again."
+          : saveError instanceof Error
           ? saveError.message
           : "Your reflection could not be saved."
       );
@@ -187,6 +219,7 @@ export function ReflectionManager() {
     setContent(post.content);
     setIsPrivate(post.isPrivate);
     setFiatCategory(post.fiatCategory);
+    setFiatOther(post.fiatOther ?? "");
     setCreationDate(dateInputValue(post.createdAt));
     setError("");
     setErrorField(null);
@@ -201,6 +234,7 @@ export function ReflectionManager() {
     setDeleting(true);
     try {
       await appService.deleteReflection(user.id, deleteTarget.id);
+      await deleteReflectionMedia(deleteTarget.media ?? []);
       setPublicPosts((posts) =>
         posts.filter((post) => post.id !== deleteTarget.id)
       );
@@ -323,7 +357,9 @@ export function ReflectionManager() {
             {content.length} / {LIMITS.post}
           </p>
 
-          <FiatCategorySelector value={fiatCategory} onChange={setFiatCategory} />
+          <ReflectionMediaPicker files={mediaFiles} onChange={setMediaFiles} disabled={saving} />
+
+          <FiatCategorySelector value={fiatCategory} onChange={setFiatCategory} otherText={fiatOther} onOtherTextChange={(value)=>{setFiatOther(value);if(errorField==="fiatOther"){setError("");setErrorField(null);}}} otherError={errorField==="fiatOther"} />
 
           <div className="mt-5">
             <label htmlFor="creation-date" className="label">

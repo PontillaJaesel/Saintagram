@@ -212,6 +212,25 @@ function AuthForm() {
     }
   };
 
+  const authenticateWithApple = async () => {
+    if (submitting) return;
+    setSubmitting(true);
+    setError("");
+    setMessage("");
+    try {
+      const nextUser = await auth.signInWithApple();
+      navigateAfterLogin(nextUser);
+    } catch (authenticationError) {
+      setError(
+        authenticationError instanceof Error
+          ? authenticationError.message
+          : "Authentication could not be completed. Please try again."
+      );
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
   const continueAsGuest = async () => {
     if (submitting) return;
     setSubmitting(true);
@@ -282,6 +301,15 @@ function AuthForm() {
               >
                 <span className="grid size-5 place-items-center font-bold" aria-hidden="true">G</span>
                 Sign in with Google
+              </button>
+              <button
+                type="button"
+                className="btn-secondary w-full justify-start"
+                disabled={submitting}
+                onClick={() => void authenticateWithApple()}
+              >
+                <span className="grid size-5 place-items-center text-lg font-bold" aria-hidden="true">●</span>
+                Sign in with Apple
               </button>
               <button type="button" className="btn-secondary w-full justify-start" onClick={() => setAuthMethod("email")}>
                 <Mail className="size-5" aria-hidden="true" /> Continue with email

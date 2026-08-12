@@ -29,6 +29,7 @@ import {
   downloadFirebaseProfileImage,
   isLocalProfileImageSource
 } from "@/lib/profile-images";
+import { ReflectionMediaView } from "@/components/reflections/reflection-media-view";
 
 import {
   formatFriendlyDate
@@ -1088,7 +1089,7 @@ export function SocialReflectionCard({
                 Edited
               </span>
             )}
-            {post.fiatCategory && <span className="rounded-full bg-gold-50 px-2.5 py-1 font-bold text-gold-700">Fi@ · {fiatCategoryLabel(post.fiatCategory)}</span>}
+            {post.fiatCategory && <span className="rounded-full bg-gold-50 px-2.5 py-1 font-bold text-gold-700">Fi@ · {post.fiatCategory==="other"&&post.fiatOther?post.fiatOther:fiatCategoryLabel(post.fiatCategory)}</span>}
           </div>
 
           {post.title && (
@@ -1100,6 +1101,7 @@ export function SocialReflectionCard({
           <p className="user-content mt-3 whitespace-pre-wrap break-words text-base leading-7 text-ink">
             {post.content}
           </p>
+          <ReflectionMediaView media={post.media} />
         </div>
       </div>
 

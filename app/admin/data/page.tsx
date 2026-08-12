@@ -1,1 +1,2 @@
-import{DataPage}from"@/components/admin/admin-pages";export default function Page(){return <DataPage/>}
+import { UserDataIndex } from "@/components/admin/user-data-index";
+export default function Page() { return <UserDataIndex />; }

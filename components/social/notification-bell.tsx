@@ -340,7 +340,7 @@ export function NotificationBell() {
   const openSystemNotification = async (notification: SystemNotification) => {
     setOpen(false);
     try { await markSystemNotificationRead(notification.id); } catch { /* Navigation still proceeds. */ }
-    router.push(user?.profileCompleted ? "/profile/edit" : "/create");
+    router.push(notification.type === "admin_reflection" && notification.reflectionId ? `/reflections/${notification.reflectionId}` : user?.profileCompleted ? "/profile/edit" : "/create");
   };
 
   const openNotification =

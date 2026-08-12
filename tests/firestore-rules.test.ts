@@ -478,5 +478,9 @@ describe("Saintagram Firestore ownership rules", () => {
     await assertSucceeds(setDoc(validRef, { ...aliceReflection, id: "fiat-valid", fiatCategory: "prayer", fiatDateKey: "2026-07-28" }));
     await assertFails(setDoc(doc(aliceDb, "reflectionPosts", "fiat-invalid"), { ...aliceReflection, id: "fiat-invalid", fiatCategory: "points", fiatDateKey: "2026-07-28" }));
     await assertFails(setDoc(doc(aliceDb, "reflectionPosts", "fiat-missing-date"), { ...aliceReflection, id: "fiat-missing-date", fiatCategory: "service" }));
+    await assertSucceeds(setDoc(doc(aliceDb, "reflectionPosts", "fiat-other"), { ...aliceReflection, id: "fiat-other", fiatCategory: "other", fiatDateKey: "2026-07-28", fiatOther: "Listened patiently" }));
+    await assertFails(setDoc(doc(aliceDb, "reflectionPosts", "fiat-other-empty"), { ...aliceReflection, id: "fiat-other-empty", fiatCategory: "other", fiatDateKey: "2026-07-28", fiatOther: "" }));
+    await assertFails(setDoc(doc(aliceDb, "reflectionPosts", "fiat-other-long"), { ...aliceReflection, id: "fiat-other-long", fiatCategory: "other", fiatDateKey: "2026-07-28", fiatOther: "x".repeat(26) }));
+    await assertFails(setDoc(doc(aliceDb, "reflectionPosts", "fiat-extra-other"), { ...aliceReflection, id: "fiat-extra-other", fiatCategory: "service", fiatDateKey: "2026-07-28", fiatOther: "Not allowed" }));
   });
 });

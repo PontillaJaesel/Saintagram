@@ -1,47 +1,37 @@
-# Deploying Saintagram to Cloudflare Workers
+# Deploying Saintagram to two Cloudflare Workers
 
-Saintagram uses Vinext's native Cloudflare Workers adapter. Firebase remains the
-authentication/database provider and Firebase Storage now stores profile
-images; deploying the web application does not migrate either service.
+Saintagram uses one Next.js/Vinext codebase and produces two explicit Wrangler
+deployment configurations. The root `wrangler.jsonc` always describes the
+normal `saintagram` Worker. After Vinext builds `dist/server/wrangler.json`, the
+repository derives `dist/server/wrangler.admin.json` for the isolated
+`saintagram-admin` Worker. `.wrangler/deploy/config.json` points to the generated
+normal config and is not the source of truth.
 
-## 1. Install and verify locally
+## Local development
 
-Use Node.js 22 or newer, then run:
+Use Node.js 22 or newer:
 
 ```powershell
 npm install
-npm run typecheck
-npm test
-npm run build:vinext
+npm run dev
 ```
 
-Exercise the production Worker locally with `npm run start:vinext`.
+- Normal application: `http://localhost:3000`
+- Admin dashboard: `http://localhost:3000/admin`
 
-## 2. Create or select a Cloudflare account
+The local admin route skips the invitation-code middleware but still requires
+Firebase authentication and a server-verified `admin: true` custom claim.
 
-Create a Cloudflare account if necessary. Workers deployments require a
-workers.dev subdomain, which Cloudflare asks you to choose the first time you
-open **Workers & Pages** in the dashboard.
-
-Authenticate this computer:
+To exercise the built admin Worker mode locally:
 
 ```powershell
-npx wrangler login
-npx wrangler whoami
+npm run start:admin
 ```
 
-Copy the account ID shown by `whoami`, then either set it for the current
-PowerShell session with `$env:CLOUDFLARE_ACCOUNT_ID="your-account-id"`, or add
-`"account_id": "your-account-id"` near the top of `wrangler.jsonc`.
+## Public Firebase build configuration
 
-Do not commit an API token. For CI instead of interactive login, create a
-Cloudflare API token from the **Edit Cloudflare Workers** template and expose it
-to CI as `CLOUDFLARE_API_TOKEN`, together with `CLOUDFLARE_ACCOUNT_ID`.
-
-## 3. Configure public build variables
-
-Vinext reads `.env.production` when it builds. Create that ignored file from
-`.env.example` and set these browser-safe values:
+Vinext reads `.env.production` during a production build. These Firebase web
+identifiers are browser-visible and shared by both builds:
 
 ```dotenv
 NEXT_PUBLIC_FIREBASE_API_KEY=...
@@ -52,62 +42,71 @@ NEXT_PUBLIC_FIREBASE_APP_ID=...
 NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=...
 ```
 
-These values are embedded into the browser bundle and must be present during
-every production build. They are configuration identifiers, not server secrets.
+Do not place service-account credentials in a `NEXT_PUBLIC_` variable.
 
-## 4. Upload server secrets
+## Normal Worker secrets
 
-Run each command and paste the value when Wrangler prompts. This avoids placing
-secrets in shell history or source control.
+These existing secrets remain attached to `saintagram`:
 
 ```powershell
-npx wrangler secret put SITE_ACCESS_CODE
-npx wrangler secret put SITE_ACCESS_SESSION_SECRET
-npx wrangler secret put FIREBASE_ADMIN_PROJECT_ID
-npx wrangler secret put FIREBASE_ADMIN_CLIENT_EMAIL
-npx wrangler secret put FIREBASE_ADMIN_PRIVATE_KEY
+npx wrangler secret put SITE_ACCESS_CODE --config wrangler.jsonc
+npx wrangler secret put SITE_ACCESS_SESSION_SECRET --config wrangler.jsonc
+npx wrangler secret put FIREBASE_ADMIN_PROJECT_ID --config wrangler.jsonc
+npx wrangler secret put FIREBASE_ADMIN_CLIENT_EMAIL --config wrangler.jsonc
+npx wrangler secret put FIREBASE_ADMIN_PRIVATE_KEY --config wrangler.jsonc
 ```
 
-- `SITE_ACCESS_CODE` must contain at least 12 characters.
-- `SITE_ACCESS_SESSION_SECRET` must contain at least 32 random characters.
-- Get the Firebase Admin values from **Firebase Console > Project settings >
-  Service accounts**. Paste `private_key` as its complete multiline value. The
-  project ID must match `NEXT_PUBLIC_FIREBASE_PROJECT_ID`.
+## Admin Worker secrets
 
-Secrets are scoped to the Worker name in `wrangler.jsonc` (`saintagram`). If the
-Worker name changes, upload them again under the new name.
-
-## 5. Deploy
+Build once so the generated admin config exists, then upload only the Firebase
+Admin credentials required by the protected dashboard APIs:
 
 ```powershell
-npm run deploy:vinext
+npm run build:admin
+npx wrangler secret put FIREBASE_ADMIN_PROJECT_ID --config dist/server/wrangler.admin.json
+npx wrangler secret put FIREBASE_ADMIN_CLIENT_EMAIL --config dist/server/wrangler.admin.json
+npx wrangler secret put FIREBASE_ADMIN_PRIVATE_KEY --config dist/server/wrangler.admin.json
 ```
 
-Wrangler prints the resulting `https://saintagram.<subdomain>.workers.dev` URL.
-Open it and verify the access code, Firebase sign-in, profile creation, image
-upload, and account-cancellation flows. For later releases, repeat the same
-command. Cloudflare keeps deployment history under **Workers & Pages >
-saintagram > Deployments**.
+Do not upload `SITE_ACCESS_CODE` or `SITE_ACCESS_SESSION_SECRET` to the admin
+Worker. Admin mode permits only `/`, `/admin/*`, `/api/admin/*`, and required
+framework assets; normal application paths return 404.
 
-## 6. Authorize the deployed hostname
+## Validation and deployment
 
-Add the exact workers.dev hostname (and any custom domain) to **Firebase Console
-> Authentication > Settings > Authorized domains** before testing sign-in.
+Run before either deployment:
 
-Also verify that Firebase Storage is enabled and the `storage.rules` policy
-described in the main README is configured. Those settings are not created by a
-Workers deployment.
+```powershell
+npm run typecheck
+npm test
+npm run lint
+npm run build
+```
 
-## 7. Optional custom domain
+Deploy the normal Worker only:
 
-In **Cloudflare Dashboard > Workers & Pages > saintagram > Settings > Domains &
-Routes**, choose **Add > Custom domain** and enter the hostname. The domain must
-be in a Cloudflare-managed zone. Add that hostname to Firebase Authorized
-domains as well.
+```powershell
+npm run deploy
+```
 
-## CI deployment
+Deploy the admin Worker only:
 
-A CI job needs Node.js 22+, `npm ci`, the public `NEXT_PUBLIC_*` values at build
-time, and `CLOUDFLARE_API_TOKEN` plus `CLOUDFLARE_ACCOUNT_ID`. The five Worker
-runtime secrets are normally uploaded once with `wrangler secret put`; they do
-not need to be exposed to the build job. Run `npm run deploy:vinext` in CI.
+```powershell
+npm run deploy:admin
+```
+
+Both scripts rebuild and validate the exact Worker name and application mode
+before invoking Cloudflare. A target mismatch aborts before deployment.
+
+Expected Workers:
+
+- `https://saintagram.axjp.workers.dev`
+- `https://saintagram-admin.axjp.workers.dev`
+
+Add both exact workers.dev hostnames under **Firebase Console > Authentication
+> Settings > Authorized domains**.
+
+In **Cloudflare Dashboard > Workers & Pages**, open `saintagram-admin`, verify
+its workers.dev URL is enabled under **Settings > Domains & Routes** (or the
+current **Domains** tab), and confirm the three Firebase Admin secrets under
+**Settings > Variables and Secrets**. No custom domain or DNS record is needed.
