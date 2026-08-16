@@ -84,7 +84,7 @@ describe("local profile persistence", () => {
     await appService.cancelAccountCreation(user.id);
 
     await expect(appService.login(email, "Faithful123")).rejects.toThrow(
-      /email and password do not match/i
+      /username and password do not match/i
     );
   });
 

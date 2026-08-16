@@ -22,7 +22,9 @@ describe("issued credential boundary", () => {
 
   it("marks the issued-account registry as server-only", () => {
     const registry = source("lib/temporary-accounts.server.ts");
+    const data = source("lib/temporary-accounts.data.mjs");
     expect(registry).toContain('import "server-only"');
-    expect(registry).toContain("Serve@");
+    expect(registry).toContain("temporary-accounts.data.mjs");
+    expect(data).toContain("Serve@");
   });
 });

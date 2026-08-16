@@ -74,15 +74,6 @@ export async function POST(request: Request): Promise<NextResponse> {
           }
         });
       }
-      // An issued account may predate a rotated temporary credential. Repair
-      // Firebase Auth only while the account is still in its mandatory
-      // first-login state. Once mustChangePassword is false, the endpoint
-      // returns 401 above and can never overwrite the permanent password.
-      await auth.updateUser(existingUid, {
-        password: issued.temporaryPassword,
-        emailVerified: true,
-        displayName: issued.username
-      });
       return json({ ok: true, email }, 200);
     }
 

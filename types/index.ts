@@ -17,7 +17,7 @@ export interface AppUser {
   email: string;
   username?: string;
   isGuest?: boolean;
-  authProvider?: "password" | "google" | "apple" | "guest";
+  authProvider?: "password";
   createdAt: string;
   updatedAt: string;
   privacyConsentAt: string | null;

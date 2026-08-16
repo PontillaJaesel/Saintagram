@@ -24,6 +24,12 @@ function bearerToken(request: Request): string | null {
 }
 
 export async function POST(request: Request): Promise<NextResponse> {
+  if (request.method === "POST") {
+    return response(
+      { error: "Managed accounts can only be removed by an administrator." },
+      410
+    );
+  }
   const token = bearerToken(request);
   if (!token) {
     return response({ error: "Your sign-in session could not be verified." }, 401);

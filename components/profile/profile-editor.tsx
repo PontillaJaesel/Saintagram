@@ -323,7 +323,7 @@ export function ProfileEditor() {
               aria-describedby="profile-username-help"
             />
             <p id="profile-username-help" className="mt-2 text-xs text-muted">
-              Your username is based on the email used to create your account and cannot be changed.
+              Your username is the issued account code and cannot be changed.
             </p>
           </div>
         </EditorSection>

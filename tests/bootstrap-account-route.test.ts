@@ -101,21 +101,15 @@ describe("temporary Firebase account provisioning", () => {
     expect(mocks.updateUser).not.toHaveBeenCalled();
   });
 
-  it("repairs a rotated temporary password only during first login", async () => {
+  it("does not rewrite an existing temporary password during login", async () => {
     mocks.getUserByEmail.mockResolvedValue({ uid: "firebase-uid" });
     mocks.userGet.mockResolvedValue({
       exists: true,
       get: (field: string) => field === "mustChangePassword" ? true : undefined
     });
-    mocks.updateUser.mockResolvedValue({ uid: "firebase-uid" });
-
     const response = await POST(request("USRTEST", "Temporary123!"));
 
     expect(response.status).toBe(200);
-    expect(mocks.updateUser).toHaveBeenCalledWith("firebase-uid", {
-      password: "Temporary123!",
-      emailVerified: true,
-      displayName: "USRTEST"
-    });
+    expect(mocks.updateUser).not.toHaveBeenCalled();
   });
 });

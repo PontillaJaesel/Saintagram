@@ -6,6 +6,8 @@ function makeUser(overrides: Partial<AppUser> = {}): AppUser {
   return {
     id: "user-1",
     email: "beloved@example.com",
+    authProvider: "password",
+    mustChangePassword: false,
     createdAt: "2026-01-01T00:00:00.000Z",
     updatedAt: "2026-01-01T00:00:00.000Z",
     privacyConsentAt: null,

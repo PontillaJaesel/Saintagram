@@ -53,6 +53,7 @@ import { ProfileWizard } from "@/components/profile/profile-wizard";
 const TEST_USER: AppUser = {
   id: "user-1",
   email: "beloved@example.com",
+  authProvider: "password",
   createdAt: "2026-01-01T00:00:00.000Z",
   updatedAt: "2026-01-03T00:00:00.000Z",
   privacyConsentAt: "2026-01-02T00:00:00.000Z",
@@ -105,7 +106,7 @@ describe("ProfileWizard completion", () => {
     mocks.cancelAccountCreation.mockResolvedValue(undefined);
   });
 
-  it("saves the reviewed profile and immediately navigates to it", async () => {
+  it("saves the reviewed profile and requires the permanent password next", async () => {
     const user = userEvent.setup();
     render(<ProfileWizard />);
 
@@ -120,7 +121,7 @@ describe("ProfileWizard completion", () => {
         COMPLETED_DRAFT
       );
       expect(mocks.refreshUser).toHaveBeenCalledTimes(1);
-      expect(mocks.replace).toHaveBeenCalledWith("/settings#change-password");
+      expect(mocks.replace).toHaveBeenCalledWith("/settings");
     });
     expect(mocks.completeProfile.mock.invocationCallOrder[0])
       .toBeLessThan(mocks.refreshUser.mock.invocationCallOrder[0]);

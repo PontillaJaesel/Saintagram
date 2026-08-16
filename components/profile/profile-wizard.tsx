@@ -454,8 +454,8 @@ export function ProfileWizard() {
       setPersistedImagePath(data.imagePath);
       await cleanupKnownImages(data.imagePath, false);
       if (data.imagePath) knownImagePathsRef.current.add(data.imagePath);
-      await refreshUser();
-      router.replace(user.mustChangePassword ? "/settings#change-password" : "/profile?created=1");
+      const refreshed = await refreshUser();
+      router.replace(refreshed?.mustChangePassword !== false ? "/settings" : "/profile?created=1");
     } catch (completeError) {
       finishingRef.current = false;
       setFinishing(false);
@@ -486,7 +486,7 @@ export function ProfileWizard() {
               <span className="text-clay-600">*</span>
             </label>
             <p className="mb-4 text-sm leading-6 text-muted">
-              This is the name people will see on your profile. Your email remains your fixed username.
+              This is the name people will see on your profile. Your issued username code remains fixed.
             </p>
             <input
               ref={nameRef}

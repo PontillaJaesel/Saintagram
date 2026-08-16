@@ -50,6 +50,8 @@ const aliceUser = {
   privacyConsentAt: NOW,
   spiritualIntroSeenAt: NOW,
   profileCompleted: false,
+  authProvider: "password",
+  mustChangePassword: false,
   privacyPreferences: {
     requirePrivateCheck: true,
     showReflectionDates: true
@@ -222,6 +224,7 @@ describe("Saintagram Firestore ownership rules", () => {
       })
     );
     await assertFails(deleteDoc(doc(bobDb, "users", ALICE_ID)));
+    await assertFails(deleteDoc(doc(aliceDb, "users", ALICE_ID)));
     await assertSucceeds(deleteDoc(aliceRef));
   });
 

@@ -9,7 +9,7 @@ export type AuthDestination =
 
 export function resolvePostAuthRoute(user: AppUser): AuthDestination {
   if (!user.profileCompleted) return "/create";
-  if (user.mustChangePassword) return "/settings";
+  if (user.mustChangePassword !== false) return "/settings";
   if (!user.privacyConsentAt) return "/privacy";
   return "/profile";
 }

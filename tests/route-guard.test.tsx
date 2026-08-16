@@ -24,6 +24,8 @@ function makeUser(overrides: Partial<AppUser> = {}): AppUser {
   return {
     id: "user-1",
     email: "beloved@example.com",
+    authProvider: "password",
+    mustChangePassword: false,
     createdAt: "2026-01-01T00:00:00.000Z",
     updatedAt: "2026-01-01T00:00:00.000Z",
     privacyConsentAt: "2026-01-02T00:00:00.000Z",
@@ -90,22 +92,34 @@ describe("RouteGuard", () => {
     expect(screen.queryByText("Private profile")).not.toBeInTheDocument();
   });
 
-  it("sends an incomplete temporary-password user to profile creation first", async () => {
+  it("redirects an incomplete temporary-password user from settings to profile creation", async () => {
+    mocks.pathname.mockReturnValue("/settings");
+    mocks.useAuth.mockReturnValue({
+      loading: false,
+      user: makeUser({ mustChangePassword: true, profileCompleted: false })
+    });
+
+    render(<RouteGuard requireConsent={false}>Settings content</RouteGuard>);
+
+    await waitFor(() => expect(mocks.replace).toHaveBeenCalledWith("/create"));
+    expect(screen.queryByText("Settings content")).not.toBeInTheDocument();
+  });
+
+  it("allows an incomplete temporary-password user to create a profile", () => {
+    mocks.pathname.mockReturnValue("/create");
     mocks.useAuth.mockReturnValue({
       user: makeUser({ mustChangePassword: true, profileCompleted: false }),
       loading: false
     });
 
     render(
-      <RouteGuard requireProfile>
-        <p>Private profile</p>
+      <RouteGuard requireConsent={false} redirectCompleted>
+        <p>Create profile</p>
       </RouteGuard>
     );
 
-    await waitFor(() =>
-      expect(mocks.replace).toHaveBeenCalledWith("/create")
-    );
-    expect(screen.queryByText("Private profile")).not.toBeInTheDocument();
+    expect(screen.getByText("Create profile")).toBeInTheDocument();
+    expect(mocks.replace).not.toHaveBeenCalled();
   });
 
   it("allows a temporary-password user to open Settings", () => {

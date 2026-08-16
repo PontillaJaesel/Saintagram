@@ -1,4 +1,4 @@
-const USERNAME_CODE_PATTERN = /^USR(?:\d{3}|TEST)$/i;
+const USERNAME_CODE_PATTERN = /^USR(?:\d{3}|TEST\d*)$/i;
 
 export function normalizeUsernameCode(value: string): string | null {
   const normalized = value.trim().toLocaleUpperCase();

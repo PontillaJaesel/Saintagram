@@ -660,6 +660,117 @@ body {
     animation: fiat-glow 3.5s ease-in-out 2;
   }
 
+  .fiat-streak-surface {
+    background-color: #ffffff;
+    border-color: #eadc9f;
+    color: #1f2937;
+    scrollbar-color: #d4c481 #ffffff;
+  }
+
+  .fiat-streak-number {
+    color: #ffffff;
+    -webkit-text-fill-color: #ffffff;
+    text-shadow:
+      0 2px 2px rgb(77 39 0 / 0.72),
+      0 4px 8px rgb(77 39 0 / 0.48);
+  }
+
+  /* Match the notification popover layout for the FiAt leaderboard. */
+  div:has(> button[aria-label="Open FiAt leaderboard"]) {
+    position: relative;
+  }
+
+  div[role="presentation"]:has(> section[aria-labelledby="fiat-leaderboard-title"]) {
+    inset: 5rem 1rem auto;
+    display: block;
+    max-height: calc(100dvh - 6rem);
+    padding: 0;
+    background: transparent;
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
+
+  div[role="presentation"]:has(> section[aria-labelledby="fiat-leaderboard-title"]) > section {
+    width: 100%;
+    max-width: none;
+    max-height: calc(100dvh - 6rem);
+    overflow-y: auto;
+    border-radius: 1.5rem;
+  }
+
+  @media (min-width: 640px) and (max-width: 1023px) {
+    div[role="presentation"]:has(> section[aria-labelledby="fiat-leaderboard-title"]) {
+      right: 1rem;
+      left: auto;
+      width: 22rem;
+    }
+  }
+
+  @media (min-width: 1024px) {
+    div[role="presentation"]:has(> section[aria-labelledby="fiat-leaderboard-title"]) {
+      position: absolute;
+      inset: calc(100% + 0.65rem) 0 auto auto;
+      width: 22rem;
+      max-height: calc(100dvh - 5.5rem);
+    }
+
+    div[role="presentation"]:has(> section[aria-labelledby="fiat-leaderboard-title"]) > section {
+      max-height: calc(100dvh - 5.5rem);
+    }
+  }
+
+  :root[data-theme="dark"] .fiat-streak-surface,
+  .dark .fiat-streak-surface {
+    background-color: #111827;
+    border-color: #b98b16;
+    color: #f8fafc;
+    scrollbar-color: #8f6c12 #111827;
+  }
+
+  :root[data-theme="dark"] .fiat-streak-title,
+  .dark .fiat-streak-title {
+    color: #f8fafc;
+  }
+
+  :root[data-theme="dark"] .fiat-streak-close,
+  .dark .fiat-streak-close {
+    color: #f8fafc;
+  }
+
+  :root[data-theme="dark"] .fiat-streak-close:hover,
+  .dark .fiat-streak-close:hover {
+    background-color: #263246;
+  }
+
+  :root[data-theme="dark"] .fiat-streak-week,
+  .dark .fiat-streak-week {
+    background-color: #192334;
+    border-color: #8f6c12;
+  }
+
+  :root[data-theme="dark"] .fiat-streak-copy,
+  .dark .fiat-streak-copy {
+    border-color: #8f6c12;
+    color: #e5e7eb;
+  }
+
+  :root[data-theme="dark"] .fiat-streak-day-empty,
+  .dark .fiat-streak-day-empty {
+    background-color: #3b4a5f;
+    color: #aebbd0;
+  }
+
+  :root[data-theme="dark"] .fiat-streak-day-today,
+  .dark .fiat-streak-day-today {
+    background-color: #111827;
+  }
+
+  :root[data-theme="dark"] .fiat-streak-footer,
+  .dark .fiat-streak-footer {
+    background-color: #111827;
+    border-color: #8f6c12;
+  }
+
   .theme-toggle {
     @apply relative z-10 inline-flex min-h-9 shrink-0 items-center gap-1.5 rounded-full border border-gold-300 bg-paper/80 p-1 text-ink backdrop-blur-xl transition hover:border-gold-400;
   }

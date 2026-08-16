@@ -3,16 +3,11 @@ import {
   deleteUser,
   EmailAuthProvider,
   GoogleAuthProvider,
-  OAuthProvider,
-  linkWithCredential,
-  linkWithPopup,
   onAuthStateChanged,
   reauthenticateWithCredential,
   reauthenticateWithPopup,
   sendEmailVerification,
   sendPasswordResetEmail,
-  signInAnonymously,
-  signInWithPopup,
   signInWithEmailAndPassword,
   signOut,
   type Unsubscribe
@@ -222,16 +217,15 @@ function emailActionSettings(path: string) {
 function createUserRecord(
   id: string,
   email: string,
-  authProvider: "password" | "google" | "apple" | "guest" = "password",
+  authProvider: "password" = "password",
   username?: string,
-  mustChangePassword?: boolean
+  mustChangePassword = true
 ): AppUser {
   const now = nowIso();
   return {
     id,
     email: email.trim().toLocaleLowerCase(),
     ...(username ? { username: username.trim().toLocaleLowerCase() } : {}),
-    ...(authProvider === "guest" ? { isGuest: true } : {}),
     authProvider,
     createdAt: now,
     updatedAt: now,
@@ -762,6 +756,7 @@ async function ensureLocalSeed(): Promise<void> {
             id: userId,
             email: DEMO_EMAIL,
             username: DEMO_USERNAME,
+            authProvider: "password",
             createdAt,
             updatedAt,
             privacyConsentAt: createdAt,
@@ -804,7 +799,6 @@ async function ensureLocalSeed(): Promise<void> {
 
       const isStillInTemporaryFlow = Boolean(
         actual.user.mustChangePassword ||
-        actual.mustChangePassword ||
         actual.mustChangePassword
       );
 
@@ -891,7 +885,7 @@ async function ensureLocalSeed(): Promise<void> {
   );
 }
 
-function friendlyAuthError(error: unknown): Error {
+export function friendlyAuthError(error: unknown): Error {
   const code =
     typeof error === "object" && error && "code" in error
       ? String(error.code)
@@ -902,11 +896,13 @@ function friendlyAuthError(error: unknown): Error {
     "auth/temp-password-used":
       "This temporary password has already been used. Change your password in Settings before logging in again.",
     "auth/invalid-credential":
-      "That email and password do not match. Please try again.",
+      "That username and password do not match. Please try again.",
+    "auth/invalid-login-credentials":
+      "That username and password do not match. Please try again.",
     "auth/user-not-found":
-      "We could not find an account with that email.",
+      "We could not find an account with that username.",
     "auth/wrong-password":
-      "That email and password do not match. Please try again.",
+      "That username and password do not match. Please try again.",
     "auth/too-many-requests":
       "There have been several attempts. Take a short pause, then try again.",
     "auth/network-request-failed":
@@ -1264,7 +1260,7 @@ async function deleteFirebaseOwnedDocuments(
 async function getFirebaseUserRecord(
   userId: string,
   email = "",
-  authProvider?: "password" | "google" | "apple" | "guest"
+  authProvider?: "password"
 ): Promise<AppUser> {
   const services = getFirebaseServices();
 
@@ -1291,13 +1287,12 @@ async function getFirebaseUserRecord(
           (
             stored.email !== email ||
             stored.authProvider !== authProvider ||
-            Boolean(stored.isGuest) !==
-              (authProvider === "guest")
+            Boolean(stored.isGuest)
           )
         ) {
           const identityPatch = {
             email: email.trim().toLocaleLowerCase(),
-            isGuest: authProvider === "guest",
+            isGuest: false,
             authProvider,
             updatedAt: nowIso()
           };
@@ -2906,31 +2901,15 @@ export const appService = {
             callback(null);
             return;
           }
-          const usesPassword = firebaseUser.providerData.some(
-            (provider) => provider.providerId === "password"
-          );
-          if (usesPassword && !firebaseUser.emailVerified) {
+          const passwordOnly = firebaseUser.providerData.length > 0
+            && firebaseUser.providerData.every((provider) => provider.providerId === "password");
+          if (!passwordOnly || !firebaseUser.emailVerified) {
+            await signOut(services.auth);
             callback(null);
             return;
           }
           try {
-            callback(
-              await getFirebaseUserRecord(
-                firebaseUser.uid,
-                firebaseUser.email ?? "",
-                firebaseUser.isAnonymous
-                  ? "guest"
-                  : firebaseUser.providerData.some(
-                        (provider) => provider.providerId === "google.com"
-                      )
-                    ? "google"
-                    : firebaseUser.providerData.some(
-                          (provider) => provider.providerId === "apple.com"
-                        )
-                      ? "apple"
-                      : "password"
-              )
-            );
+            callback(await getFirebaseUserRecord(firebaseUser.uid, firebaseUser.email ?? "", "password"));
           } catch {
             callback(null);
           }
@@ -2965,6 +2944,9 @@ export const appService = {
   },
 
   async register(email: string, password: string): Promise<AppUser> {
+    if (isFirebaseConfigured) {
+      throw new Error("Accounts are issued by a Saintagram administrator.");
+    }
     if (isFirebaseConfigured) {
       const invalidEmail = registrationEmailError(email);
       if (invalidEmail) throw new Error(invalidEmail);
@@ -3154,6 +3136,7 @@ export const appService = {
     }
   },
 
+  /* Removed: Google, Apple, anonymous, and account-linking authentication.
   async signInWithGoogle(): Promise<AppUser> {
     try {
       const services = getFirebaseServices();
@@ -3274,6 +3257,7 @@ export const appService = {
     }
   },
 
+  */
   async logout(): Promise<void> {
     if (isFirebaseConfigured) {
       const services = getFirebaseServices();
@@ -3298,6 +3282,9 @@ export const appService = {
   },
 
   async requestPasswordReset(email: string): Promise<void> {
+    if (isFirebaseConfigured) {
+      throw new Error("Contact Saintagram support to recover a managed account.");
+    }
     try {
       if (isFirebaseConfigured) {
         const services = getFirebaseServices();
@@ -4639,6 +4626,9 @@ export const appService = {
 
   async cancelAccountCreation(userId: string): Promise<void> {
     if (isFirebaseConfigured) {
+      throw new Error("Managed accounts cannot be cancelled from the application.");
+    }
+    if (isFirebaseConfigured) {
       assertFirebaseOwner(userId);
       const services = getFirebaseServices();
       if (!services) throw new Error("Firebase is not available.");
@@ -4733,6 +4723,9 @@ export const appService = {
     userId: string,
     currentPassword: string
   ): Promise<void> {
+    if (isFirebaseConfigured) {
+      throw new Error("Managed accounts can only be removed by an administrator.");
+    }
     if (isFirebaseConfigured) {
       assertFirebaseOwner(userId);
       const services = getFirebaseServices();

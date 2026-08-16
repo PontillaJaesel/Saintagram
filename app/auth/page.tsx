@@ -4,7 +4,6 @@ import {
   FormEvent,
   Suspense,
   useEffect,
-  useMemo,
   useRef,
   useState
 } from "react";
@@ -48,16 +47,6 @@ function AuthForm() {
       router.replace(resolvePostAuthRoute(auth.user));
     }
   }, [auth.user, router]);
-
-  const copy = useMemo(
-    () => ({
-      eyebrow: "Welcome back",
-      title: "Return to your reflection.",
-      description:
-        "Use the one-time credentials below, then choose a permanent password before continuing."
-    }),
-    []
-  );
 
   const navigateAfterLogin = (nextUser: Awaited<ReturnType<typeof auth.login>>) => {
     const destination = resolvePostAuthRoute(nextUser);
@@ -129,18 +118,12 @@ function AuthForm() {
           </div>
           <ThemeToggle />
         </div>
-        <div className="mx-auto flex w-full max-w-md flex-1 flex-col justify-center py-10">
-          <p className="eyebrow">{copy.eyebrow}</p>
-          <h1 className="mt-3 font-serif text-4xl font-bold tracking-tight sm:text-5xl">
-            {copy.title}
+        <div className="mx-auto flex w-full max-w-md flex-1 -translate-y-[50px] flex-col items-center justify-center py-10 text-center lg:translate-y-0 lg:items-stretch lg:text-left">
+          <h1 className="font-serif text-4xl font-bold tracking-tight sm:text-5xl">
+            Log In
           </h1>
-          {copy.description && (
-            <p className="mt-4 text-base leading-7 text-muted">
-              {copy.description}
-            </p>
-          )}
 
-          <form className="mt-8 space-y-5" onSubmit={submit} noValidate>
+          <form className="mt-8 w-full space-y-5 text-left" onSubmit={submit} noValidate>
             <div>
               <label htmlFor="username" className="label">
                 Username
@@ -172,7 +155,7 @@ function AuthForm() {
             <div>
               <div className="flex items-center justify-between">
                 <label htmlFor="password" className="label">
-                  Temporary password
+                  Password
                 </label>
               </div>
               <div className="relative">
@@ -198,8 +181,8 @@ function AuthForm() {
                   aria-invalid={errorField === "password" || errorField === "credentials"}
                   aria-describedby={
                     error && (errorField === "password" || errorField === "credentials")
-                      ? "password-help auth-error"
-                      : "password-help"
+                      ? "auth-error"
+                      : undefined
                   }
                 />
                 <button
@@ -215,9 +198,6 @@ function AuthForm() {
                   )}
                 </button>
               </div>
-              <p id="password-help" className="mt-2 text-xs text-muted">
-                Your one-time temporary password is required to sign in.
-              </p>
             </div>
             {error && (
               <div
@@ -238,7 +218,7 @@ function AuthForm() {
             )}
             <button
               type="submit"
-              className="btn-primary w-full text-base"
+              className="btn-primary !mt-[70px] w-full text-base"
               disabled={submitting}
             >
               {submitting ? (

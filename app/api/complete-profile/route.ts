@@ -15,10 +15,12 @@ export async function POST(request: Request) {
     const body = await request.json() as { profile?: ProfileDraftData };
     if (!body.profile) return reply({ error: "Profile details are required." }, 400);
     const data = normalizeDraft(body.profile);
-    const complete = data.profileName && (data.imagePath || data.selectedSymbol)
-      && data.spiritualGuides.length && data.lifeDirections.length
-      && data.onboardingPosts.length && data.heartSeeks.length
-      && data.hiddenStory && data.godsComment && data.heavenlyHashtag;
+    // The current profile wizard has two required steps: a display name and
+    // either an owned photo or a spiritual symbol. The remaining profile
+    // fields are optional and can be completed later from profile editing.
+    const complete = Boolean(
+      data.profileName && (data.imagePath || data.selectedSymbol)
+    );
     const ownedImage = !data.imagePath || data.imagePath.startsWith(`users/${token.uid}/profile/`);
     if (!complete || !ownedImage || (data.imagePath && data.selectedSymbol)) return reply({ error: "Complete the required profile details before continuing." }, 400);
 
