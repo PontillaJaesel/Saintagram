@@ -39,7 +39,10 @@ import {
   isOwnedProfileImagePath,
   uploadFirebaseProfileImage
 } from "@/lib/profile-images";
-import { deleteAllReflectionMedia } from "@/lib/reflection-media";
+import {
+  deleteAllReflectionMedia,
+  deleteReflectionMedia
+} from "@/lib/reflection-media";
 import {
   normalizeDraft,
   normalizeProfileImageReference,
@@ -4577,10 +4580,31 @@ export const appService = {
       if (!services) throw new Error("Firebase is not available.");
       const postRef = doc(services.db, "reflectionPosts", reflectionId);
       const existing = await getDoc(postRef);
-      if (!existing.exists() || existing.data().userId !== userId) {
-        throw new Error("That reflection could not be found.");
+
+      if (
+        !existing.exists() ||
+        existing.data().userId !== userId
+      ) {
+        throw new Error(
+          "That reflection could not be found."
+        );
       }
+
+      const existingPost =
+        storedReflection(
+          existing.id,
+          existing.data(),
+          userId
+        );
+
       await deleteDoc(postRef);
+
+      if (existingPost?.media?.length) {
+        await deleteReflectionMedia(
+          existingPost.media
+        );
+      }
+
       return;
     }
 

@@ -69,7 +69,12 @@ async function firestoreFetch(path: string, init?: RequestInit, allowNotFound = 
 }
 
 function isServerTimestamp(value: unknown): boolean {
-  return Boolean(value && typeof value === "object" && value.constructor?.name === "ServerTimestampTransform");
+  return Boolean(
+    value &&
+    typeof value === "object" &&
+    ((value as { methodName?: unknown }).methodName === "FieldValue.serverTimestamp" ||
+      value.constructor?.name === "ServerTimestampTransform")
+  );
 }
 
 function encodeValue(value: unknown): RestValue {
@@ -195,6 +200,22 @@ class RestWriteBatch {
 export class FirestoreRestClient {
   collection(path: string): RestCollectionReference { return new RestCollectionReference(path); }
   batch(): RestWriteBatch { return new RestWriteBatch(); }
+  async runTransaction<T>(operation: (transaction: {
+    get: (ref: RestDocumentReference) => Promise<RestDocumentSnapshot>;
+    set: (ref: RestDocumentReference, data: JsonObject) => void;
+    update: (ref: RestDocumentReference, data: JsonObject) => void;
+    delete: (ref: RestDocumentReference) => void;
+  }) => Promise<T>): Promise<T> {
+    const batch = new RestWriteBatch();
+    const result = await operation({
+      get: (ref) => ref.get(),
+      set: (ref, data) => { batch.set(ref, data); },
+      update: (ref, data) => { batch.update(ref, data); },
+      delete: (ref) => { batch.delete(ref); }
+    });
+    await batch.commit();
+    return result;
+  }
 }
 
 let client: FirestoreRestClient | null = null;

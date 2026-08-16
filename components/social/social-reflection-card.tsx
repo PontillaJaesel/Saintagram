@@ -41,6 +41,7 @@ import type {
   SocialFeedPost,
   SocialProfile
 } from "@/types";
+import { ReflectionOwnerMenu } from "../reflections/reflection-owner-menu";
 
 function SocialAvatar({
   imagePath,
@@ -237,13 +238,17 @@ export function SocialReflectionCard({
   compactTimestamp = false,
   hideViewProfile = false,
   initialFollowing = false,
-  initialCommentsOpen = false
+  initialCommentsOpen = false,
+  onEdit,
+  onDelete
 }: {
   post: SocialFeedPost;
   compactTimestamp?: boolean;
   hideViewProfile?: boolean;
   initialFollowing?: boolean;
   initialCommentsOpen?: boolean;
+  onEdit?: (post: SocialFeedPost) => void;
+  onDelete?: (post: SocialFeedPost) => void;
 }) {
   const { user } = useAuth();
   const { notify } = useToast();
@@ -1040,7 +1045,15 @@ export function SocialReflectionCard({
 
         <div className="min-w-0 flex-1">
           {/* X-Style Inline Row: Name, Hashtag/Handle, and Timestamp */}
-          <div className={`flex flex-wrap items-center gap-x-2 gap-y-0.5 ${hideViewProfile ? "" : "pr-24"}`}>
+          <div
+            className={`flex flex-wrap items-center gap-x-2 gap-y-0.5 ${
+              isOwnPost && (onEdit || onDelete)
+                ? "pr-12"
+                : hideViewProfile
+                  ? ""
+                  : "pr-24"
+            }`}
+          >
             <span className={`truncate font-serif font-bold text-ink transition group-hover:text-sage-700 ${compactTimestamp ? "text-[17px]" : "text-lg"}`}>
               {post.author.profileName}
             </span>
@@ -1086,14 +1099,29 @@ export function SocialReflectionCard({
         </div>
       </Link>
 
-      {!hideViewProfile && (
+      {isOwnPost && (onEdit || onDelete) ? (
+        <div className="absolute right-0 top-0">
+          <ReflectionOwnerMenu
+            onEdit={
+              onEdit
+                ? () => onEdit(post)
+                : undefined
+            }
+            onDelete={
+              onDelete
+                ? () => onDelete(post)
+                : undefined
+            }
+          />
+        </div>
+      ) : !hideViewProfile ? (
         <Link
           href={`/users/${post.author.userId}`}
           className="absolute right-0 top-0 rounded-full px-3 py-2 text-xs font-bold text-sage-700 transition hover:bg-sage-50"
         >
           View profile
         </Link>
-      )}
+      ) : null}
     </div>
   </header>
 

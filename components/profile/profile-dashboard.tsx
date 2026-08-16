@@ -25,6 +25,7 @@ import {
   Search,
   ShieldCheck,
   SlidersHorizontal,
+  Trash2,
   X,
   UsersRound
 } from "lucide-react";
@@ -136,6 +137,10 @@ export function ProfileDashboard() {
   const [privateUnlocked, setPrivateUnlocked] = useState(false);
   const [privateLoading, setPrivateLoading] = useState(false);
   const [privatePosts, setPrivatePosts] = useState<ReflectionPost[]>([]);
+  const [deleteTarget, setDeleteTarget] =
+  useState<ReflectionPost | null>(null);
+  const [deleteBusy, setDeleteBusy] =
+  useState(false);
   const [mobileFilterOpen, setMobileFilterOpen] = useState(false);
   const [desktopFilterOpen, setDesktopFilterOpen] = useState(false);
   const mobileFilterPresence = usePopupPresence(mobileFilterOpen);
@@ -487,6 +492,56 @@ export function ProfileDashboard() {
     }
   };
 
+  const editReflection = (post: ReflectionPost) => {
+  router.push(
+    `/reflect?edit=${encodeURIComponent(post.id)}`
+  );
+};
+
+const confirmDeleteReflection = async () => {
+  if (!user || !deleteTarget || deleteBusy) {
+    return;
+  }
+
+    const target = deleteTarget;
+
+    setDeleteBusy(true);
+
+    try {
+      await appService.deleteReflection(
+        user.id,
+        target.id
+      );
+
+      // Needed for local/demo mode because the browser
+      // storage event does not fire in the same tab.
+      setPosts((current) =>
+        current.filter(
+          (post) => post.id !== target.id
+        )
+      );
+
+      setPrivatePosts((current) =>
+        current.filter(
+          (post) => post.id !== target.id
+        )
+      );
+
+      setDeleteTarget(null);
+
+      notify("Your reflection was deleted.");
+    } catch (deleteError) {
+      notify(
+        deleteError instanceof Error
+          ? deleteError.message
+          : "Your reflection could not be deleted.",
+        "error"
+      );
+    } finally {
+      setDeleteBusy(false);
+    }
+  };
+
   if (loading) return <LoadingState label="Gathering your profile…" />;
 
   if (error) {
@@ -755,6 +810,10 @@ export function ProfileDashboard() {
                         initialFollowing={false}
                         compactTimestamp
                         hideViewProfile
+                        onEdit={editReflection}
+                        onDelete={(post) =>
+                          setDeleteTarget(post)
+                        }
                       />
                     ))}
                   </div>
@@ -815,6 +874,10 @@ export function ProfileDashboard() {
                         initialFollowing={false}
                         compactTimestamp
                         hideViewProfile
+                        onEdit={editReflection}
+                        onDelete={(post) =>
+                          setDeleteTarget(post)
+                        }
                       />
                     ))}
                 </div>
@@ -884,9 +947,14 @@ export function ProfileDashboard() {
                           <ReflectionCard
                             key={post.id}
                             post={post}
+                            showActions
                             showDate={
                               user?.privacyPreferences?.showReflectionDates ??
                               true
+                            }
+                            onEdit={editReflection}
+                            onDelete={(post) =>
+                              setDeleteTarget(post)
                             }
                           />
                         ))
@@ -932,6 +1000,32 @@ export function ProfileDashboard() {
         }
         onClose={() => setPrivacyDialog(false)}
         onConfirm={() => void unlockPrivate()}
+      />
+      <ConfirmDialog
+        open={Boolean(deleteTarget)}
+        title="Delete this reflection?"
+        description="This reflection will be permanently deleted. This action cannot be undone."
+        confirmLabel={
+          deleteBusy
+            ? "Deleting…"
+            : "Delete reflection"
+        }
+        headerIcon={
+          <div className="flex h-16 w-16 items-center justify-center rounded-full border border-clay-100 bg-clay-50 text-clay-600">
+            <Trash2
+              className="size-6"
+              aria-hidden="true"
+            />
+          </div>
+        }
+        onClose={() => {
+          if (!deleteBusy) {
+            setDeleteTarget(null);
+          }
+        }}
+        onConfirm={() =>
+          void confirmDeleteReflection()
+        }
       />
     </div>
   );

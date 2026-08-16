@@ -54,7 +54,13 @@ npx wrangler secret put SITE_ACCESS_SESSION_SECRET --config wrangler.jsonc
 npx wrangler secret put FIREBASE_ADMIN_PROJECT_ID --config wrangler.jsonc
 npx wrangler secret put FIREBASE_ADMIN_CLIENT_EMAIL --config wrangler.jsonc
 npx wrangler secret put FIREBASE_ADMIN_PRIVATE_KEY --config wrangler.jsonc
+npx wrangler secret put GOOGLE_MAPS_API_KEY --config wrangler.jsonc
 ```
+
+`GOOGLE_MAPS_API_KEY` is used only by the normal Worker to reverse-geocode
+device coordinates after the visitor grants browser geolocation permission.
+Restrict the key in Google Cloud to the Geocoding API. Do not add it to the
+admin Worker or expose it through a `NEXT_PUBLIC_` variable.
 
 ## Admin Worker secrets
 

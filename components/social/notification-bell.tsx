@@ -29,8 +29,15 @@ import type {
 function notificationTime(
   value: string
 ): string {
-  const created =
-    new Date(value).getTime();
+  const date = new Date(value);
+  const created = date.getTime();
+
+  // Historical notifications created while the Worker timestamp adapter was
+  // being introduced can have no usable timestamp. Never let one bad record
+  // crash the app shell when the notification popover opens.
+  if (Number.isNaN(created)) {
+    return "Unknown time";
+  }
 
   const difference =
     Date.now() - created;
@@ -73,12 +80,12 @@ function notificationTime(
       month: "short",
       day: "numeric",
       year:
-        new Date(value).getFullYear() !==
+        date.getFullYear() !==
         new Date().getFullYear()
           ? "numeric"
           : undefined
     }
-  ).format(new Date(value));
+  ).format(date);
 }
 
 function NotificationAvatar({

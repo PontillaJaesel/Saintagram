@@ -1,6 +1,7 @@
 "use client";
 
-import { CalendarDays, Edit3, LockKeyhole, Trash2 } from "lucide-react";
+import { CalendarDays, LockKeyhole } from "lucide-react";
+import { ReflectionOwnerMenu } from "@/components/reflections/reflection-owner-menu";
 import { formatFriendlyDate } from "@/lib/validation";
 import { fiatCategoryLabel } from "@/lib/fiat";
 import { ReflectionMediaView } from "@/components/reflections/reflection-media-view";
@@ -22,7 +23,23 @@ export function ReflectionCard({
   onDelete?: (post: ReflectionPost) => void;
 }) {
   return (
-    <article className="rounded-[var(--radius-card)] border border-sage-100 bg-white p-5 shadow-sm sm:p-6">
+    <article className="relative rounded-[var(--radius-card)] border border-sage-100 bg-white p-5 shadow-sm sm:p-6">
+      {showActions && (
+        <div className="absolute right-3 top-3">
+          <ReflectionOwnerMenu
+            onEdit={
+              onEdit
+                ? () => onEdit(post)
+                : undefined
+            }
+            onDelete={
+              onDelete
+                ? () => onDelete(post)
+                : undefined
+            }
+          />
+        </div>
+      )}
       <div className="flex items-start gap-4">
         <div className="grid size-9 shrink-0 place-items-center rounded-[var(--radius-base)] bg-sage-100 text-sage-700">
           {post.isPrivate ? (
@@ -33,7 +50,11 @@ export function ReflectionCard({
             </span>
           )}
         </div>
-        <div className="min-w-0 flex-1">
+        <div
+          className={`min-w-0 flex-1 ${
+            showActions ? "pr-10" : ""
+          }`}
+        >
           <div className="flex flex-wrap items-center gap-2 text-xs text-muted">
             {showDate && (
               <span className="inline-flex items-center gap-1.5">
@@ -68,26 +89,6 @@ export function ReflectionCard({
           <ReflectionMediaView media={post.media} compact />
         </div>
       </div>
-      {showActions && (
-        <div className="mt-4 flex justify-end gap-1 border-t border-sage-100 pt-3">
-          <button
-            type="button"
-            className="btn-quiet"
-            onClick={() => onEdit?.(post)}
-          >
-            <Edit3 className="size-4" aria-hidden="true" />
-            Edit
-          </button>
-          <button
-            type="button"
-            className="inline-flex min-h-11 items-center gap-2 rounded-full px-4 py-2 text-sm font-bold text-clay-600 hover:bg-clay-50"
-            onClick={() => onDelete?.(post)}
-          >
-            <Trash2 className="size-4" aria-hidden="true" />
-            Delete
-          </button>
-        </div>
-      )}
     </article>
   );
 }

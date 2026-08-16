@@ -1,11 +1,22 @@
 "use client";
 
-import { FormEvent, useRef, useState } from "react";
+import {
+  FormEvent,
+  useEffect,
+  useRef,
+  useState
+} from "react";
+import {
+  useRouter,
+  useSearchParams
+} from "next/navigation";
 import {
   CheckCircle2,
   Lock,
   PenLine
 } from "lucide-react";
+import { LoadingState } from "@/components/ui/loading-state";
+import { ReflectionMediaView } from "@/components/reflections/reflection-media-view";
 import { useAuth } from "@/components/providers/auth-provider";
 import { useToast } from "@/components/providers/toast-provider";
 import { ReflectionMediaPicker } from "@/components/reflections/reflection-media-picker";
@@ -18,6 +29,15 @@ import type { FiatCategory, ReflectionPost } from "@/types";
 export function ReflectionManager() {
   const { user } = useAuth();
   const { notify } = useToast();
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const editId = searchParams.get("edit");
+  const [editingPost, setEditingPost] =
+    useState<ReflectionPost | null>(null);
+  const [loadingEdit, setLoadingEdit] =
+    useState(Boolean(editId));
+  const [editLoadError, setEditLoadError] =
+    useState("");
   const [content, setContent] = useState("");
   const [mediaFiles, setMediaFiles] = useState<File[]>([]);
   const [title, setTitle] = useState("");
@@ -64,22 +84,43 @@ export function ReflectionManager() {
     let uploadedMedia: ReflectionPost["media"];
     try {
       await validateReflectionMedia(mediaFiles);
-      const reflectionId = reflectionMediaId();
+      const reflectionId =
+        editingPost?.id ??
+        reflectionMediaId();
       uploadedMedia = mediaFiles.length ? await uploadReflectionMedia(user.id, reflectionId, mediaFiles, isPrivate) : undefined;
-      const saved = await appService.saveReflection(user.id, {
-        newId: reflectionId,
-        title,
-        content,
-        isPrivate,
-        fiatCategory,
-        fiatOther,
-        media: uploadedMedia
-      });
-      notify(
-        saved.isPrivate
-          ? "Your reflection was saved privately."
-          : "Your reflection was saved."
+      const saved = await appService.saveReflection(
+        user.id,
+        {
+          ...(editingPost
+            ? {
+                id: editingPost.id,
+                createdAt:
+                  editingPost.createdAt
+              }
+            : {
+                newId: reflectionId
+              }),
+          title,
+          content,
+          isPrivate,
+          fiatCategory,
+          fiatOther,
+          media:
+            uploadedMedia ??
+            editingPost?.media
+        }
       );
+      notify(
+        editingPost
+          ? "Your reflection was updated."
+          : saved.isPrivate
+            ? "Your reflection was saved privately."
+            : "Your reflection was saved."
+      );
+      if (editingPost) {
+        router.push("/profile");
+        return;
+      }
       resetComposer();
       window.requestAnimationFrame(() => {
         window.scrollTo({ top: 0, behavior: "smooth" });
@@ -105,6 +146,101 @@ export function ReflectionManager() {
     }
   };
 
+  useEffect(() => {
+    if (!user || !editId) {
+      setEditingPost(null);
+      setLoadingEdit(false);
+      return;
+    }
+
+    let active = true;
+
+    setLoadingEdit(true);
+    setEditLoadError("");
+
+    void appService
+      .getReflections(user.id)
+      .then((reflections) => {
+        if (!active) return;
+
+        const reflection =
+          reflections.find(
+            (post) => post.id === editId
+          );
+
+        if (!reflection) {
+          throw new Error(
+            "That reflection could not be found."
+          );
+        }
+
+        setEditingPost(reflection);
+
+        setTitle(reflection.title ?? "");
+        setContent(reflection.content);
+        setIsPrivate(reflection.isPrivate);
+        setFiatCategory(
+          reflection.fiatCategory
+        );
+        setFiatOther(
+          reflection.fiatOther ?? ""
+        );
+
+        setMediaFiles([]);
+      })
+      .catch((loadError) => {
+        if (!active) return;
+
+        setEditLoadError(
+          loadError instanceof Error
+            ? loadError.message
+            : "Your reflection could not be opened."
+        );
+      })
+      .finally(() => {
+        if (active) {
+          setLoadingEdit(false);
+        }
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [editId, user?.id]);
+
+  if (editId && loadingEdit) {
+    return (
+      <LoadingState label="Opening your reflection…" />
+    );
+  }
+
+  if (
+    editId &&
+    !loadingEdit &&
+    !editingPost
+  ) {
+    return (
+      <div className="mx-auto max-w-3xl">
+        <section className="surface p-7 text-center">
+          <p className="warning-indicator rounded-xl px-4 py-3">
+            {editLoadError ||
+              "That reflection could not be found."}
+          </p>
+
+          <button
+            type="button"
+            className="btn-secondary mt-5"
+            onClick={() =>
+              router.push("/profile")
+            }
+          >
+            Back to profile
+          </button>
+        </section>
+      </div>
+    );
+  }
+
   return (
     <div className="mx-auto max-w-3xl">
       <section className="surface overflow-hidden">
@@ -113,10 +249,15 @@ export function ReflectionManager() {
             <PenLine className="size-5" aria-hidden="true" />
           </div>
           <p className="eyebrow">
-            A moment worth noticing
+            {editingPost
+              ? "Edit your reflection"
+              : "A moment worth noticing"}
           </p>
+
           <h2 className="mt-2 font-serif text-2xl font-bold sm:text-3xl">
-            What is a moment God saw today?
+            {editingPost
+              ? "Update this moment"
+              : "What is a moment God saw today?"}
           </h2>
         </div>
         <form
@@ -210,7 +351,13 @@ export function ReflectionManager() {
             disabled={saving}
           >
             <CheckCircle2 className="size-4" aria-hidden="true" />
-            {saving ? "Saving…" : "Save reflection"}
+            {saving
+            ? editingPost
+              ? "Updating…"
+              : "Saving…"
+            : editingPost
+              ? "Update reflection"
+              : "Save reflection"}
           </button>
         </form>
       </section>

@@ -7,7 +7,12 @@ import { useToast } from "@/components/providers/toast-provider";
 import type { SystemNotification } from "@/types";
 
 type NotificationData = { notifications: SystemNotification[]; users: Record<string, string> };
-const formatDate = (value: string) => new Intl.DateTimeFormat("en-PH", { timeZone: "Asia/Manila", dateStyle: "medium", timeStyle: "short" }).format(new Date(value));
+const formatDate = (value: string) => {
+  const date = new Date(value);
+  return Number.isNaN(date.getTime())
+    ? "Unknown time"
+    : new Intl.DateTimeFormat("en-PH", { timeZone: "Asia/Manila", dateStyle: "medium", timeStyle: "short" }).format(date);
+};
 
 export function AdminNotifications() {
   const [data, setData] = useState<NotificationData | null>(null);
