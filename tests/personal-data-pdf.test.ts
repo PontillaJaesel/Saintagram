@@ -8,6 +8,8 @@ const archive: PersonalDataExport = {
   user: {
     id: "owner-1",
     email: "owner@example.test",
+    authProvider: "password",
+    mustChangePassword: false,
     createdAt: "2026-01-01T00:00:00.000Z",
     updatedAt: "2026-07-30T08:00:00.000Z",
     privacyConsentAt: "2026-01-01T00:00:00.000Z",

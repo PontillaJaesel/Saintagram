@@ -11,7 +11,6 @@ import {
 import Link from "next/link";
 
 import {
-  CalendarDays,
   Heart,
   LoaderCircle,
   MessageCircle,
@@ -29,9 +28,11 @@ import {
   downloadFirebaseProfileImage,
   isLocalProfileImageSource
 } from "@/lib/profile-images";
+import { ReflectionMediaView } from "@/components/reflections/reflection-media-view";
 
 import {
-  formatFriendlyDate
+  formatFriendlyDate,
+  formatReflectionAge
 } from "@/lib/validation";
 
 import type {
@@ -44,11 +45,13 @@ import type {
 function SocialAvatar({
   imagePath,
   profileName,
-  compact = false
+  compact = false,
+  medium = false
 }: {
   imagePath: string;
   profileName: string;
   compact?: boolean;
+  medium?: boolean;
 }) {
   const {
     loading,
@@ -128,6 +131,8 @@ function SocialAvatar({
         className={
           compact
             ? "size-9 shrink-0 overflow-hidden rounded-full border border-sage-100 bg-sage-50"
+            : medium
+              ? "size-10 shrink-0 overflow-hidden rounded-full border border-sage-100 bg-sage-50"
             : "size-12 shrink-0 overflow-hidden rounded-full border border-sage-100 bg-sage-50"
         }
       >
@@ -147,6 +152,8 @@ function SocialAvatar({
       className={
         compact
           ? "grid size-9 shrink-0 place-items-center rounded-full bg-sage-100 font-serif text-sm font-bold text-sage-700"
+          : medium
+            ? "grid size-10 shrink-0 place-items-center rounded-full bg-sage-100 font-serif text-base font-bold text-sage-700"
           : "grid size-12 shrink-0 place-items-center rounded-full bg-sage-100 font-serif text-lg font-bold text-sage-700"
       }
       aria-hidden="true"
@@ -227,10 +234,14 @@ function CommentItem({
 
 export function SocialReflectionCard({
   post,
+  compactTimestamp = false,
+  hideViewProfile = false,
   initialFollowing = false,
   initialCommentsOpen = false
 }: {
   post: SocialFeedPost;
+  compactTimestamp?: boolean;
+  hideViewProfile?: boolean;
   initialFollowing?: boolean;
   initialCommentsOpen?: boolean;
 }) {
@@ -260,11 +271,6 @@ export function SocialReflectionCard({
     initialCommentsOpen
     );
   
-  const [
-    ownerReminderVisible,
-    setOwnerReminderVisible
-    ] = useState(true);
-
   const [
     commentContent,
     setCommentContent
@@ -1016,92 +1022,80 @@ export function SocialReflectionCard({
 
   return (
     <article
-        id={`reflection-${post.id}`}
-        className="scroll-mt-24 overflow-hidden rounded-3xl border border-sage-100 bg-white shadow-sm"
-    >
-      {/* AUTHOR HEADER */}
-      <header className="flex items-start justify-between gap-4 px-5 pb-3 pt-5 sm:px-6 sm:pt-6">
-        <Link
-          href={`/users/${post.author.userId}`}
-          className="group flex min-w-0 items-center gap-3"
-        >
-          <SocialAvatar
-            imagePath={
-              post.author.imagePath
-            }
-            profileName={
-              post.author.profileName
-            }
-          />
+    id={`reflection-${post.id}`}
+    className="scroll-mt-24 overflow-hidden rounded-3xl border border-sage-100 bg-white shadow-sm"
+>
+  {/* AUTHOR HEADER & REFLECTION COMBINED FOR X-STYLE LAYOUT */}
+  <header className="px-5 pb-4 pt-5 sm:px-6 sm:pb-5 sm:pt-6">
+    <div className="relative flex items-start gap-4">
+      <Link
+        href={`/users/${post.author.userId}`}
+        className="group flex w-full min-w-0 flex-1 items-start gap-3"
+      >
+        <SocialAvatar
+          imagePath={post.author.imagePath}
+          profileName={post.author.profileName}
+          medium={compactTimestamp}
+        />
 
-          <div className="min-w-0">
-            <p className="truncate font-serif text-base font-bold text-ink transition group-hover:text-sage-700">
-              {
-                post.author
-                  .profileName
-              }
-            </p>
+        <div className="min-w-0 flex-1">
+          {/* X-Style Inline Row: Name, Hashtag/Handle, and Timestamp */}
+          <div className={`flex flex-wrap items-center gap-x-2 gap-y-0.5 ${hideViewProfile ? "" : "pr-24"}`}>
+            <span className={`truncate font-serif font-bold text-ink transition group-hover:text-sage-700 ${compactTimestamp ? "text-[17px]" : "text-lg"}`}>
+              {post.author.profileName}
+            </span>
 
-            {post.author
-              .heavenlyHashtag && (
-              <p className="mt-0.5 truncate text-xs font-semibold text-sage-600">
-                {
-                  post.author
-                    .heavenlyHashtag
-                }
-              </p>
+            {post.author.heavenlyHashtag && (
+              <span className="text-xs font-semibold text-sage-600">
+                {post.author.heavenlyHashtag}
+              </span>
             )}
-          </div>
-        </Link>
+            <span className="text-xs text-muted" aria-hidden="true">·</span>
 
+            <div className="flex items-center gap-1 text-xs text-muted">
+              <time dateTime={post.createdAt}>
+                {compactTimestamp
+                  ? formatReflectionAge(post.createdAt)
+                  : formatFriendlyDate(post.createdAt)}
+              </time>
+              {post.editedAt && <span>(Edited)</span>}
+            </div>
+          </div>
+
+          {post.fiatCategory && (
+            <span className="mt-1.5 inline-flex w-fit rounded-full border border-gold-200 bg-gold-50 px-2 py-0.5 text-[10px] font-bold leading-4 text-gold-700">
+              Fi@ · {post.fiatCategory === "other" && post.fiatOther
+                ? post.fiatOther
+                : fiatCategoryLabel(post.fiatCategory)}
+            </span>
+          )}
+
+          {/* REFLECTION CONTENT */}
+          <div className="mt-3">
+            {post.title && (
+              <h2 className={`user-content font-serif font-bold leading-6 text-ink ${compactTimestamp ? "text-base" : "text-[17px]"}`}>
+                {post.title}
+              </h2>
+            )}
+
+            <p className={`user-content whitespace-pre-wrap break-words leading-6 text-ink ${compactTimestamp ? "text-[15px]" : "text-base"} ${post.title ? "mt-1" : ""}`}>
+              {post.content}
+            </p>
+            <ReflectionMediaView media={post.media} />
+          </div>
+        </div>
+      </Link>
+
+      {!hideViewProfile && (
         <Link
           href={`/users/${post.author.userId}`}
-          className="profile-view-link shrink-0 rounded-full px-3 py-2 text-xs font-bold text-sage-700 transition hover:bg-sage-50"
+          className="absolute right-0 top-0 rounded-full px-3 py-2 text-xs font-bold text-sage-700 transition hover:bg-sage-50"
         >
           View profile
         </Link>
-      </header>
-
-      {/* REFLECTION */}
-      <div className="px-5 pb-5 sm:px-6 sm:pb-6">
-        <div className="ml-[3.75rem]">
-          <div className="flex flex-wrap items-center gap-2 text-xs text-muted">
-            <span className="inline-flex items-center gap-1.5">
-              <CalendarDays
-                className="size-3.5"
-                aria-hidden="true"
-              />
-
-              <time
-                dateTime={
-                  post.createdAt
-                }
-              >
-                {formatFriendlyDate(
-                  post.createdAt
-                )}
-              </time>
-            </span>
-
-            {post.editedAt && (
-              <span>
-                Edited
-              </span>
-            )}
-            {post.fiatCategory && <span className="rounded-full bg-gold-50 px-2.5 py-1 font-bold text-gold-700">Fi@ · {fiatCategoryLabel(post.fiatCategory)}</span>}
-          </div>
-
-          {post.title && (
-            <h2 className="user-content mt-3 font-serif text-lg font-bold leading-7 text-ink">
-              {post.title}
-            </h2>
-          )}
-
-          <p className="user-content mt-3 whitespace-pre-wrap break-words text-base leading-7 text-ink">
-            {post.content}
-          </p>
-        </div>
-      </div>
+      )}
+    </div>
+  </header>
 
       {/* LIKE + COMMENT ACTIONS */}
       <div className="border-t border-sage-100">
@@ -1233,33 +1227,6 @@ export function SocialReflectionCard({
             </div>
           </div>
         )}
-
-      {/* OWNER MESSAGE */}
-      {isOwnPost && ownerReminderVisible && (
-        <div className="relative border border-sage-100 bg-sage-50 px-4 py-3 pr-11">
-          <p className="text-xs leading-5 text-muted">
-            This is your reflection. Likes and comments are for people who follow you.
-          </p>
-
-          <button
-            type="button"
-            className="absolute right-3 top-3 grid size-6 place-items-center rounded-full text-muted transition hover:bg-sage-100 hover:text-ink"
-            aria-label="Close reminder"
-            onClick={() =>
-              setOwnerReminderVisible(
-                false
-              )
-            }
-          >
-            <span
-              className="text-base leading-none"
-              aria-hidden="true"
-            >
-              ×
-            </span>
-          </button>
-        </div>
-      )}
 
       {/* COMMENTS */}
       {commentsOpen && (

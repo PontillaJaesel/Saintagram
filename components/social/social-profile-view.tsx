@@ -315,6 +315,8 @@ export function SocialProfileView({
                   author: profile
                 }}
                 initialFollowing={false}
+                compactTimestamp
+                hideViewProfile
               />
             ))}
           </div>

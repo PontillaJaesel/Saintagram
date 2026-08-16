@@ -9,11 +9,14 @@ import { OpenEventProvider } from "@/components/providers/open-event-provider";
 
 export function AppProviders({ children }: { children: ReactNode }) {
   const pathname = usePathname();
+  const isAdminRoute = pathname === "/admin" || pathname.startsWith("/admin/");
 
   return (
     <ThemeProvider>
       {pathname === "/access" ? (
         children
+      ) : isAdminRoute ? (
+        <ToastProvider>{children}</ToastProvider>
       ) : (
         <AuthProvider>
           <ToastProvider><OpenEventProvider>{children}</OpenEventProvider></ToastProvider>

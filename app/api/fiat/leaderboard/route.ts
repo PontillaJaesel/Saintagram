@@ -9,7 +9,7 @@ export async function GET(request: Request) {
   try {
     const bearer = request.headers.get("authorization") ?? "";
     if (!bearer.startsWith("Bearer ")) return NextResponse.json({ error: "Authentication is required." }, { status: 401, headers });
-    const token = await getFirebaseAdminAuth().verifyIdToken(bearer.slice(7), true);
+    const token = await getFirebaseAdminAuth().verifyIdToken(bearer.slice(7));
     const url = new URL(request.url);
     const period = url.searchParams.get("period") as FiatLeaderboardPeriod;
     const today = url.searchParams.get("today") ?? "";
@@ -32,7 +32,13 @@ export async function GET(request: Request) {
       return { userId, profileName: typeof profile.profileName === "string" ? profile.profileName : "Saintagram user", imagePath: typeof profile.imagePath === "string" ? profile.imagePath : "", eligibleCount: eligibleFiatCount(posts, bounds.start, bounds.end) };
     }).filter((entry) => entry.eligibleCount > 0).sort((a, b) => b.eligibleCount - a.eligibleCount || a.profileName.localeCompare(b.profileName) || a.userId.localeCompare(b.userId)).map((entry, index): FiatLeaderboardEntry => ({ ...entry, rank: index + 1 }));
     return NextResponse.json({ entries: ranked.slice(0, 50), currentUser: ranked.find((entry) => entry.userId === token.uid) ?? null, period, bounds }, { headers });
-  } catch {
-    return NextResponse.json({ error: "The FiAt leaderboard could not be loaded." }, { status: 401, headers });
+  } catch (error) {
+    console.error("FiAt leaderboard request failed.", error);
+    const code = typeof error === "object" && error && "code" in error ? String(error.code) : "";
+    const authenticationError = code.startsWith("auth/");
+    return NextResponse.json(
+      { error: authenticationError ? "Please sign in again." : "The FiAt leaderboard could not be loaded." },
+      { status: authenticationError ? 401 : 500, headers }
+    );
   }
 }

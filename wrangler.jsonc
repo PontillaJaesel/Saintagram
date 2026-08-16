@@ -6,6 +6,9 @@
   "compatibility_flags": [
     "nodejs_compat"
   ],
+  "vars": {
+    "SAINTAGRAM_APP_MODE": "normal"
+  },
   "main": "worker.ts",
   "assets": {
     "directory": "dist/client",

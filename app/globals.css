@@ -182,6 +182,62 @@ html {
   50% { transform: scale(1.025); box-shadow: 0 0 20px rgb(var(--gold-400) / 0.32); }
 }
 
+@keyframes popup-panel-enter {
+  from {
+    opacity: 0;
+    transform: translateY(-10px) scale(0.975);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes popup-backdrop-enter {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes popup-panel-exit {
+  from {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(-8px) scale(0.98);
+  }
+}
+
+@keyframes popup-backdrop-exit {
+  from { opacity: 1; }
+  to { opacity: 0; }
+}
+
+@keyframes notification-count-pop {
+  0% {
+    opacity: 0;
+    transform: scale(0.55);
+  }
+  55% {
+    opacity: 1;
+    transform: scale(1.16);
+  }
+  78% {
+    transform: scale(0.94);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes leaderboard-tab-label-enter {
+  0% { transform: scale(0.94); opacity: 0.72; }
+  65% { transform: scale(1.04); opacity: 1; }
+  100% { transform: scale(1); opacity: 1; }
+}
+
 body {
   min-height: 100vh;
   color: rgb(var(--ink));
@@ -190,7 +246,13 @@ body {
   background: rgb(var(--canvas));
   background-attachment: fixed;
   transition: background-color 180ms ease, color 180ms ease;
-  padding-bottom: 3rem;
+  padding-bottom: 0;
+}
+
+@media (min-width: 1024px) {
+  body {
+    padding-bottom: 2.25rem;
+  }
 }
 
 ::selection {
@@ -660,6 +722,193 @@ body {
     animation: fiat-glow 3.5s ease-in-out 2;
   }
 
+  .fiat-streak-surface {
+    background-color: #ffffff;
+    border-color: #eadc9f;
+    color: #1f2937;
+    scrollbar-color: #d4c481 #ffffff;
+  }
+
+  .popup-panel-enter {
+    transform-origin: top center;
+    animation: popup-panel-enter 260ms cubic-bezier(0.22, 1, 0.36, 1) both;
+    will-change: opacity, transform;
+  }
+
+  .popup-backdrop-enter {
+    animation: popup-backdrop-enter 200ms ease-out both;
+  }
+
+  .popup-panel-exit {
+    pointer-events: none;
+    transform-origin: top center;
+    animation: popup-panel-exit 180ms cubic-bezier(0.4, 0, 1, 1) both;
+    will-change: opacity, transform;
+  }
+
+  .popup-backdrop-exit {
+    pointer-events: none;
+    animation: popup-backdrop-exit 180ms ease-in both;
+  }
+
+  .notification-count-pop {
+    transform-origin: center;
+    animation: notification-count-pop 420ms cubic-bezier(0.22, 1, 0.36, 1) both;
+    will-change: opacity, transform;
+  }
+
+  div[role="tablist"][aria-label="Leaderboard period"] {
+    position: relative;
+    isolation: isolate;
+  }
+
+  div[role="tablist"][aria-label="Leaderboard period"]::before {
+    content: "";
+    position: absolute;
+    z-index: 0;
+    top: 0.25rem;
+    bottom: 0.25rem;
+    left: 0.25rem;
+    width: calc((100% - 0.5rem) / 3);
+    border-radius: 9999px;
+    background: rgb(var(--paper));
+    box-shadow: 0 2px 8px rgb(var(--ink) / 0.1);
+    transform: translateX(0);
+    transition: transform 320ms cubic-bezier(0.22, 1, 0.36, 1);
+    will-change: transform;
+  }
+
+  div[role="tablist"][aria-label="Leaderboard period"]:has(button:nth-child(2)[aria-selected="true"])::before {
+    transform: translateX(100%);
+  }
+
+  div[role="tablist"][aria-label="Leaderboard period"]:has(button:nth-child(3)[aria-selected="true"])::before {
+    transform: translateX(200%);
+  }
+
+  div[role="tablist"][aria-label="Leaderboard period"] button {
+    position: relative;
+    z-index: 1;
+    transition: color 220ms ease;
+  }
+
+  div[role="tablist"][aria-label="Leaderboard period"] button[aria-selected="true"] {
+    background: transparent;
+    box-shadow: none;
+    animation: leaderboard-tab-label-enter 300ms ease-out both;
+  }
+
+  @media (min-width: 1024px) {
+    .popup-panel-enter,
+    .popup-panel-exit {
+      transform-origin: top right;
+    }
+  }
+
+  .fiat-streak-number {
+    color: #ffffff;
+    -webkit-text-fill-color: #ffffff;
+    text-shadow:
+      0 2px 2px rgb(77 39 0 / 0.72),
+      0 4px 8px rgb(77 39 0 / 0.48);
+  }
+
+  /* Match the notification popover layout for the FiAt leaderboard. */
+  div:has(> button[aria-label="Open FiAt leaderboard"]) {
+    position: relative;
+  }
+
+  div[role="presentation"]:has(> section[aria-labelledby="fiat-leaderboard-title"]) {
+    inset: 5rem 1rem auto;
+    display: block;
+    max-height: calc(100dvh - 6rem);
+    padding: 0;
+    background: transparent;
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
+
+  div[role="presentation"]:has(> section[aria-labelledby="fiat-leaderboard-title"]) > section {
+    width: 100%;
+    max-width: none;
+    max-height: calc(100dvh - 6rem);
+    overflow-y: auto;
+    border-radius: 1.5rem;
+  }
+
+  @media (min-width: 640px) and (max-width: 1023px) {
+    div[role="presentation"]:has(> section[aria-labelledby="fiat-leaderboard-title"]) {
+      right: 1rem;
+      left: auto;
+      width: 22rem;
+    }
+  }
+
+  @media (min-width: 1024px) {
+    div[role="presentation"]:has(> section[aria-labelledby="fiat-leaderboard-title"]) {
+      position: absolute;
+      inset: calc(100% + 0.65rem) 0 auto auto;
+      width: 22rem;
+      max-height: calc(100dvh - 5.5rem);
+    }
+
+    div[role="presentation"]:has(> section[aria-labelledby="fiat-leaderboard-title"]) > section {
+      max-height: calc(100dvh - 5.5rem);
+    }
+  }
+
+  :root[data-theme="dark"] .fiat-streak-surface,
+  .dark .fiat-streak-surface {
+    background-color: #111827;
+    border-color: #b98b16;
+    color: #f8fafc;
+    scrollbar-color: #8f6c12 #111827;
+  }
+
+  :root[data-theme="dark"] .fiat-streak-title,
+  .dark .fiat-streak-title {
+    color: #f8fafc;
+  }
+
+  :root[data-theme="dark"] .fiat-streak-close,
+  .dark .fiat-streak-close {
+    color: #f8fafc;
+  }
+
+  :root[data-theme="dark"] .fiat-streak-close:hover,
+  .dark .fiat-streak-close:hover {
+    background-color: #263246;
+  }
+
+  :root[data-theme="dark"] .fiat-streak-week,
+  .dark .fiat-streak-week {
+    background-color: #192334;
+    border-color: #8f6c12;
+  }
+
+  :root[data-theme="dark"] .fiat-streak-copy,
+  .dark .fiat-streak-copy {
+    border-color: #8f6c12;
+    color: #e5e7eb;
+  }
+
+  :root[data-theme="dark"] .fiat-streak-day-empty,
+  .dark .fiat-streak-day-empty {
+    background-color: #3b4a5f;
+    color: #aebbd0;
+  }
+
+  :root[data-theme="dark"] .fiat-streak-day-today,
+  .dark .fiat-streak-day-today {
+    background-color: #111827;
+  }
+
+  :root[data-theme="dark"] .fiat-streak-footer,
+  .dark .fiat-streak-footer {
+    background-color: #111827;
+    border-color: #8f6c12;
+  }
+
   .theme-toggle {
     @apply relative z-10 inline-flex min-h-9 shrink-0 items-center gap-1.5 rounded-full border border-gold-300 bg-paper/80 p-1 text-ink backdrop-blur-xl transition hover:border-gold-400;
   }
@@ -729,6 +978,36 @@ body {
 
   :root[data-theme="dark"] aside .text-clay-500\/90 {
     color: rgb(var(--clay-500) / 0.9);
+  }
+
+  /* The gold authentication illustration stays light in dark mode, so its
+     copy needs an explicit dark-gray override with matching specificity. */
+  :root[data-theme="dark"] aside .auth-aside-dark-text {
+    color: rgb(55 65 81);
+  }
+
+  aside .auth-privacy-dark-text {
+    color: white;
+  }
+
+  :root[data-theme="dark"] aside .auth-privacy-dark-text {
+    color: rgb(55 65 81);
+  }
+
+  :root[data-theme="dark"] aside .auth-aside-orbit {
+    border: 0;
+    padding: 1.5px;
+    background: linear-gradient(
+      135deg,
+      rgb(161 125 2 / 0.9),
+      rgb(202 158 2 / 0.68) 52%,
+      rgb(239 191 4 / 0.48)
+    );
+    -webkit-mask:
+      linear-gradient(#000 0 0) content-box,
+      linear-gradient(#000 0 0);
+    -webkit-mask-composite: xor;
+    mask-composite: exclude;
   }
 
   :root[data-theme="dark"] :is(.text-black, .text-sage-700, .text-sage-800, .text-sage-900) {

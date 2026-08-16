@@ -25,6 +25,7 @@ const mocks = vi.hoisted(() => ({
   getPrivateReflections: vi.fn(),
   getReflections: vi.fn(),
   downloadFirebaseProfileImage: vi.fn()
+  ,reflectionMediaUrl: vi.fn()
 }));
 
 vi.mock("next/navigation", () => ({
@@ -41,6 +42,12 @@ vi.mock("@/components/providers/auth-provider", () => ({
 
 vi.mock("@/components/providers/toast-provider", () => ({
   useToast: () => ({ notify: mocks.notify })
+}));
+
+vi.mock("@/components/social/social-reflection-card", () => ({
+  SocialReflectionCard: ({ post }: { post: ReflectionPost }) => (
+    <article>{post.content}</article>
+  )
 }));
 
 vi.mock("@/lib/app-service", () => ({
@@ -61,11 +68,17 @@ vi.mock("@/lib/profile-images", () => ({
   isLocalProfileImageSource: (value: string) => value.startsWith("data:image/")
 }));
 
+vi.mock("@/lib/reflection-media", () => ({
+  reflectionMediaUrl: mocks.reflectionMediaUrl
+}));
+
 import { ProfileDashboard } from "@/components/profile/profile-dashboard";
 
 const TEST_USER: AppUser = {
   id: "user-1",
   email: "beloved@example.com",
+  authProvider: "password",
+  mustChangePassword: false,
   createdAt: "2026-01-01T00:00:00.000Z",
   updatedAt: "2026-01-03T00:00:00.000Z",
   privacyConsentAt: "2026-01-02T00:00:00.000Z",
@@ -212,21 +225,20 @@ describe("ProfileDashboard private content", () => {
     expect(screen.getByText(PRIVATE_POST)).toBeInTheDocument();
   });
 
-  it("shows profile picture history in the journey tab", async () => {
+  it("shows recent reflection media in the Media tab", async () => {
+    mocks.reflectionMediaUrl.mockResolvedValue("https://media.example/photo.webp");
+    mocks.subscribeReflections.mockImplementation((_userId, _visibility, callback) => {
+      callback([{ id: "media-post", userId: TEST_USER.id, title: "A visible grace", content: "Media reflection", isPrivate: false, createdAt: "2026-08-01T00:00:00.000Z", updatedAt: "2026-08-01T00:00:00.000Z", media: [{ type: "image", path: "users/user-1/reflections/media-post/photo.webp" }] }]);
+      return () => undefined;
+    });
     const user = userEvent.setup();
     render(<ProfileDashboard />);
 
     await screen.findByRole("heading", { name: PROFILE.profileName });
-    await user.click(screen.getByRole("tab", { name: "Spiritual Journey" }));
+    await user.click(screen.getByRole("tab", { name: "Media" }));
 
-    expect(
-      await screen.findByText("Profile picture updated")
-    ).toBeInTheDocument();
-    expect(
-      await screen.findByRole("img", { name: "Profile picture history" })
-    ).toBeInTheDocument();
-    expect(mocks.downloadFirebaseProfileImage).toHaveBeenCalledWith(
-      PROFILE_IMAGE_HISTORY.imagePath
-    );
+    expect(await screen.findByText("A visible grace")).toBeInTheDocument();
+    expect(await screen.findByRole("img", { name: "Reflection photo 1" })).toBeInTheDocument();
+    expect(mocks.reflectionMediaUrl).toHaveBeenCalledWith("users/user-1/reflections/media-post/photo.webp");
   });
 });

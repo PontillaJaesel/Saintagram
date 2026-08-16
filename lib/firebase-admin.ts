@@ -7,6 +7,7 @@ import {
 } from "firebase-admin/app";
 import { getAuth, type Auth } from "firebase-admin/auth";
 import { getFirestore, type Firestore } from "firebase-admin/firestore";
+import { getStorage, type Storage } from "firebase-admin/storage";
 
 const FIREBASE_ADMIN_APP_NAME = "saintagram-firebase-admin";
 
@@ -26,6 +27,9 @@ function firebaseAdminOptions(): AppOptions {
   const escapedPrivateKey = trimmedEnvironmentValue(
     "FIREBASE_ADMIN_PRIVATE_KEY"
   );
+  const storageBucket =
+    trimmedEnvironmentValue("NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET") ||
+    `${adminProjectId}.firebasestorage.app`;
 
   if (!adminProjectId) {
     throw new Error("The Firebase Admin project ID is not configured.");
@@ -47,7 +51,8 @@ function firebaseAdminOptions(): AppOptions {
       clientEmail,
       privateKey: escapedPrivateKey.replace(/\\n/g, "\n")
     }),
-    projectId: adminProjectId
+    projectId: adminProjectId,
+    ...(storageBucket ? { storageBucket } : {})
   };
 }
 
@@ -73,4 +78,8 @@ export function getFirebaseAdminAuth(): Auth {
 
 export function getFirebaseAdminFirestore(): Firestore {
   return getFirestore(firebaseAdminApp());
+}
+
+export function getFirebaseAdminStorage(): Storage {
+  return getStorage(firebaseAdminApp());
 }

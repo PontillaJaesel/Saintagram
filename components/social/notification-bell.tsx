@@ -10,6 +10,8 @@ import { Bell, Sparkles } from "lucide-react";
 import { useRouter } from "next/navigation";
 
 import { useAuth } from "@/components/providers/auth-provider";
+import { useExclusivePopup } from "@/components/ui/use-exclusive-popup";
+import { usePopupPresence } from "@/components/ui/use-popup-presence";
 import { appService } from "@/lib/app-service";
 import { markSystemNotificationRead, subscribeSystemNotifications } from "@/lib/system-notifications";
 
@@ -215,6 +217,9 @@ export function NotificationBell() {
   const [open, setOpen] =
     useState(false);
 
+  useExclusivePopup("notifications", open, setOpen);
+  const popupPresence = usePopupPresence(open);
+
   const [error, setError] =
     useState("");
 
@@ -340,7 +345,7 @@ export function NotificationBell() {
   const openSystemNotification = async (notification: SystemNotification) => {
     setOpen(false);
     try { await markSystemNotificationRead(notification.id); } catch { /* Navigation still proceeds. */ }
-    router.push(user?.profileCompleted ? "/profile/edit" : "/create");
+    router.push(notification.type === "admin_reflection" && notification.reflectionId ? `/reflections/${notification.reflectionId}` : user?.profileCompleted ? "/profile/edit" : "/create");
   };
 
   const openNotification =
@@ -433,7 +438,8 @@ export function NotificationBell() {
 
         {unreadCount > 0 && (
           <span
-            className="absolute -right-1 -top-1 grid min-h-5 min-w-5 place-items-center rounded-full bg-clay-600 px-1 text-[10px] font-bold leading-none text-white"
+            key={unreadCount}
+            className="notification-count-pop absolute -right-1 -top-1 grid min-h-5 min-w-5 place-items-center rounded-full bg-clay-600 px-1 text-[10px] font-bold leading-none text-white"
             aria-hidden="true"
           >
             {unreadCount > 99
@@ -443,9 +449,9 @@ export function NotificationBell() {
         )}
       </button>
 
-      {open && (
+      {popupPresence.rendered && (
         <div
-          className="
+          className={`
             fixed left-4 right-4 top-20 z-[90]
             max-h-[calc(100dvh-6rem)]
             overflow-hidden rounded-3xl
@@ -459,7 +465,7 @@ export function NotificationBell() {
             lg:top-auto
             lg:bottom-[calc(100%+.65rem)]
             lg:max-h-none
-          "
+          ${popupPresence.closing ? "popup-panel-exit" : "popup-panel-enter"}`}
           aria-label="Notifications"
         >
           <div className="border-b border-sage-100 px-5 py-4">

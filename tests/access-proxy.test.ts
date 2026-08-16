@@ -26,6 +26,10 @@ function nextRequest(path: string, cookie?: string): NextRequest {
   return new NextRequest(`https://saintagram.example${path}`, { headers });
 }
 
+function hostRequest(hostname: string, path: string): NextRequest {
+  return new NextRequest(`https://${hostname}${path}`);
+}
+
 describe("access proxy", () => {
   beforeAll(() => {
     vi.stubGlobal("crypto", webcrypto);
@@ -33,6 +37,7 @@ describe("access proxy", () => {
 
   beforeEach(() => {
     vi.stubEnv("SITE_ACCESS_SESSION_SECRET", SESSION_SECRET);
+    vi.stubEnv("SAINTAGRAM_APP_MODE", "normal");
   });
 
   afterEach(() => {
@@ -164,6 +169,52 @@ describe("access proxy", () => {
     vi.stubEnv("SITE_ACCESS_SESSION_SECRET", "");
     const token = await createAccessSessionToken(SESSION_SECRET);
     const response = await proxy(nextRequest("/profile", token));
+
+    expect(response.status).toBe(307);
+    expect(response.headers.get("location")).toContain("/access?next=");
+  });
+
+  it("routes the public QR URL through the tracked QR entry handler", async () => {
+    const response = await proxy(nextRequest("/qr?campaign=parish-2026"));
+
+    expect(response.status).toBe(307);
+    expect(response.headers.get("location")).toBe(
+      "https://saintagram.example/open/qr?campaign=parish-2026"
+    );
+  });
+
+  it("rewrites the admin Worker root to the existing dashboard", async () => {
+    vi.stubEnv("SAINTAGRAM_APP_MODE", "admin");
+    const response = await proxy(hostRequest("saintagram-admin.axjp.workers.dev", "/"));
+
+    expect(response.headers.get("x-middleware-rewrite")).toBe(
+      "https://saintagram-admin.axjp.workers.dev/admin"
+    );
+  });
+
+  it("allows only admin pages and APIs in admin deployment mode", async () => {
+    vi.stubEnv("SAINTAGRAM_APP_MODE", "admin");
+    const page = await proxy(hostRequest("preview.example", "/admin/users"));
+    const api = await proxy(hostRequest("preview.example", "/api/admin/users"));
+    const normalPage = await proxy(hostRequest("preview.example", "/feed"));
+    const normalApi = await proxy(hostRequest("preview.example", "/api/fiat/leaderboard"));
+
+    expect(page.headers.get("x-middleware-next")).toBe("1");
+    expect(api.headers.get("x-middleware-next")).toBe("1");
+    expect(normalPage.status).toBe(404);
+    expect(normalApi.status).toBe(404);
+  });
+
+  it("allows the simple localhost admin route without the public access code", async () => {
+    const page = await proxy(hostRequest("localhost", "/admin"));
+    const api = await proxy(hostRequest("localhost", "/api/admin/session"));
+
+    expect(page.headers.get("x-middleware-next")).toBe("1");
+    expect(api.headers.get("x-middleware-next")).toBe("1");
+  });
+
+  it("keeps the existing admin route behind the normal Worker's access gate", async () => {
+    const response = await proxy(hostRequest("saintagram.axjp.workers.dev", "/admin/users?sort=new"));
 
     expect(response.status).toBe(307);
     expect(response.headers.get("location")).toContain("/access?next=");

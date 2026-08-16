@@ -84,7 +84,7 @@ describe("local profile persistence", () => {
     await appService.cancelAccountCreation(user.id);
 
     await expect(appService.login(email, "Faithful123")).rejects.toThrow(
-      /email and password do not match/i
+      /username and password do not match/i
     );
   });
 
@@ -163,7 +163,10 @@ describe("local profile persistence", () => {
     expect(fiat).toMatchObject({ fiatCategory: "prayer", fiatDateKey: "2026-08-11" });
     const changed = await appService.saveReflection(user.id, { id: fiat.id, content: fiat.content, isPrivate: false, createdAt: fiat.createdAt, fiatCategory: "service" });
     expect(changed.fiatCategory).toBe("service");
-    const removed = await appService.saveReflection(user.id, { id: changed.id, content: changed.content, isPrivate: false, createdAt: changed.createdAt });
+    const other = await appService.saveReflection(user.id, { id: changed.id, content: changed.content, isPrivate: false, createdAt: changed.createdAt, fiatCategory: "other", fiatOther: "Listening patiently" });
+    expect(other).toMatchObject({ fiatCategory: "other", fiatOther: "Listening patiently" });
+    await expect(appService.saveReflection(user.id, { id: other.id, content: other.content, isPrivate: false, fiatCategory: "other", fiatOther: "  " })).rejects.toThrow(/describe your other FiAt/i);
+    const removed = await appService.saveReflection(user.id, { id: other.id, content: other.content, isPrivate: false, createdAt: other.createdAt });
     expect(removed.fiatCategory).toBeUndefined();
     await expect(appService.saveReflection(user.id, { content: "Invalid", isPrivate: false, fiatCategory: "points" })).rejects.toThrow(/valid FiAt category/i);
   });

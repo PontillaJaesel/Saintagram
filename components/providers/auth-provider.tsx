@@ -20,14 +20,8 @@ interface AuthContextValue {
   user: AppUser | null;
   loading: boolean;
   mode: "firebase" | "local";
-  register: (email: string, password: string) => Promise<AppUser>;
-  login: (email: string, password: string) => Promise<AppUser>;
+  login: (username: string, password: string) => Promise<AppUser>;
   logout: () => Promise<void>;
-  requestPasswordReset: (email: string) => Promise<void>;
-  signInWithGoogle: () => Promise<AppUser>;
-  continueAsGuest: () => Promise<AppUser>;
-  upgradeGuestWithGoogle: () => Promise<AppUser>;
-  upgradeGuestWithEmail: (email: string, password: string) => Promise<void>;
   changePassword: (
     currentPassword: string,
     newPassword: string
@@ -36,8 +30,6 @@ interface AuthContextValue {
   updateUser: (
     patch: Partial<Omit<AppUser, "id" | "email" | "createdAt">>
   ) => Promise<AppUser>;
-  deleteAccount: (currentPassword: string) => Promise<void>;
-  cancelAccountCreation: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -55,14 +47,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return unsubscribe;
   }, []);
 
-  const register = useCallback(async (email: string, password: string) => {
-    const nextUser = await appService.register(email, password);
-    if (appService.mode === "local") setUser(nextUser);
-    return nextUser;
-  }, []);
-
-  const login = useCallback(async (email: string, password: string) => {
-    const nextUser = await appService.login(email, password);
+  const login = useCallback(async (username: string, password: string) => {
+    const nextUser = await appService.login(username, password);
     setUser(nextUser);
     return nextUser;
   }, []);
@@ -78,35 +64,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
-  const requestPasswordReset = useCallback(async (email: string) => {
-    await appService.requestPasswordReset(email);
-  }, []);
-
-  const signInWithGoogle = useCallback(async () => {
-    const nextUser = await appService.signInWithGoogle();
-    setUser(nextUser);
-    return nextUser;
-  }, []);
-
-  const continueAsGuest = useCallback(async () => {
-    const nextUser = await appService.continueAsGuest();
-    setUser(nextUser);
-    return nextUser;
-  }, []);
-
-  const upgradeGuestWithGoogle = useCallback(async () => {
-    const nextUser = await appService.upgradeGuestWithGoogle();
-    setUser(nextUser);
-    return nextUser;
-  }, []);
-
-  const upgradeGuestWithEmail = useCallback(
-    async (email: string, password: string) => {
-      await appService.upgradeGuestWithEmail(email, password);
-      setUser(null);
-    },
-    []
-  );
 
   const refreshUser = useCallback(async () => {
     if (!user) return null;
@@ -135,67 +92,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     [user]
   );
 
-  const deleteAccount = useCallback(async (currentPassword: string) => {
-    if (!user) throw new Error("Please log in to continue.");
-    beginIntentionalAuthExit();
-    try {
-      await appService.deleteAllUserData(user.id, currentPassword);
-      beginIntentionalAuthExit();
-      setUser(null);
-    } catch (error) {
-      cancelIntentionalAuthExit();
-      throw error;
-    }
-  }, [user]);
-
-  const cancelAccountCreation = useCallback(async () => {
-    if (!user) throw new Error("Please log in to continue.");
-    beginIntentionalAuthExit();
-    try {
-      await appService.cancelAccountCreation(user.id);
-      beginIntentionalAuthExit();
-      setUser(null);
-    } catch (error) {
-      cancelIntentionalAuthExit();
-      throw error;
-    }
-  }, [user]);
-
   const value = useMemo<AuthContextValue>(
     () => ({
       user,
       loading,
       mode: appService.mode,
-      register,
       login,
       logout,
-      requestPasswordReset,
-      signInWithGoogle,
-      continueAsGuest,
-      upgradeGuestWithGoogle,
-      upgradeGuestWithEmail,
       changePassword,
       refreshUser,
-      updateUser,
-      deleteAccount,
-      cancelAccountCreation
+      updateUser
     }),
     [
       user,
       loading,
-      register,
       login,
       logout,
-      requestPasswordReset,
-      signInWithGoogle,
-      continueAsGuest,
-      upgradeGuestWithGoogle,
-      upgradeGuestWithEmail,
       changePassword,
       refreshUser,
-      updateUser,
-      deleteAccount,
-      cancelAccountCreation
+      updateUser
     ]
   );
 

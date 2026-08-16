@@ -16,7 +16,6 @@ import {
   ChevronLeft,
   ChevronRight,
   Image as ImageIcon,
-  EyeOff,
   Footprints,
   Heart,
   LockKeyhole,
@@ -34,21 +33,20 @@ import { useToast } from "@/components/providers/toast-provider";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { EmptyState } from "@/components/ui/empty-state";
 import { LoadingState } from "@/components/ui/loading-state";
+import { usePopupPresence } from "@/components/ui/use-popup-presence";
 import { ProfileAvatar } from "@/components/ui/profile-avatar";
 import { ReflectionCard } from "@/components/reflections/reflection-card";
 import { SocialReflectionCard } from "@/components/social/social-reflection-card";
 import { FiatProfileControls } from "@/components/fiat/fiat-profile-controls";
-import { fiatCategoryLabel } from "@/lib/fiat";
+import { FiatStreakInterface } from "@/components/fiat/fiat-streak-interface";
 import { appService } from "@/lib/app-service";
-import { downloadFirebaseProfileImage, isLocalProfileImageSource } from "@/lib/profile-images";
 import { formatFriendlyDate } from "@/lib/validation";
 import type {
-  ProfileImageHistoryEntry,
   PublicSpiritualProfile,
   ReflectionPost
 } from "@/types";
 
-type ProfileTab = "posts" | "journey" | "private";
+type ProfileTab = "posts" | "media" | "private";
 
 const TABS: Array<{
   id: ProfileTab;
@@ -56,7 +54,7 @@ const TABS: Array<{
   icon: typeof NotebookPen;
 }> = [
   { id: "posts", label: "Posts God Sees", icon: NotebookPen },
-  { id: "journey", label: "Spiritual Journey", icon: Footprints },
+  { id: "media", label: "Media", icon: ImageIcon },
   { id: "private", label: "Private Reflections", icon: LockKeyhole }
 ];
 
@@ -115,52 +113,6 @@ function ValueList({
   );
 }
 
-function JourneyImagePreview({ imagePath }: { imagePath: string }) {
-  const { loading, mode, user } = useAuth();
-  const [src, setSrc] = useState(imagePath.startsWith("data:image/") ? imagePath : "");
-
-  useEffect(() => {
-    let active = true;
-    if (!imagePath) {
-      setSrc("");
-      return () => undefined;
-    }
-    if (isLocalProfileImageSource(imagePath)) {
-      setSrc(mode === "local" ? imagePath : "");
-      return () => undefined;
-    }
-    if (loading || !user) {
-      setSrc("");
-      return () => undefined;
-    }
-
-    void downloadFirebaseProfileImage(imagePath)
-      .then((downloadUrl) => {
-        if (active) setSrc(downloadUrl);
-      })
-      .catch(() => {
-        if (active) setSrc("");
-      });
-
-    return () => {
-      active = false;
-    };
-  }, [imagePath, loading, mode, user?.id]);
-
-  if (!src) return null;
-  return (
-    <div className="mt-3 overflow-hidden rounded-2xl border border-sage-100 bg-paper p-2 shadow-sm">
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img
-        src={src}
-        alt="Profile picture history"
-        className="max-h-48 w-full rounded-xl object-contain"
-        loading="lazy"
-      />
-    </div>
-  );
-}
-
 export function ProfileDashboard() {
   const { user, updateUser } = useAuth();
   const { notify } = useToast();
@@ -168,7 +120,6 @@ export function ProfileDashboard() {
   const searchParams = useSearchParams();
   const [profile, setProfile] = useState<PublicSpiritualProfile | null>(null);
   const [posts, setPosts] = useState<ReflectionPost[]>([]);
-  const [imageHistory, setImageHistory] = useState<ProfileImageHistoryEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [tab, setTab] = useState<ProfileTab>("posts");
@@ -184,10 +135,13 @@ export function ProfileDashboard() {
   const [privacyDialog, setPrivacyDialog] = useState(false);
   const [privateUnlocked, setPrivateUnlocked] = useState(false);
   const [privateLoading, setPrivateLoading] = useState(false);
-  const [privateStory, setPrivateStory] = useState("");
   const [privatePosts, setPrivatePosts] = useState<ReflectionPost[]>([]);
+  const [mobileFilterOpen, setMobileFilterOpen] = useState(false);
+  const [desktopFilterOpen, setDesktopFilterOpen] = useState(false);
+  const mobileFilterPresence = usePopupPresence(mobileFilterOpen);
+  const desktopFilterPresence = usePopupPresence(desktopFilterOpen);
   const tabRefs = useRef<Array<HTMLButtonElement | null>>([]);
-  const filterDetailsRefs = useRef<Record<string, HTMLDetailsElement | null>>({});
+  const filterDetailsRefs = useRef<Record<string, HTMLDivElement | null>>({});
   const notified = useRef(false);
 
   const filteredPosts = useMemo(() => {
@@ -209,7 +163,15 @@ export function ProfileDashboard() {
         (start === null || createdAt >= start) &&
         (end === null || createdAt <= end);
       return matchesText && matchesDate;
-    });
+    }).sort(
+      (a, b) => {
+        const createdDifference =
+          new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+        if (createdDifference !== 0) return createdDifference;
+
+        return new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime();
+      }
+    );
   }, [dateEnd, dateStart, posts, searchQuery]);
 
   const clearSearch = () => {
@@ -277,14 +239,18 @@ export function ProfileDashboard() {
     setDateStart(draftDateStart);
     setDateEnd(draftDateEnd || draftDateStart);
     setTab("posts");
-    Object.values(filterDetailsRefs.current).forEach((details) => {
-      if (details?.open) details.open = false;
-    });
+    setMobileFilterOpen(false);
+    setDesktopFilterOpen(false);
   };
 
   const calendarDays = calendarCells(calendarMonth);
 
-  const searchControls = (idSuffix: string) => (
+  const searchControls = (idSuffix: "mobile" | "desktop") => {
+    const filterOpen = idSuffix === "mobile" ? mobileFilterOpen : desktopFilterOpen;
+    const setFilterOpen = idSuffix === "mobile" ? setMobileFilterOpen : setDesktopFilterOpen;
+    const filterPresence = idSuffix === "mobile" ? mobileFilterPresence : desktopFilterPresence;
+
+    return (
     <div
       className="relative"
       role="search"
@@ -320,25 +286,28 @@ export function ProfileDashboard() {
             </button>
           )}
         </div>
-        <details
+        <div
           ref={(node) => {
             filterDetailsRefs.current[idSuffix] = node;
           }}
-          className="group relative shrink-0"
+          className="relative shrink-0"
         >
-          <summary
-            className={`relative grid size-11 cursor-pointer list-none place-items-center rounded-md transition hover:bg-sage-100 focus-visible:ring-2 [&::-webkit-details-marker]:hidden ${
+          <button
+            type="button"
+            className={`relative grid size-11 place-items-center rounded-md transition hover:bg-sage-100 focus-visible:ring-2 ${
               dateStart || dateEnd ? "text-sage-700" : "text-muted"
             }`}
             aria-label={`Filter reflections by date. ${dateFilterLabel}`}
+            aria-expanded={filterOpen}
+            onClick={() => setFilterOpen((open) => !open)}
           >
             <SlidersHorizontal className="size-7" strokeWidth={1.8} aria-hidden="true" />
             {(dateStart || dateEnd) && (
               <span className="absolute right-0.5 top-0.5 size-2.5 rounded-full border-2 border-paper bg-sage-500" aria-hidden="true" />
             )}
-          </summary>
-          <div
-            className="absolute right-0 top-full z-50 mt-2 max-h-[calc(100dvh-2rem)] w-[min(26rem,calc(100vw-2rem))] max-w-[calc(100vw-2rem)] overflow-x-hidden overflow-y-auto rounded-[var(--radius-base)] border border-sage-100 bg-paper shadow-lift sm:grid sm:grid-cols-[8.5rem_1fr]"
+          </button>
+          {filterPresence.rendered && <div
+            className={`${filterPresence.closing ? "popup-panel-exit" : "popup-panel-enter"} absolute right-0 top-full z-50 mt-2 max-h-[calc(100dvh-2rem)] w-[min(26rem,calc(100vw-2rem))] max-w-[calc(100vw-2rem)] overflow-x-hidden overflow-y-auto rounded-[var(--radius-base)] border border-sage-100 bg-paper shadow-lift sm:grid sm:grid-cols-[8.5rem_1fr]`}
           >
             <div className="flex flex-col border-b border-sage-100 p-3 sm:border-b-0 sm:border-r">
               <div className="grid grid-cols-2 gap-1 sm:grid-cols-1">
@@ -394,11 +363,12 @@ export function ProfileDashboard() {
                 {draftDateStart ? `${shortDate(draftDateStart)}${draftDateEnd ? ` – ${shortDate(draftDateEnd)}` : " – Select end date"}` : "Select a start date"}
               </p>
             </div>
-          </div>
-        </details>
+          </div>}
+        </div>
       </div>
     </div>
-  );
+    );
+  };
 
   useEffect(() => {
     if (!user) return;
@@ -432,17 +402,9 @@ export function ProfileDashboard() {
       },
       fail
     );
-    const unsubscribeImageHistory = appService.subscribeProfileImageHistory(
-      user.id,
-      (nextHistory) => {
-        setImageHistory(nextHistory);
-      },
-      fail
-    );
     return () => {
       unsubscribeProfile();
       unsubscribePosts();
-      unsubscribeImageHistory();
     };
   }, [user]);
 
@@ -459,17 +421,13 @@ export function ProfileDashboard() {
 
   useEffect(() => {
     const closeFilters = (event: PointerEvent) => {
-      Object.values(filterDetailsRefs.current).forEach((details) => {
-        if (details?.open && !details.contains(event.target as Node)) {
-          details.open = false;
-        }
-      });
+      if (!filterDetailsRefs.current.mobile?.contains(event.target as Node)) setMobileFilterOpen(false);
+      if (!filterDetailsRefs.current.desktop?.contains(event.target as Node)) setDesktopFilterOpen(false);
     };
     const closeOnEscape = (event: globalThis.KeyboardEvent) => {
       if (event.key !== "Escape") return;
-      Object.values(filterDetailsRefs.current).forEach((details) => {
-        if (details?.open) details.open = false;
-      });
+      setMobileFilterOpen(false);
+      setDesktopFilterOpen(false);
     };
     document.addEventListener("pointerdown", closeFilters);
     document.addEventListener("keydown", closeOnEscape);
@@ -483,7 +441,6 @@ export function ProfileDashboard() {
     setTab(nextTab);
     if (nextTab !== "private") {
       setPrivateUnlocked(false);
-      setPrivateStory("");
       setPrivatePosts([]);
     }
   };
@@ -515,11 +472,7 @@ export function ProfileDashboard() {
     setPrivacyDialog(false);
     setPrivateLoading(true);
     try {
-      const [story, reflections] = await Promise.all([
-        appService.getPrivateStory(user.id),
-        appService.getPrivateReflections(user.id)
-      ]);
-      setPrivateStory(story);
+      const reflections = await appService.getPrivateReflections(user.id);
       setPrivatePosts(reflections);
       setPrivateUnlocked(true);
     } catch (unlockError) {
@@ -646,16 +599,21 @@ export function ProfileDashboard() {
   );
 
   return (
-    <div className="profile-dashboard grid min-h-screen pb-6 sm:pb-8 xl:grid-cols-[minmax(0,42rem)_minmax(19rem,1fr)]">
+    <div className="profile-dashboard grid min-h-[calc(100dvh-4rem)] xl:min-h-screen xl:grid-cols-[minmax(0,42rem)_minmax(19rem,1fr)]">
       <div className="profile-main-column min-w-0 border-r border-sage-100 bg-paper/55">
-        <div className="profile-header-bar sticky top-0 z-20 flex min-h-16 items-center border-b border-sage-100 bg-paper/85 px-5 backdrop-blur-xl">
+        <div className="profile-header-bar sticky top-0 z-[60] flex min-h-16 items-center border-b border-sage-100 bg-paper/95 px-5 backdrop-blur-xl">
           <div>
             <p className="text-base font-bold text-ink">{profile.profileName}</p>
             <p className="font-secondary text-xs text-muted">
               {posts.length} {posts.length === 1 ? "reflection" : "reflections"}
             </p>
           </div>
-          <FiatProfileControls />
+          <div className="ml-auto flex items-center gap-2">
+            <FiatStreakInterface />
+            <div className="[&>div>div:first-child]:hidden [&>div]:ml-0">
+              <FiatProfileControls />
+            </div>
+          </div>
         </div>
         <section className="profile-hero border-b border-sage-100">
           <div
@@ -675,20 +633,21 @@ export function ProfileDashboard() {
 
               <Link
                 href="/profile/edit"
-                className="profile-edit-button btn-secondary -mb-3 shrink-0 px-3 py-1.5 text-sm sm:-mb-3 sm:px-4 sm:py-2 sm:text-base"
+                className="profile-edit-button btn-secondary mt-14 h-9 min-h-9 shrink-0 self-start px-3 py-0 text-xs sm:mt-[4.5rem] sm:h-10 sm:min-h-10 sm:px-4 sm:text-sm"
               >
-                <Pencil className="size-3.5 sm:size-4" aria-hidden="true" />
+                <Pencil className="size-3.5" aria-hidden="true" />
                 Edit Profile
               </Link>
             </div>
 
             <div className="mt-4 max-w-2xl">
               <div className="min-w-0">
-                <p className="eyebrow">Profile before God</p>
-
                 <h1 className="mt-1 truncate font-serif text-2xl font-bold tracking-tight sm:text-4xl">
                   {profile.profileName}
                 </h1>
+                <p className="mt-1 truncate text-sm text-muted">
+                  {user?.email || "Guest account"}
+                </p>
               </div>
               {profile.heavenlyHashtag && (
                 <p className="mt-1 font-bold text-gold-700">
@@ -770,7 +729,7 @@ export function ProfileDashboard() {
                   </p>
                 )}
                 {filteredPosts.length ? (
-                  <div className="profile-scroll max-h-[min(60vh,42rem)] space-y-3 overflow-y-auto overscroll-contain pr-2" tabIndex={0} aria-label="Reflection search results">
+                  <div className="profile-scroll max-h-[min(60vh,42rem)] space-y-3 overflow-y-auto overscroll-y-auto pr-2" tabIndex={0} aria-label="Reflection search results">
                     {filteredPosts.map((post) => (
                       <SocialReflectionCard
                         key={post.id}
@@ -794,6 +753,8 @@ export function ProfileDashboard() {
                           }
                         }}
                         initialFollowing={false}
+                        compactTimestamp
+                        hideViewProfile
                       />
                     ))}
                   </div>
@@ -818,83 +779,52 @@ export function ProfileDashboard() {
                   <EmptyState
                     icon={NotebookPen}
                     title="No quiet moments here yet"
-                    description="When you are ready, name one small moment God saw—even if nobody else noticed."
+                    description="When you are ready, name one small moment. God saw—even if nobody else noticed."
                   />
                 )}
               </div>
             )}
 
-            {tab === "journey" && (
-              <div>
-                <div className="mb-6">
-                  <h2 className="font-serif text-2xl font-bold">
-                    Spiritual Journey
-                  </h2>
-                    <p className="font-secondary mt-1 text-sm text-muted">
-                    A gentle timeline of growth—not a streak to maintain.
-                  </p>
-                </div>
-                <ol className="relative ml-3 border-l border-sage-200 pl-7">
-                  {[...imageHistory]
-                    .sort(
-                      (a, b) =>
-                        new Date(b.createdAt).getTime() -
-                        new Date(a.createdAt).getTime()
-                    )
-                    .map((entry) => (
-                      <li key={entry.id} className="relative pb-7 last:pb-0">
-                                              <span className="absolute -left-[2.15rem] top-1 grid size-4 place-items-center rounded-full border-4 border-paper bg-gray-300" />
-                        <time
-                          dateTime={entry.createdAt}
-                          className="text-xs font-bold uppercase tracking-wider text-gold-700"
-                        >
-                          {formatFriendlyDate(entry.createdAt)}
-                        </time>
-                        <p className="font-secondary mt-2 text-sm font-semibold leading-6 text-ink">
-                          Profile picture updated
-                        </p>
-                        <JourneyImagePreview imagePath={entry.imagePath} />
-                      </li>
-                    ))}
-                  {[...posts]
-                    .sort(
-                      (a, b) =>
-                        new Date(b.createdAt).getTime() -
-                        new Date(a.createdAt).getTime()
-                    )
+            {tab === "media" && (
+              posts.some((post) => post.media?.length) ? (
+                <div className="space-y-3">
+                  {posts
+                    .filter((post) => post.media?.length)
+                    .sort((a, b) => {
+                      const createdDifference =
+                        new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+                      return createdDifference ||
+                        new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime();
+                    })
                     .map((post) => (
-                      <li key={post.id} className="relative pb-7 last:pb-0">
-                        <span className="absolute -left-[2.15rem] top-1 grid size-4 place-items-center rounded-full border-4 border-paper bg-sage-600" />
-                        <time
-                          dateTime={post.createdAt}
-                          className="text-xs font-bold uppercase tracking-wider text-sage-600"
-                        >
-                          {formatFriendlyDate(post.createdAt)}
-                        </time>
-                        <p className="font-secondary mt-2 text-sm leading-6 text-ink">
-                          {post.content}
-                        </p>
-                        {post.fiatCategory && <span className="mt-2 inline-flex rounded-full bg-gold-50 px-2.5 py-1 text-xs font-bold text-gold-700">Fi@ · {fiatCategoryLabel(post.fiatCategory)}</span>}
-                      </li>
+                      <SocialReflectionCard
+                        key={post.id}
+                        post={{
+                          ...post,
+                          author: {
+                            id: profile.id,
+                            userId: profile.userId,
+                            profileName: profile.profileName,
+                            imagePath: profile.imagePath,
+                            spiritualBio: profile.spiritualBio,
+                            heavenlyHashtag: profile.heavenlyHashtag,
+                            createdAt: profile.createdAt,
+                            updatedAt: profile.updatedAt
+                          }
+                        }}
+                        initialFollowing={false}
+                        compactTimestamp
+                        hideViewProfile
+                      />
                     ))}
-                  <li className="relative">
-                                      <span className="absolute -left-[2.15rem] top-1 grid size-4 place-items-center rounded-full border-4 border-paper bg-gray-300" />
-                    <time
-                      dateTime={profile.createdAt}
-                      className="text-xs font-bold uppercase tracking-wider text-gold-700"
-                    >
-                      {formatFriendlyDate(profile.createdAt)}
-                    </time>
-                    <p className="mt-2 text-sm font-bold text-ink">
-                      Created a Profile Before God
-                    </p>
-                  </li>
-                </ol>
-                <Link href="/journey" className="btn-quiet mt-6">
-                  Open full journey
-                  <ArrowRight className="size-4" aria-hidden="true" />
-                </Link>
-              </div>
+                </div>
+              ) : (
+                <EmptyState
+                  icon={ImageIcon}
+                  title="No media reflections yet"
+                  description="Reflections with photos or videos will appear here."
+                />
+              )
             )}
 
             {tab === "private" && (
@@ -908,8 +838,8 @@ export function ProfileDashboard() {
                       A more private space
                     </h2>
                     <p className="font-secondary mx-auto mt-2 max-w-md text-sm leading-6 text-muted">
-                      Hidden Stories and private journal entries are not loaded
-                      until you confirm that it is safe to view them.
+                      Private reflections are not loaded until you confirm that
+                      it is safe to view them.
                     </p>
                     <button
                       type="button"
@@ -948,20 +878,7 @@ export function ProfileDashboard() {
                         aria-hidden="true"
                       />
                     </div>
-                    <section className="rounded-[var(--radius-card)] border border-clay-200 bg-clay-50 p-5">
-                      <p className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-clay-600">
-                        <EyeOff className="size-4" aria-hidden="true" />
-                        Hidden Story
-                      </p>
-                      <p className="user-content mt-3 whitespace-pre-wrap text-sm leading-7 text-ink">
-                        {privateStory || (
-                          <span className="italic text-muted">
-                            You chose not to add a Hidden Story.
-                          </span>
-                        )}
-                      </p>
-                    </section>
-                    <div className="mt-5 space-y-3">
+                    <div className="space-y-3">
                       {privatePosts.length ? (
                         privatePosts.map((post) => (
                           <ReflectionCard
@@ -976,16 +893,8 @@ export function ProfileDashboard() {
                       ) : (
                         <EmptyState
                           icon={LockKeyhole}
-                          title={
-                            privateStory
-                              ? "No additional private journal entries"
-                              : "No private journal entries yet"
-                          }
-                          description={
-                            privateStory
-                              ? "Your Hidden Story is saved above. Add another private entry whenever you need more room."
-                              : "Add a private reflection whenever it needs a quieter place."
-                          }
+                          title="No private reflections yet"
+                          description="Add a private reflection whenever it needs a quieter place."
                         />
                       )}
                     </div>

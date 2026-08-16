@@ -6,13 +6,13 @@ import {
   CalendarDays,
   Database,
   Download,
+  Eye,
   EyeOff,
   KeyRound,
   LoaderCircle,
   LogOut,
   Mail,
   ShieldCheck,
-  Trash2,
   UserRound
 } from "lucide-react";
 import { useAuth } from "@/components/providers/auth-provider";
@@ -20,19 +20,21 @@ import { useToast } from "@/components/providers/toast-provider";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { appService } from "@/lib/app-service";
 import { createPersonalDataPdf } from "@/lib/personal-data-pdf";
+import { resolvePostAuthRoute } from "@/lib/routes";
 import {
   formatFriendlyDate,
-  passwordError,
-  registrationEmailError
+  passwordError
 } from "@/lib/validation";
 
 function SettingsSection({
+  id,
   title,
   description,
   icon: Icon,
   children,
   danger = false
 }: {
+  id?: string;
   title: string;
   description: string;
   icon: typeof UserRound;
@@ -41,6 +43,7 @@ function SettingsSection({
 }) {
   return (
     <section
+      id={id}
       className={`surface overflow-hidden ${danger ? "border-clay-200" : ""}`}
     >
       <div
@@ -72,39 +75,29 @@ export function SettingsPanel() {
     user,
     updateUser,
     changePassword,
-    logout,
-    deleteAccount,
-    upgradeGuestWithGoogle,
-    upgradeGuestWithEmail
+    refreshUser,
+    logout
   } = useAuth();
   const { notify } = useToast();
   const router = useRouter();
+  const [exportOpen, setExportOpen] = useState(false);
+  const [exporting, setExporting] = useState(false);
+  const [logoutOpen, setLogoutOpen] = useState(false);
+  const [loggingOut, setLoggingOut] = useState(false);
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [showCurrentPassword, setShowCurrentPassword] = useState(false);
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [currentPasswordError, setCurrentPasswordError] = useState("");
+  const [newPasswordError, setNewPasswordError] = useState("");
+  const [confirmPasswordError, setConfirmPasswordError] = useState("");
   const [passwordBusy, setPasswordBusy] = useState(false);
-  const [passwordErrorMessage, setPasswordErrorMessage] = useState("");
-  const [passwordFieldErrors, setPasswordFieldErrors] = useState<
-    Partial<Record<"current" | "new" | "confirm", string>>
-  >({});
+  const [passwordMessage, setPasswordMessage] = useState("");
   const currentPasswordRef = useRef<HTMLInputElement>(null);
   const newPasswordRef = useRef<HTMLInputElement>(null);
   const confirmPasswordRef = useRef<HTMLInputElement>(null);
-  const [exportOpen, setExportOpen] = useState(false);
-  const [exporting, setExporting] = useState(false);
-  const [deleteOpen, setDeleteOpen] = useState(false);
-  const [deletePhrase, setDeletePhrase] = useState("");
-  const [deletePassword, setDeletePassword] = useState("");
-  const [deleteBusy, setDeleteBusy] = useState(false);
-  const [deleteError, setDeleteError] = useState("");
-  const [logoutOpen, setLogoutOpen] = useState(false);
-  const [loggingOut, setLoggingOut] = useState(false);
-  const [guestEmailOpen, setGuestEmailOpen] = useState(false);
-  const [guestEmail, setGuestEmail] = useState("");
-  const [guestPassword, setGuestPassword] = useState("");
-  const [guestConfirmPassword, setGuestConfirmPassword] = useState("");
-  const [guestUpgradeBusy, setGuestUpgradeBusy] = useState(false);
-  const [guestUpgradeError, setGuestUpgradeError] = useState("");
   const [privateCheckEnabled, setPrivateCheckEnabled] = useState(
     user?.privacyPreferences?.requirePrivateCheck ?? true
   );
@@ -128,50 +121,46 @@ export function SettingsPanel() {
   const submitPassword = async (event: FormEvent) => {
     event.preventDefault();
     if (passwordBusy) return;
-    setPasswordErrorMessage("");
+    setPasswordMessage("");
+    setCurrentPasswordError("");
+    setNewPasswordError("");
+    setConfirmPasswordError("");
+
     if (!currentPassword.trim()) {
-      setPasswordFieldErrors({ current: "Enter your current password." });
-      window.requestAnimationFrame(() => currentPasswordRef.current?.focus());
+      setCurrentPasswordError("Enter your current password.");
+      currentPasswordRef.current?.focus();
       return;
     }
-    if (!newPassword.trim()) {
-      setPasswordFieldErrors({ new: "Enter a new password." });
-      window.requestAnimationFrame(() => newPasswordRef.current?.focus());
-      return;
-    }
+
     const validation = passwordError(newPassword);
     if (validation) {
-      setPasswordFieldErrors({ new: validation });
-      window.requestAnimationFrame(() => newPasswordRef.current?.focus());
+      setNewPasswordError(validation);
+      newPasswordRef.current?.focus();
       return;
     }
-    if (!confirmPassword.trim()) {
-      setPasswordFieldErrors({ confirm: "Confirm your new password." });
-      window.requestAnimationFrame(() => confirmPasswordRef.current?.focus());
-      return;
-    }
+
     if (newPassword !== confirmPassword) {
-      setPasswordFieldErrors({
-        confirm: "The new passwords do not match."
-      });
-      window.requestAnimationFrame(() => confirmPasswordRef.current?.focus());
+      setConfirmPasswordError("The new passwords do not match.");
+      confirmPasswordRef.current?.focus();
       return;
     }
-    setPasswordFieldErrors({});
+
     setPasswordBusy(true);
     try {
       await changePassword(currentPassword, newPassword);
+      const refreshed = await refreshUser();
       setCurrentPassword("");
       setNewPassword("");
       setConfirmPassword("");
-      setPasswordFieldErrors({});
-      notify("Your password was changed.");
-    } catch (changeError) {
-      setPasswordErrorMessage(
-        changeError instanceof Error
-          ? changeError.message
-          : "Your password could not be changed."
-      );
+      setCurrentPasswordError("");
+      setNewPasswordError("");
+      setConfirmPasswordError("");
+      notify("Your permanent password was saved.");
+      if (refreshed) router.replace(resolvePostAuthRoute(refreshed));
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Your password could not be changed.";
+      setCurrentPasswordError(message);
+      setPasswordMessage("");
     } finally {
       setPasswordBusy(false);
     }
@@ -247,82 +236,68 @@ export function SettingsPanel() {
     }
   };
 
-  const confirmDelete = async () => {
-    if (deletePhrase !== "DELETE") {
-      setDeleteError("Type DELETE exactly to confirm.");
-      return;
-    }
-    if ((user.authProvider === "password" || (!user.authProvider && user.email)) && !deletePassword) {
-      setDeleteError("Enter your current password to verify it is you.");
-      return;
-    }
-    setDeleteBusy(true);
-    setDeleteError("");
-    try {
-      await deleteAccount(deletePassword);
-      router.replace("/");
-    } catch (accountError) {
-      setDeleteError(
-        accountError instanceof Error
-          ? accountError.message
-          : "Your account could not be deleted."
-      );
-      setDeleteBusy(false);
-    }
-  };
-
-  const upgradeGuestGoogle = async () => {
-    if (guestUpgradeBusy) return;
-    setGuestUpgradeBusy(true);
-    setGuestUpgradeError("");
-    try {
-      await upgradeGuestWithGoogle();
-      notify("Your guest profile is now connected to Google.");
-    } catch (upgradeError) {
-      setGuestUpgradeError(
-        upgradeError instanceof Error
-          ? upgradeError.message
-          : "The Google account could not be connected."
-      );
-    } finally {
-      setGuestUpgradeBusy(false);
-    }
-  };
-
-  const upgradeGuestEmail = async (event: FormEvent) => {
-    event.preventDefault();
-    if (guestUpgradeBusy) return;
-    const emailError = registrationEmailError(guestEmail);
-    if (emailError) {
-      setGuestUpgradeError(emailError);
-      return;
-    }
-    const nextPasswordError = passwordError(guestPassword);
-    if (nextPasswordError) {
-      setGuestUpgradeError(nextPasswordError);
-      return;
-    }
-    if (guestPassword !== guestConfirmPassword) {
-      setGuestUpgradeError("Those passwords do not match.");
-      return;
-    }
-    setGuestUpgradeBusy(true);
-    setGuestUpgradeError("");
-    try {
-      await upgradeGuestWithEmail(guestEmail, guestPassword);
-      router.replace("/auth?mode=login&verification=sent");
-    } catch (upgradeError) {
-      setGuestUpgradeError(
-        upgradeError instanceof Error
-          ? upgradeError.message
-          : "The email account could not be created."
-      );
-      setGuestUpgradeBusy(false);
-    }
-  };
-
   return (
     <div className="mx-auto max-w-3xl space-y-5">
+      <SettingsSection
+        id="change-password"
+        title="Change password"
+        description={
+          user.mustChangePassword
+            ? "Your temporary password worked. You must replace it before using the rest of Saintagram."
+            : "Update the password used to sign in to your account."
+        }
+        icon={KeyRound}
+      >
+        {user.mustChangePassword && (
+          <div className="mb-5 rounded-[var(--radius-base)] border border-gold-300 bg-gold-50 px-4 py-3 text-sm font-semibold text-gold-700" role="alert">
+            Set a new permanent password before continuing.
+          </div>
+        )}
+        <form className="space-y-4" onSubmit={submitPassword} noValidate>
+          <div>
+            <label htmlFor="settings-current-password" className="label">
+              {user.mustChangePassword ? "Current temporary password" : "Current password"}
+            </label>
+            <div className="relative">
+              <input ref={currentPasswordRef} id="settings-current-password" type={showCurrentPassword ? "text" : "password"} autoComplete="current-password" className={`field pr-11 ${currentPasswordError ? "border-clay-400" : ""}`} value={currentPassword} onChange={(event) => { setCurrentPassword(event.target.value); setCurrentPasswordError(""); setPasswordMessage(""); }} required aria-invalid={Boolean(currentPasswordError)} />
+              <button type="button" className="absolute inset-y-0 right-0 flex items-center px-3 text-muted hover:text-ink" aria-label={showCurrentPassword ? "Hide current password" : "Show current password"} onClick={() => setShowCurrentPassword((value) => !value)}>
+                {showCurrentPassword ? <EyeOff className="size-4" aria-hidden="true" /> : <Eye className="size-4" aria-hidden="true" />}
+              </button>
+            </div>
+            {currentPasswordError && <p className="mt-2 text-sm font-semibold text-clay-600" role="alert">{currentPasswordError}</p>}
+          </div>
+          <div>
+            <label htmlFor="settings-new-password" className="label">New password</label>
+            <div className="relative">
+              <input ref={newPasswordRef} id="settings-new-password" type={showNewPassword ? "text" : "password"} autoComplete="new-password" className={`field pr-11 ${newPasswordError ? "border-clay-400" : ""}`} value={newPassword} onChange={(event) => { setNewPassword(event.target.value); setNewPasswordError(""); setPasswordMessage(""); }} required aria-invalid={Boolean(newPasswordError)} />
+              <button type="button" className="absolute inset-y-0 right-0 flex items-center px-3 text-muted hover:text-ink" aria-label={showNewPassword ? "Hide new password" : "Show new password"} onClick={() => setShowNewPassword((value) => !value)}>
+                {showNewPassword ? <EyeOff className="size-4" aria-hidden="true" /> : <Eye className="size-4" aria-hidden="true" />}
+              </button>
+            </div>
+            {newPasswordError && <p className="mt-2 text-sm font-semibold text-clay-600" role="alert">{newPasswordError}</p>}
+          </div>
+          <div>
+            <label htmlFor="settings-confirm-password" className="label">Confirm new password</label>
+            <div className="relative">
+              <input ref={confirmPasswordRef} id="settings-confirm-password" type={showConfirmPassword ? "text" : "password"} autoComplete="new-password" className={`field pr-11 ${confirmPasswordError ? "border-clay-400" : ""}`} value={confirmPassword} onChange={(event) => { setConfirmPassword(event.target.value); setConfirmPasswordError(""); setPasswordMessage(""); }} required aria-invalid={Boolean(confirmPasswordError)} />
+              <button type="button" className="absolute inset-y-0 right-0 flex items-center px-3 text-muted hover:text-ink" aria-label={showConfirmPassword ? "Hide confirmed password" : "Show confirmed password"} onClick={() => setShowConfirmPassword((value) => !value)}>
+                {showConfirmPassword ? <EyeOff className="size-4" aria-hidden="true" /> : <Eye className="size-4" aria-hidden="true" />}
+              </button>
+            </div>
+            {confirmPasswordError && <p className="mt-2 text-sm font-semibold text-clay-600" role="alert">{confirmPasswordError}</p>}
+          </div>
+          {passwordMessage && <p className="text-sm font-semibold text-clay-600" role="alert">{passwordMessage}</p>}
+          <button type="submit" className="btn-primary" disabled={passwordBusy}>
+            {passwordBusy ? <LoaderCircle className="size-4 animate-spin" aria-hidden="true" /> : <KeyRound className="size-4" aria-hidden="true" />}
+            {passwordBusy
+              ? "Saving…"
+              : user.mustChangePassword
+                ? "Save permanent password"
+                : "Change password"}
+          </button>
+        </form>
+      </SettingsSection>
+
       <SettingsSection
         title="Account information"
         description="The contact and account details connected to your private profile."
@@ -348,219 +323,6 @@ export function SettingsPanel() {
             </dd>
           </div>
         </dl>
-        {user.isGuest && (
-          <div className="mt-4 rounded-[var(--radius-base)] border border-gray-200 bg-white p-4">
-            <p className="text-sm font-bold text-gold-700">
-              Keep this profile permanently
-            </p>
-            <p className="mt-1 text-xs leading-5 text-muted">
-              Connect a new sign-in method without losing your current profile or reflections. An email or Google account already used by another Saintagram profile cannot be connected.
-            </p>
-            <div className="mt-4 flex flex-wrap gap-3">
-              <button
-                type="button"
-                className="btn-secondary"
-                disabled={guestUpgradeBusy}
-                onClick={() => void upgradeGuestGoogle()}
-              >
-                Connect Google
-              </button>
-              <button
-                type="button"
-                className="btn-secondary"
-                disabled={guestUpgradeBusy}
-                onClick={() => {
-                  setGuestEmailOpen((open) => !open);
-                  setGuestUpgradeError("");
-                }}
-              >
-                Create email login
-              </button>
-            </div>
-            {guestEmailOpen && (
-              <form className="mt-4 space-y-3" onSubmit={upgradeGuestEmail} noValidate>
-                <div>
-                  <label htmlFor="guest-upgrade-email" className="label">Email address</label>
-                  <input id="guest-upgrade-email" type="email" autoComplete="email" className="field" value={guestEmail} onChange={(event) => { setGuestEmail(event.target.value); setGuestUpgradeError(""); }} required />
-                </div>
-                <div>
-                  <label htmlFor="guest-upgrade-password" className="label">Password</label>
-                  <input id="guest-upgrade-password" type="password" autoComplete="new-password" className="field" value={guestPassword} onChange={(event) => { setGuestPassword(event.target.value); setGuestUpgradeError(""); }} required />
-                </div>
-                <div>
-                  <label htmlFor="guest-upgrade-confirm" className="label">Confirm password</label>
-                  <input id="guest-upgrade-confirm" type="password" autoComplete="new-password" className="field" value={guestConfirmPassword} onChange={(event) => { setGuestConfirmPassword(event.target.value); setGuestUpgradeError(""); }} required />
-                </div>
-                <button type="submit" className="btn-primary" disabled={guestUpgradeBusy}>
-                  {guestUpgradeBusy ? "Connecting…" : "Create and verify email login"}
-                </button>
-              </form>
-            )}
-            {guestUpgradeError && (
-              <p className="mt-3 text-sm font-semibold text-clay-600" role="alert">
-                {guestUpgradeError}
-              </p>
-            )}
-          </div>
-        )}
-      </SettingsSection>
-
-      <SettingsSection
-        title="Change password"
-        description="Verify your current password before choosing a new one."
-        icon={KeyRound}
-      >
-        {user.authProvider && user.authProvider !== "password" ? (
-          <p className="text-sm leading-6 text-muted">
-            This account does not use an email password.
-          </p>
-        ) : (
-        <form onSubmit={submitPassword} className="space-y-4" noValidate>
-          <div>
-            <label htmlFor="current-password" className="label">
-              Current password
-            </label>
-            <input
-              ref={currentPasswordRef}
-              id="current-password"
-              type="password"
-              autoComplete="current-password"
-              className={`field ${
-                passwordFieldErrors.current
-                  ? "border-clay-500 ring-2 ring-clay-100"
-                  : ""
-              }`}
-              value={currentPassword}
-              onChange={(event) => {
-                setCurrentPassword(event.target.value);
-                setPasswordErrorMessage("");
-                setPasswordFieldErrors((current) => ({
-                  ...current,
-                  current: undefined
-                }));
-              }}
-              required
-              aria-invalid={Boolean(passwordFieldErrors.current)}
-              aria-describedby={
-                passwordFieldErrors.current
-                  ? "current-password-error"
-                  : undefined
-              }
-            />
-            {passwordFieldErrors.current && (
-              <p
-                id="current-password-error"
-                className="mt-2 text-sm font-semibold text-clay-600"
-                role="alert"
-              >
-                {passwordFieldErrors.current}
-              </p>
-            )}
-          </div>
-          <div className="grid gap-4 sm:grid-cols-2">
-            <div>
-              <label htmlFor="new-password" className="label">
-                New password
-              </label>
-              <input
-                ref={newPasswordRef}
-                id="new-password"
-                type="password"
-                autoComplete="new-password"
-                className={`field ${
-                  passwordFieldErrors.new
-                    ? "border-clay-500 ring-2 ring-clay-100"
-                    : ""
-                }`}
-                value={newPassword}
-                onChange={(event) => {
-                  setNewPassword(event.target.value);
-                  setPasswordErrorMessage("");
-                  setPasswordFieldErrors((current) => ({
-                    ...current,
-                    new: undefined
-                  }));
-                }}
-                required
-                aria-invalid={Boolean(passwordFieldErrors.new)}
-                aria-describedby={
-                  passwordFieldErrors.new ? "new-password-error" : undefined
-                }
-              />
-              {passwordFieldErrors.new && (
-                <p
-                  id="new-password-error"
-                  className="mt-2 text-sm font-semibold text-clay-600"
-                  role="alert"
-                >
-                  {passwordFieldErrors.new}
-                </p>
-              )}
-            </div>
-            <div>
-              <label htmlFor="confirm-new-password" className="label">
-                Confirm new password
-              </label>
-              <input
-                ref={confirmPasswordRef}
-                id="confirm-new-password"
-                type="password"
-                autoComplete="new-password"
-                className={`field ${
-                  passwordFieldErrors.confirm
-                    ? "border-clay-500 ring-2 ring-clay-100"
-                    : ""
-                }`}
-                value={confirmPassword}
-                onChange={(event) => {
-                  setConfirmPassword(event.target.value);
-                  setPasswordErrorMessage("");
-                  setPasswordFieldErrors((current) => ({
-                    ...current,
-                    confirm: undefined
-                  }));
-                }}
-                required
-                aria-invalid={Boolean(passwordFieldErrors.confirm)}
-                aria-describedby={
-                  passwordFieldErrors.confirm
-                    ? "confirm-new-password-error"
-                    : undefined
-                }
-              />
-              {passwordFieldErrors.confirm && (
-                <p
-                  id="confirm-new-password-error"
-                  className="mt-2 text-sm font-semibold text-clay-600"
-                  role="alert"
-                >
-                  {passwordFieldErrors.confirm}
-                </p>
-              )}
-            </div>
-          </div>
-          {passwordErrorMessage && (
-            <p className="text-sm font-semibold text-clay-600" role="alert">
-              {passwordErrorMessage}
-            </p>
-          )}
-          <button
-            type="submit"
-            className="btn-secondary"
-            disabled={passwordBusy}
-          >
-            {passwordBusy ? (
-              <LoaderCircle
-                className="size-4 animate-spin"
-                aria-hidden="true"
-              />
-            ) : (
-              <KeyRound className="size-4" aria-hidden="true" />
-            )}
-            {passwordBusy ? "Changing…" : "Change password"}
-          </button>
-        </form>
-        )}
       </SettingsSection>
 
       <SettingsSection
@@ -622,28 +384,6 @@ export function SettingsPanel() {
         </p>
       </SettingsSection>
 
-      <SettingsSection
-        title="Delete account"
-        description="Permanently remove your profile, draft, private content, reflections, and account."
-        icon={Trash2}
-        danger
-      >
-        <p className="text-sm leading-6 text-muted">
-          This action cannot be undone. You will confirm the deletion before
-          anything is removed.
-        </p>
-        <div className="mt-6">
-          <button
-            type="button"
-            className="btn-destructive w-full"
-            onClick={() => setDeleteOpen(true)}
-          >
-            <Trash2 className="size-4" aria-hidden="true" />
-            Delete my account
-          </button>
-        </div>
-      </SettingsSection>
-
       <div className="mt-6">
         <button
           type="button"
@@ -678,9 +418,7 @@ export function SettingsPanel() {
         open={logoutOpen}
         title="Log out of Saintagram?"
         description={
-          user.isGuest
-            ? "Logging out permanently deletes this guest account and all of its saved data. This cannot be undone."
-            : "Your saved profile and reflections will remain. Sign in again to return."
+          "Your saved profile and reflections will remain. Sign in again to return."
         }
         confirmLabel="Log out"
         headerIcon={
@@ -693,66 +431,6 @@ export function SettingsPanel() {
         onConfirm={() => void confirmLogout()}
       />
 
-      <ConfirmDialog
-        open={deleteOpen}
-        title="Permanently delete your account?"
-        description="This removes your account and every saved profile field, reflection, private entry, image, and draft."
-        confirmLabel="Delete everything"
-        destructive
-        headerIcon={
-          <div className="flex h-16 w-16 items-center justify-center rounded-full border border-sage-200 bg-white text-clay-600 shadow-sm">
-            <Trash2 className="size-6" aria-hidden="true" />
-          </div>
-        }
-        busy={deleteBusy}
-        onClose={() => {
-          if (deleteBusy) return;
-          setDeleteOpen(false);
-          setDeletePhrase("");
-          setDeletePassword("");
-          setDeleteError("");
-        }}
-        onConfirm={() => void confirmDelete()}
-      >
-        <div className="space-y-4 mt-8">
-          {(user.authProvider === "password" || (!user.authProvider && user.email)) && <div>
-            <label htmlFor="delete-password" className="label">
-              Current password
-            </label>
-            <input
-              id="delete-password"
-              type="password"
-              autoComplete="current-password"
-              className="field"
-              value={deletePassword}
-              onChange={(event) => {
-                setDeletePassword(event.target.value);
-                setDeleteError("");
-              }}
-            />
-          </div>}
-          <div className="mt-6">
-            <label htmlFor="delete-phrase" className="label">
-              Type DELETE to confirm
-            </label>
-            <input
-              id="delete-phrase"
-              className="field"
-              value={deletePhrase}
-              onChange={(event) => {
-                setDeletePhrase(event.target.value);
-                setDeleteError("");
-              }}
-              autoComplete="off"
-            />
-          </div>
-          {deleteError && (
-            <p className="text-sm font-semibold text-clay-600" role="alert">
-              {deleteError}
-            </p>
-          )}
-        </div>
-      </ConfirmDialog>
     </div>
   );
 }

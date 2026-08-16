@@ -4,7 +4,6 @@ import {
   FormEvent,
   Suspense,
   useEffect,
-  useMemo,
   useRef,
   useState
 } from "react";
@@ -15,29 +14,17 @@ import {
   ArrowRight,
   Eye,
   EyeOff,
-  KeyRound,
   LoaderCircle,
-  LockKeyhole,
-  Mail,
-  UserRound
+  LockKeyhole
 } from "lucide-react";
 import { Logo } from "@/components/brand/logo";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { useAuth } from "@/components/providers/auth-provider";
-import { DEMO_EMAIL, DEMO_PASSWORD } from "@/lib/constants";
 import { resolvePostAuthRoute } from "@/lib/routes";
-import {
-  isValidEmail,
-  passwordError,
-  registrationEmailError
-} from "@/lib/validation";
 
-type AuthMode = "login" | "signup" | "reset";
-type AuthMethod = "email";
 type AuthErrorField =
-  | "email"
+  | "username"
   | "password"
-  | "confirmPassword"
   | "credentials"
   | null;
 
@@ -45,61 +32,23 @@ function AuthForm() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const auth = useAuth();
-  const requestedMode = searchParams.get("mode");
-  const mode: AuthMode =
-    requestedMode === "signup" || requestedMode === "reset"
-      ? requestedMode
-      : "login";
-  const [email, setEmail] = useState("");
-  const [authMethod, setAuthMethod] = useState<AuthMethod | null>(null);
+  const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
-  const [confirmPassword, setConfirmPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
   const [errorField, setErrorField] = useState<AuthErrorField>(null);
   const [message, setMessage] = useState("");
   const [submitting, setSubmitting] = useState(false);
-  const emailRef = useRef<HTMLInputElement>(null);
+  const [failedAttempts, setFailedAttempts] = useState(0);
+  const [requestingReset, setRequestingReset] = useState(false);
+  const usernameRef = useRef<HTMLInputElement>(null);
   const passwordRef = useRef<HTMLInputElement>(null);
-  const confirmPasswordRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    setError("");
-    setErrorField(null);
-    setMessage("");
-    setAuthMethod(mode === "reset" ? "email" : null);
-  }, [mode]);
-
-  useEffect(() => {
-    if (searchParams.get("verified") === "1") {
-      setMessage("Email verified. You can log in now.");
-    } else if (searchParams.get("verification") === "sent") {
-      setMessage(
-        "We sent a verification link to your email. Open it before logging in."
-      );
+    if (auth.user) {
+      router.replace(resolvePostAuthRoute(auth.user));
     }
-  }, [searchParams]);
-
-  const copy = useMemo(() => {
-    if (mode === "signup") {
-      return {
-        eyebrow: "Create your private space",
-        title: "Begin as you are."
-      };
-    }
-    if (mode === "reset") {
-      return {
-        eyebrow: "Password help",
-        title: "Find your way back.",
-        description:
-          "Enter the email connected to your account and we’ll send reset instructions."
-      };
-    }
-    return {
-      eyebrow: "Welcome back",
-      title: "Return to your reflection."
-    };
-  }, [mode]);
+  }, [auth.user, router]);
 
   const navigateAfterLogin = (nextUser: Awaited<ReturnType<typeof auth.login>>) => {
     const destination = resolvePostAuthRoute(nextUser);
@@ -117,127 +66,60 @@ function AuthForm() {
     setError("");
     setErrorField(null);
     setMessage("");
-    if (!isValidEmail(email)) {
-      setError("Enter a valid email address.");
-      setErrorField("email");
-      window.requestAnimationFrame(() => emailRef.current?.focus());
-      return;
-    }
-    if (mode === "signup") {
-      const emailValidation = registrationEmailError(email);
-      if (emailValidation) {
-        setError(emailValidation);
-        setErrorField("email");
-        window.requestAnimationFrame(() => emailRef.current?.focus());
+
+    if (!username.trim()) {
+        setError("Enter your username.");
+        setErrorField("username");
+        window.requestAnimationFrame(() => usernameRef.current?.focus());
         return;
-      }
-      if (!password.trim()) {
-        setError("Enter a password.");
+    }
+    if (!password.trim()) {
+        setError("Enter your password.");
         setErrorField("password");
         window.requestAnimationFrame(() => passwordRef.current?.focus());
         return;
-      }
-      const validation = passwordError(password);
-      if (validation) {
-        setError(validation);
-        setErrorField("password");
-        window.requestAnimationFrame(() => passwordRef.current?.focus());
-        return;
-      }
-    } else if (mode === "login" && !password.trim()) {
-      setError("Enter your password.");
-      setErrorField("password");
-      window.requestAnimationFrame(() => passwordRef.current?.focus());
-      return;
-    }
-    if (mode === "signup" && password !== confirmPassword) {
-      setError("Those passwords do not match yet.");
-      setErrorField("confirmPassword");
-      window.requestAnimationFrame(() => confirmPasswordRef.current?.focus());
-      return;
     }
 
     setSubmitting(true);
     try {
-      if (mode === "reset") {
-        await auth.requestPasswordReset(email);
-        setMessage(
-          "If an account uses that email, password-reset instructions will arrive shortly."
-        );
-      } else if (mode === "signup") {
-        const nextUser = await auth.register(email, password);
-        if (auth.mode === "firebase") {
-          router.replace("/auth?mode=login&verification=sent");
-        } else {
-          navigateAfterLogin(nextUser);
-        }
-      } else {
-        const nextUser = await auth.login(email, password);
-        navigateAfterLogin(nextUser);
-      }
+      const nextUser = await auth.login(username.trim(), password);
+      setFailedAttempts(0);
+      navigateAfterLogin(nextUser);
     } catch (submitError) {
-      setError(
-        submitError instanceof Error
-          ? submitError.message
-          : "Something went wrong. Please try again."
-      );
-      setErrorField(
-        mode === "reset"
-          ? "email"
-          : mode === "login"
-            ? "credentials"
-            : null
-      );
+      const errorMessage = submitError instanceof Error
+        ? submitError.message
+        : "Something went wrong. Please try again.";
+      if (errorMessage.toLocaleLowerCase().includes("password do not match")) {
+        setFailedAttempts((attempts) => attempts + 1);
+      }
+      setError(errorMessage);
+      setErrorField("credentials");
     } finally {
       setSubmitting(false);
     }
   };
 
-  const authenticateWithGoogle = async () => {
-    if (submitting) return;
-    setSubmitting(true);
+  const requestPasswordReset = async () => {
+    if (!username.trim() || requestingReset) return;
+    setRequestingReset(true);
     setError("");
-    setMessage("");
     try {
-      const nextUser = await auth.signInWithGoogle();
-      navigateAfterLogin(nextUser);
-    } catch (authenticationError) {
-      setError(
-        authenticationError instanceof Error
-          ? authenticationError.message
-          : "Authentication could not be completed. Please try again."
-      );
+      const response = await fetch("/api/password-reset-requests", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username: username.trim() })
+      });
+      const body = await response.json() as { message?: string; error?: string };
+      if (!response.ok) throw new Error(body.error ?? "The request could not be sent.");
+      setMessage(body.message ?? "Your password reset request was sent to an administrator.");
+    } catch (requestError) {
+      setError(requestError instanceof Error ? requestError.message : "The request could not be sent.");
     } finally {
-      setSubmitting(false);
+      setRequestingReset(false);
     }
   };
 
-  const continueAsGuest = async () => {
-    if (submitting) return;
-    setSubmitting(true);
-    setError("");
-    setMessage("");
-    try {
-      const nextUser = await auth.continueAsGuest();
-      navigateAfterLogin(nextUser);
-    } catch (authenticationError) {
-      setError(
-        authenticationError instanceof Error
-          ? authenticationError.message
-          : "Guest account creation could not be completed. Please try again."
-      );
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
-  const useDemoAccount = () => {
-    setEmail(DEMO_EMAIL);
-    setPassword(DEMO_PASSWORD);
-    setError("");
-  };
-
-  const formOnRight = mode !== "signup";
+  const formOnRight = true;
 
   return (
     <main className="auth-screen-enter relative min-h-screen overflow-hidden lg:grid lg:place-items-center lg:bg-canvas lg:p-4">
@@ -247,229 +129,101 @@ function AuthForm() {
           formOnRight ? "lg:translate-x-full" : "lg:translate-x-0"
         }`}
       >
-        <div className="flex items-center justify-between">
-          <Logo />
+        <div className="flex items-start justify-between">
+          <div className="flex flex-col items-start gap-5">
+            <Logo />
+            <Link
+              href="/"
+              className="grid size-11 shrink-0 place-items-center rounded-full border border-sage-200 bg-paper text-sage-700 shadow-sm transition hover:border-sage-300 hover:bg-sage-50"
+              aria-label="Back to welcome"
+              title="Back to welcome"
+            >
+              <ArrowLeft className="size-5" aria-hidden="true" />
+            </Link>
+          </div>
           <ThemeToggle />
         </div>
-        <div className="mx-auto flex w-full max-w-md flex-1 flex-col justify-center py-10">
-          <Link
-            href="/"
-            className="mb-7 inline-flex min-h-11 w-fit items-center gap-2 self-start rounded-[var(--radius-base)] border border-sage-200 bg-paper px-3 text-sm font-bold text-sage-700 shadow-sm transition hover:bg-sage-50"
-          >
-            <ArrowLeft className="size-4" aria-hidden="true" />
-            Back to welcome
-          </Link>
-          <p className="eyebrow">{copy.eyebrow}</p>
-          <h1 className="mt-3 font-serif text-4xl font-bold tracking-tight sm:text-5xl">
-            {copy.title}
+        <div className="mx-auto flex w-full max-w-md flex-1 -translate-y-[50px] flex-col items-center justify-center py-10 text-center lg:translate-y-0 lg:items-stretch lg:text-left">
+          <h1 className="font-serif text-4xl font-bold tracking-tight sm:text-5xl">
+            Log In
           </h1>
-          {copy.description && (
-            <p className="mt-4 text-base leading-7 text-muted">
-              {copy.description}
-            </p>
-          )}
 
-          {!authMethod && mode !== "reset" && (
-            <div className="mt-8 space-y-4" role="group" aria-label="Choose authentication method">
-              <p className="text-sm font-bold text-ink">
-                How would you like to {mode === "signup" ? "create your account" : "log in"}?
-              </p>
-              <button
-                type="button"
-                className="btn-secondary w-full justify-start"
-                disabled={submitting}
-                onClick={() => void authenticateWithGoogle()}
-              >
-                <span className="grid size-5 place-items-center font-bold" aria-hidden="true">G</span>
-                Sign in with Google
-              </button>
-              <button type="button" className="btn-secondary w-full justify-start" onClick={() => setAuthMethod("email")}>
-                <Mail className="size-5" aria-hidden="true" /> Continue with email
-              </button>
-              {mode === "signup" && (
-                <>
-                  <button
-                    type="button"
-                    className="btn-secondary w-full justify-start"
-                    disabled={submitting}
-                    onClick={() => void continueAsGuest()}
-                  >
-                    <UserRound className="size-5" aria-hidden="true" />
-                    Continue as a guest
-                  </button>
-                  <p className="text-xs leading-5 text-muted">
-                    Guest data remains saved until you log out or delete the
-                    guest account. Either action permanently deletes it.
-                  </p>
-                </>
-              )}
-              {error && (
-                <div className="rounded-[var(--radius-base)] border border-clay-200 bg-clay-50 px-4 py-3 text-sm font-semibold text-clay-600" role="alert">
-                  {error}
-                </div>
-              )}
-            </div>
-          )}
-
-          {authMethod && (
-          <form className="mt-8 space-y-5" onSubmit={submit} noValidate>
-            {mode !== "reset" && (
-              <button
-                type="button"
-                className="text-sm font-bold text-sage-700 underline-offset-4 hover:underline"
-                onClick={() => {
-                  setAuthMethod(null);
-                  setError("");
-                  setMessage("");
-                }}
-              >
-                Change sign-in method
-              </button>
-            )}
-            {authMethod === "email" && (
+          <form className="mt-8 w-full space-y-5 text-left" onSubmit={submit} noValidate>
             <div>
-              <label htmlFor="email" className="label">
-                Email address
+              <label htmlFor="username" className="label">
+                Username
               </label>
+              <input
+                ref={usernameRef}
+                id="username"
+                type="text"
+                autoComplete="username"
+                className="field"
+                value={username}
+                onChange={(event) => {
+                  setUsername(event.target.value);
+                  if (errorField === "username" || errorField === "credentials") {
+                    setError("");
+                    setErrorField(null);
+                  }
+                }}
+                placeholder="Enter your username"
+                required
+                aria-invalid={errorField === "username" || errorField === "credentials"}
+                aria-describedby={
+                  error && (errorField === "username" || errorField === "credentials")
+                    ? "auth-error"
+                    : undefined
+                }
+              />
+            </div>
+            <div>
+              <div className="flex items-center justify-between">
+                <label htmlFor="password" className="label">
+                  Password
+                </label>
+              </div>
               <div className="relative">
-                <Mail
+                <LockKeyhole
                   className="pointer-events-none absolute left-4 top-1/2 size-5 -translate-y-1/2 text-sage-400"
                   aria-hidden="true"
                 />
                 <input
-                  ref={emailRef}
-                  id="email"
-                  type="email"
-                  autoComplete="email"
-                  className="field pl-12"
-                  value={email}
+                  ref={passwordRef}
+                  id="password"
+                  type={showPassword ? "text" : "password"}
+                  autoComplete="current-password"
+                  className="field px-12"
+                  value={password}
                   onChange={(event) => {
-                    setEmail(event.target.value);
-                    if (
-                      errorField === "email" ||
-                      errorField === "credentials"
-                    ) {
+                    setPassword(event.target.value);
+                    if (errorField === "password" || errorField === "credentials") {
                       setError("");
                       setErrorField(null);
                     }
                   }}
-                  placeholder="you@example.com"
                   required
-                  aria-invalid={
-                    errorField === "email" || errorField === "credentials"
-                  }
+                  aria-invalid={errorField === "password" || errorField === "credentials"}
                   aria-describedby={
-                    error &&
-                    (errorField === "email" || errorField === "credentials")
+                    error && (errorField === "password" || errorField === "credentials")
                       ? "auth-error"
                       : undefined
                   }
                 />
+                <button
+                  type="button"
+                  className="absolute right-1 top-1/2 grid min-h-11 min-w-11 -translate-y-1/2 place-items-center rounded-full text-muted hover:bg-sage-50"
+                  onClick={() => setShowPassword((visible) => !visible)}
+                  aria-label={showPassword ? "Hide password" : "Show password"}
+                >
+                  {showPassword ? (
+                    <EyeOff className="size-5" aria-hidden="true" />
+                  ) : (
+                    <Eye className="size-5" aria-hidden="true" />
+                  )}
+                </button>
               </div>
             </div>
-            )}
-
-            {authMethod === "email" && mode !== "reset" && (
-              <div>
-                <div className="flex items-center justify-between">
-                  <label htmlFor="password" className="label">
-                    Password
-                  </label>
-                  {mode === "login" && (
-                    <Link
-                      href="/auth?mode=reset"
-                      className="mb-2 text-xs font-bold text-sage-700 underline-offset-4 hover:underline"
-                    >
-                      Forgot password?
-                    </Link>
-                  )}
-                </div>
-                <div className="relative">
-                  <LockKeyhole
-                    className="pointer-events-none absolute left-4 top-1/2 size-5 -translate-y-1/2 text-sage-400"
-                    aria-hidden="true"
-                  />
-                  <input
-                    ref={passwordRef}
-                    id="password"
-                    type={showPassword ? "text" : "password"}
-                    autoComplete={
-                      mode === "signup" ? "new-password" : "current-password"
-                    }
-                    className="field px-12"
-                    value={password}
-                    onChange={(event) => {
-                      setPassword(event.target.value);
-                      if (
-                        errorField === "password" ||
-                        errorField === "credentials"
-                      ) {
-                        setError("");
-                        setErrorField(null);
-                      }
-                    }}
-                    required
-                    aria-invalid={
-                      errorField === "password" ||
-                      errorField === "credentials"
-                    }
-                    aria-describedby={
-                      error &&
-                      (errorField === "password" ||
-                        errorField === "credentials")
-                        ? "password-help auth-error"
-                        : "password-help"
-                    }
-                  />
-                  <button
-                    type="button"
-                    className="absolute right-1 top-1/2 grid min-h-11 min-w-11 -translate-y-1/2 place-items-center rounded-full text-muted hover:bg-sage-50"
-                    onClick={() => setShowPassword((visible) => !visible)}
-                    aria-label={showPassword ? "Hide password" : "Show password"}
-                  >
-                    {showPassword ? (
-                      <EyeOff className="size-5" aria-hidden="true" />
-                    ) : (
-                      <Eye className="size-5" aria-hidden="true" />
-                    )}
-                  </button>
-                </div>
-                <p id="password-help" className="mt-2 text-xs text-muted">
-                  At least 8 characters, including a letter and a number.
-                </p>
-              </div>
-            )}
-
-            {authMethod === "email" && mode === "signup" && (
-              <div>
-                <label htmlFor="confirm-password" className="label">
-                  Confirm password
-                </label>
-                <input
-                  ref={confirmPasswordRef}
-                  id="confirm-password"
-                  type={showPassword ? "text" : "password"}
-                  autoComplete="new-password"
-                  className="field"
-                  value={confirmPassword}
-                  onChange={(event) => {
-                    setConfirmPassword(event.target.value);
-                    if (errorField === "confirmPassword") {
-                      setError("");
-                      setErrorField(null);
-                    }
-                  }}
-                  required
-                  aria-invalid={errorField === "confirmPassword"}
-                  aria-describedby={
-                    error && errorField === "confirmPassword"
-                      ? "auth-error"
-                      : undefined
-                  }
-                />
-              </div>
-            )}
-
             {error && (
               <div
                 id="auth-error"
@@ -481,16 +235,25 @@ function AuthForm() {
             )}
             {message && (
               <div
-                className="rounded-[var(--radius-base)] border border-sage-200 bg-sage-50 px-4 py-3 text-sm font-semibold text-sage-700"
+                className="flex items-start gap-3 rounded-[var(--radius-base)] border border-sage-200 bg-sage-50 px-4 py-3 text-sm font-semibold text-sage-700"
                 role="status"
               >
-                {message}
+                <span>{message}</span>
               </div>
             )}
-
+            {failedAttempts >= 3 && !message && (
+              <button
+                type="button"
+                className="btn-secondary w-full"
+                disabled={requestingReset || !username.trim()}
+                onClick={() => void requestPasswordReset()}
+              >
+                {requestingReset ? "Sending request…" : "Request password reset"}
+              </button>
+            )}
             <button
               type="submit"
-              className="btn-primary w-full text-base"
+              className="btn-primary !mt-[70px] w-full text-base"
               disabled={submitting}
             >
               {submitting ? (
@@ -498,70 +261,14 @@ function AuthForm() {
                   className="size-5 animate-spin"
                   aria-hidden="true"
                 />
-              ) : mode === "reset" ? (
-                <KeyRound className="size-5" aria-hidden="true" />
               ) : null}
-              {submitting
-                ? "Please wait…"
-                : mode === "signup"
-                  ? "Create my account"
-                  : mode === "reset"
-                    ? "Request reset link"
-                    : "Log in"}
-              {!submitting && mode !== "reset" && (
-                <ArrowRight className="size-4" aria-hidden="true" />
-              )}
+              {submitting ? "Please wait…" : "Log in"}
+              {!submitting && <ArrowRight className="size-4" aria-hidden="true" />}
             </button>
           </form>
-          )}
-
-          {auth.mode === "local" && mode === "login" && (
-            <div className="mt-5 rounded-[var(--radius-base)] border border-gray-200 bg-white p-4">
-              <p className="text-sm font-bold text-gold-700">
-                Try the completed sample profile
-              </p>
-              <p className="mt-1 text-xs leading-5 text-muted">
-                {DEMO_EMAIL} · {DEMO_PASSWORD}
-              </p>
-              <button
-                type="button"
-                className="mt-3 min-h-11 rounded-[var(--radius-base)] bg-white px-4 text-xs font-bold text-sage-700 shadow-sm transition hover:bg-sage-50"
-                onClick={useDemoAccount}
-              >
-                Fill demo credentials
-              </button>
-            </div>
-          )}
 
           <p className="mt-7 text-center text-sm text-muted">
-            {mode === "signup" ? (
-              <>
-                Already have an account?{" "}
-                <Link
-                  href="/auth?mode=login"
-                  className="font-bold text-sage-700 underline-offset-4 hover:underline"
-                >
-                  Log in
-                </Link>
-              </>
-            ) : mode === "reset" ? (
-              <Link
-                href="/auth?mode=login"
-                className="font-bold text-sage-700 underline-offset-4 hover:underline"
-              >
-                Return to login
-              </Link>
-            ) : (
-              <>
-                New to Saintagram?{" "}
-                <Link
-                  href="/auth?mode=signup"
-                  className="font-bold text-sage-700 underline-offset-4 hover:underline"
-                >
-                  Create an account
-                </Link>
-              </>
-            )}
+            Need help signing in? Contact the admin for access.
           </p>
         </div>
       </section>
@@ -572,11 +279,11 @@ function AuthForm() {
         }`}
       >
         <div
-          className="absolute -right-28 -top-28 size-96 rounded-full border border-gold-500/50"
+          className="auth-aside-orbit absolute -right-28 -top-28 size-96 rounded-full border border-gold-500/50"
           aria-hidden="true"
         />
         <div
-          className="absolute -right-10 -top-10 size-56 rounded-full border border-gold-400/50"
+          className="auth-aside-orbit absolute -right-10 -top-10 size-56 rounded-full border border-gold-400/50"
           aria-hidden="true"
         />
         <div
@@ -584,23 +291,23 @@ function AuthForm() {
           aria-hidden="true"
         />
         <div className="relative max-w-lg">
-          <p className="text-xs font-bold uppercase tracking-[0.2em] text-clay-500">
+          <p className="auth-aside-dark-text text-xs font-bold uppercase tracking-[0.2em] text-white/90">
             Matthew 5:3
           </p>
-          <blockquote className="mt-7 font-serif text-4xl font-bold leading-tight text-clay-500">
+          <blockquote className="auth-aside-dark-text mt-7 font-serif text-4xl font-bold leading-tight text-white">
             "Blessed are the poor in spirit, for theirs is the kingdom of
             heaven."
           </blockquote>
-          <p className="mt-7 max-w-md text-base leading-7 text-clay-500">
+          <p className="auth-aside-dark-text mt-7 max-w-md text-base leading-7 text-white/90">
             You do not need a perfect image here. Honesty, humility, and a need
             for God are welcome.
           </p>
         </div>
-        <div className="relative rounded-[var(--radius-card)] border border-gold-500/50 bg-gold-500/10 dark:bg-gold-600/20 p-6">
-          <p className="text-sm font-bold text-clay-500">
+        <div className="relative rounded-[var(--radius-card)] border border-white/50 bg-white/45 p-6 shadow-sm backdrop-blur-sm dark:border-white/20 dark:bg-white/15">
+          <p className="auth-privacy-dark-text text-sm font-bold">
             Your reflections belong to you.
           </p>
-          <p className="mt-2 text-sm leading-6 text-clay-500">
+          <p className="auth-privacy-dark-text mt-2 text-sm leading-6">
             Hidden Stories and private journal entries never appear on the
             standard profile screen.
           </p>

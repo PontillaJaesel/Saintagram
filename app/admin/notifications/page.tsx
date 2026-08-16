@@ -1,1 +1,5 @@
-import{Notifications}from"@/components/admin/admin-pages";export default function Page(){return <Notifications/>}
+import { AdminNotifications } from "@/components/admin/admin-notifications";
+
+export default function Page() {
+  return <AdminNotifications />;
+}
