@@ -5,7 +5,7 @@ import { onIdTokenChanged, signInWithEmailAndPassword, signOut } from "firebase/
 import { LoaderCircle, LockKeyhole, Mail } from "lucide-react";
 import { Logo } from "@/components/brand/logo";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
-import { adminFetch } from "@/lib/admin-api";
+import { adminFetch, setVerifiedAdminToken } from "@/lib/admin-api";
 import { getFirebaseServices } from "@/lib/firebase";
 
 type GuardState = "checking" | "login" | "allowed";
@@ -13,12 +13,19 @@ type GuardState = "checking" | "login" | "allowed";
 const DENIED_MESSAGE =
   "You do not have permission to access the Saintagram Admin Dashboard.";
 
-async function verifyCurrentAdministrator(): Promise<boolean> {
+type AdminVerification =
+  | { allowed: true; error: "" }
+  | { allowed: false; error: string };
+
+async function verifyCurrentAdministrator(idToken: string): Promise<AdminVerification> {
   try {
-    await adminFetch<{ admin: true }>("/api/admin/session");
-    return true;
-  } catch {
-    return false;
+    await adminFetch<{ admin: true }>("/api/admin/session", {}, idToken);
+    return { allowed: true, error: "" };
+  } catch (error) {
+    return {
+      allowed: false,
+      error: error instanceof Error ? error.message : DENIED_MESSAGE,
+    };
   }
 }
 
@@ -45,22 +52,28 @@ export function AdminRouteGuard({ children }: { children: ReactNode }) {
       unsubscribe = onIdTokenChanged(services.auth, async (firebaseUser) => {
         const sequence = ++verificationSequence.current;
         if (!firebaseUser) {
+          setVerifiedAdminToken(null);
           setState("login");
           return;
         }
 
         setState("checking");
-        const allowed = await verifyCurrentAdministrator();
+        // Avoid forcing a refresh here. Refreshing inside onIdTokenChanged
+        // emits another token event and can race route transitions/remounts.
+        const idToken = await firebaseUser.getIdToken();
+        const verification = await verifyCurrentAdministrator(idToken);
         if (!active || sequence !== verificationSequence.current) return;
-        if (allowed) {
+        if (verification.allowed) {
+          setVerifiedAdminToken(idToken);
           setError("");
           setState("allowed");
           return;
         }
 
+        setVerifiedAdminToken(null);
         await signOut(services.auth).catch(() => undefined);
         if (!active || sequence !== verificationSequence.current) return;
-        setError(DENIED_MESSAGE);
+        setError(verification.error || DENIED_MESSAGE);
         setState("login");
       });
     });
@@ -89,12 +102,15 @@ export function AdminRouteGuard({ children }: { children: ReactNode }) {
         email.trim(),
         password
       );
-      await credential.user.getIdToken(true);
-      if (!(await verifyCurrentAdministrator())) {
+      const idToken = await credential.user.getIdToken(true);
+      const verification = await verifyCurrentAdministrator(idToken);
+      if (!verification.allowed) {
+        setVerifiedAdminToken(null);
         await signOut(services.auth);
-        setError(DENIED_MESSAGE);
+        setError(verification.error || DENIED_MESSAGE);
         setState("login");
       } else {
+        setVerifiedAdminToken(idToken);
         // Do not rely on onIdTokenChanged to finish the form submission. The
         // listener may have already handled the sign-in token before the
         // forced refresh and therefore may not produce another state change.

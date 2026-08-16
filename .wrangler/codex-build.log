@@ -1,0 +1,84 @@
+
+--- 2026-08-16T05:36:56.626Z debug
+🪵  Writing logs to "C:\Users\Jaesel\saintagram\.wrangler\codex-build.log"
+---
+
+--- 2026-08-16T05:36:56.626Z debug
+local dev variables file not found at ".dev.vars". Continuing... For more details, refer to https://developers.cloudflare.com/workers/wrangler/system-environment-variables/
+---
+
+--- 2026-08-16T05:36:56.629Z debug
+.env file not found at "C:\Users\Jaesel\saintagram\.env". Continuing... For more details, refer to https://developers.cloudflare.com/workers/wrangler/system-environment-variables/
+---
+
+--- 2026-08-16T05:36:56.631Z log
+Using secrets defined in .env.local
+---
+
+--- 2026-08-16T05:37:28.395Z debug
+local dev variables file not found at ".dev.vars". Continuing... For more details, refer to https://developers.cloudflare.com/workers/wrangler/system-environment-variables/
+---
+
+--- 2026-08-16T05:37:28.408Z debug
+.env file not found at "C:\Users\Jaesel\saintagram\.env". Continuing... For more details, refer to https://developers.cloudflare.com/workers/wrangler/system-environment-variables/
+---
+
+--- 2026-08-16T05:37:28.427Z log
+Using secrets defined in .env.local
+---
+
+--- 2026-08-16T06:10:10.228Z debug
+🪵  Writing logs to "C:\Users\Jaesel\saintagram\.wrangler\codex-build.log"
+---
+
+--- 2026-08-16T06:10:10.228Z debug
+local dev variables file not found at ".dev.vars". Continuing... For more details, refer to https://developers.cloudflare.com/workers/wrangler/system-environment-variables/
+---
+
+--- 2026-08-16T06:10:10.229Z debug
+.env file not found at "C:\Users\Jaesel\saintagram\.env". Continuing... For more details, refer to https://developers.cloudflare.com/workers/wrangler/system-environment-variables/
+---
+
+--- 2026-08-16T06:10:10.230Z log
+Using secrets defined in .env.local
+---
+
+--- 2026-08-16T06:10:22.583Z debug
+local dev variables file not found at ".dev.vars". Continuing... For more details, refer to https://developers.cloudflare.com/workers/wrangler/system-environment-variables/
+---
+
+--- 2026-08-16T06:10:22.584Z debug
+.env file not found at "C:\Users\Jaesel\saintagram\.env". Continuing... For more details, refer to https://developers.cloudflare.com/workers/wrangler/system-environment-variables/
+---
+
+--- 2026-08-16T06:10:22.585Z log
+Using secrets defined in .env.local
+---
+
+--- 2026-08-16T06:18:25.603Z debug
+🪵  Writing logs to "C:\Users\Jaesel\saintagram\.wrangler\codex-build.log"
+---
+
+--- 2026-08-16T06:18:25.603Z debug
+local dev variables file not found at ".dev.vars". Continuing... For more details, refer to https://developers.cloudflare.com/workers/wrangler/system-environment-variables/
+---
+
+--- 2026-08-16T06:18:25.605Z debug
+.env file not found at "C:\Users\Jaesel\saintagram\.env". Continuing... For more details, refer to https://developers.cloudflare.com/workers/wrangler/system-environment-variables/
+---
+
+--- 2026-08-16T06:18:25.607Z log
+Using secrets defined in .env.local
+---
+
+--- 2026-08-16T06:18:45.879Z debug
+local dev variables file not found at ".dev.vars". Continuing... For more details, refer to https://developers.cloudflare.com/workers/wrangler/system-environment-variables/
+---
+
+--- 2026-08-16T06:18:45.883Z debug
+.env file not found at "C:\Users\Jaesel\saintagram\.env". Continuing... For more details, refer to https://developers.cloudflare.com/workers/wrangler/system-environment-variables/
+---
+
+--- 2026-08-16T06:18:45.886Z log
+Using secrets defined in .env.local
+---

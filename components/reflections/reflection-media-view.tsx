@@ -73,7 +73,13 @@ export function ReflectionMediaView({ media, compact = false }: { media?: Reflec
   };
 
   const preview = (
-    <div className={`relative mt-4 w-full overflow-hidden rounded-2xl bg-black/5 ${compact ? "max-w-lg" : "max-w-none"}`}>
+    <div
+      className={`relative mt-4 w-full overflow-hidden rounded-2xl bg-black/5 ${compact ? "max-w-lg" : "max-w-none"}`}
+      onClick={(event) => {
+        event.preventDefault();
+        event.stopPropagation();
+      }}
+    >
       <div
         ref={sliderRef}
         className={`flex snap-x snap-mandatory overflow-x-auto overscroll-x-contain scroll-smooth [scrollbar-width:none] [&::-webkit-scrollbar]:hidden ${items.length > 1 ? "gap-2" : ""}`}
@@ -119,7 +125,18 @@ export function ReflectionMediaView({ media, compact = false }: { media?: Reflec
   );
 
   const overlay = fullscreen !== null && typeof document !== "undefined" ? createPortal(
-    <div className="fixed inset-0 z-[200] flex flex-col bg-black/95 text-white" role="dialog" aria-modal="true" aria-label="Full-screen reflection media">
+    <div
+      className="fixed inset-0 z-[200] flex flex-col bg-black/95 text-white"
+      role="dialog"
+      aria-modal="true"
+      aria-label="Full-screen reflection media"
+      onClick={(event) => {
+        // Portals still bubble through the React component tree. Keep media
+        // controls from activating a profile link that contains this viewer.
+        event.preventDefault();
+        event.stopPropagation();
+      }}
+    >
       <div className="flex min-h-16 items-center justify-between gap-3 px-4">
         <span className="text-sm font-semibold">{fullscreen + 1} of {items.length}</span>
         <div className="flex gap-2">

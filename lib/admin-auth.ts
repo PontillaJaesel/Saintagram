@@ -8,7 +8,11 @@ export async function requireAdmin(request: Request): Promise<DecodedIdToken> {
   const authorization = request.headers.get("authorization") ?? "";
   if (!authorization.startsWith("Bearer ")) throw new AdminAuthError(401, "Authentication is required.");
   try {
-    const token = await getFirebaseAdminAuth().verifyIdToken(authorization.slice(7), true);
+    // Signature, issuer, audience, and expiration verification is sufficient
+    // for these short-lived ID tokens. Passing `true` also performs a remote
+    // user/revocation lookup, which is unreliable in the Cloudflare Workers
+    // runtime and was rejecting freshly issued production tokens.
+    const token = await getFirebaseAdminAuth().verifyIdToken(authorization.slice(7));
     if (token.admin !== true) throw new AdminAuthError(403, "Administrator access is required.");
     return token;
   } catch (error) {
@@ -20,5 +24,11 @@ export const noStoreHeaders = { "Cache-Control": "no-store" } as const;
 export function adminError(error: unknown) {
   const status = error instanceof AdminAuthError ? error.status : 500;
   const message = error instanceof AdminAuthError ? error.message : "The admin request could not be completed.";
+  if (status === 500) {
+    const details = error instanceof Error
+      ? { name: error.name, message: error.message, stack: error.stack }
+      : { value: String(error) };
+    console.error("Admin API request failed", details);
+  }
   return NextResponse.json({ error: message }, { status, headers: noStoreHeaders });
 }

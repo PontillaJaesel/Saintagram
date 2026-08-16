@@ -6,8 +6,9 @@ import {
   type AppOptions
 } from "firebase-admin/app";
 import { getAuth, type Auth } from "firebase-admin/auth";
-import { getFirestore, type Firestore } from "firebase-admin/firestore";
+import type { Firestore } from "firebase-admin/firestore";
 import { getStorage, type Storage } from "firebase-admin/storage";
+import { getFirestoreRestClient } from "@/lib/firestore-rest";
 
 const FIREBASE_ADMIN_APP_NAME = "saintagram-firebase-admin";
 
@@ -77,7 +78,10 @@ export function getFirebaseAdminAuth(): Auth {
 }
 
 export function getFirebaseAdminFirestore(): Firestore {
-  return getFirestore(firebaseAdminApp());
+  // The Admin Firestore client still relies on runtime-generated protobuf
+  // functions, which Cloudflare Workers intentionally disallows. This adapter
+  // uses Firestore's service-account-authenticated HTTP API instead.
+  return getFirestoreRestClient() as unknown as Firestore;
 }
 
 export function getFirebaseAdminStorage(): Storage {

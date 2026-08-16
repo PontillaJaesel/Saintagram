@@ -22,7 +22,7 @@
     "start:admin": "npm run build:admin && wrangler dev --config dist/server/wrangler.admin.json",
     "deploy": "npm run build && node scripts/validate-deployment-target.mjs dist/server/wrangler.json saintagram normal && vinext-cloudflare deploy --config dist/server/wrangler.json",
     "deploy:vinext": "npm run deploy",
-    "deploy:admin": "npm run build:admin && node scripts/validate-deployment-target.mjs dist/server/wrangler.admin.json saintagram-admin admin && vinext-cloudflare deploy --config dist/server/wrangler.admin.json",
+    "deploy:admin": "npm run build:admin && node scripts/validate-deployment-target.mjs dist/server/wrangler.admin.json saintagram-admin admin && wrangler deploy --config dist/server/wrangler.admin.json",
     "admin:claim": "node --env-file=.env.production scripts/set-admin-claim.mjs",
     "auth:provision": "node --env-file=.env.local scripts/provision-temporary-accounts.mjs"
   },

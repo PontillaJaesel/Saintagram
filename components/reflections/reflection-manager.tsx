@@ -191,10 +191,6 @@ export function ReflectionManager() {
                 <Lock className="size-4 text-clay-600" aria-hidden="true" />
                 Keep this reflection private
               </span>
-              <span className="mt-1 block text-xs leading-5 text-muted">
-                Private entries never appear on your standard profile or
-                journey.
-              </span>
             </span>
           </label>
 
