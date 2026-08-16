@@ -90,25 +90,35 @@ describe("RouteGuard", () => {
 
     await waitFor(() => expect(mocks.replace).toHaveBeenCalledWith("/privacy"));
     expect(screen.queryByText("Private profile")).not.toBeInTheDocument();
-  });
+      });
 
-  it("redirects an incomplete temporary-password user from settings to profile creation", async () => {
-    mocks.pathname.mockReturnValue("/settings");
-    mocks.useAuth.mockReturnValue({
-      loading: false,
-      user: makeUser({ mustChangePassword: true, profileCompleted: false })
+      it("allows an incomplete temporary-password user to open Settings first", () => {
+      mocks.pathname.mockReturnValue("/settings");
+      mocks.useAuth.mockReturnValue({
+        loading: false,
+        user: makeUser({
+          mustChangePassword: true,
+          profileCompleted: false
+        })
+      });
+
+      render(
+        <RouteGuard requireConsent={false}>
+          <p>Settings content</p>
+        </RouteGuard>
+      );
+
+      expect(screen.getByText("Settings content")).toBeInTheDocument();
+      expect(mocks.replace).not.toHaveBeenCalled();
     });
 
-    render(<RouteGuard requireConsent={false}>Settings content</RouteGuard>);
-
-    await waitFor(() => expect(mocks.replace).toHaveBeenCalledWith("/create"));
-    expect(screen.queryByText("Settings content")).not.toBeInTheDocument();
-  });
-
-  it("allows an incomplete temporary-password user to create a profile", () => {
+  it("redirects an incomplete temporary-password user from profile creation to Settings", async () => {
     mocks.pathname.mockReturnValue("/create");
     mocks.useAuth.mockReturnValue({
-      user: makeUser({ mustChangePassword: true, profileCompleted: false }),
+      user: makeUser({
+        mustChangePassword: true,
+        profileCompleted: false
+      }),
       loading: false
     });
 
@@ -118,8 +128,11 @@ describe("RouteGuard", () => {
       </RouteGuard>
     );
 
-    expect(screen.getByText("Create profile")).toBeInTheDocument();
-    expect(mocks.replace).not.toHaveBeenCalled();
+    await waitFor(() =>
+      expect(mocks.replace).toHaveBeenCalledWith("/settings")
+    );
+
+    expect(screen.queryByText("Create profile")).not.toBeInTheDocument();
   });
 
   it("allows a temporary-password user to open Settings", () => {

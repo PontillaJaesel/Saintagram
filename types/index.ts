@@ -167,7 +167,27 @@ export interface AdminProfileRequirement { key: AdminProfileRequirementKey; labe
 export interface AdminProfileCompletion { completedCount: number; totalCount: 7; percentage: number; status: "Not Started" | "Incomplete" | "Complete"; requirements: AdminProfileRequirement[]; missingFields: string[]; }
 export interface LinkOpenEvent { visitId: string; id: string; source: "qr" | "common"; campaign: string | null; openedAt: string; userId: string | null; claimedAt: string | null; streetAddress: string | null; city: string | null; region: string | null; country: string | null; postalCode: string | null; formattedAddress: string | null; latitude: string | null; longitude: string | null; locationAccuracyMeters: number | null; locationLabel: string; locationSource: "device" | "cloudflare" | "localhost" | "unavailable"; destination: string; userName?: string; }
 export interface SystemNotification { id: string; userId: string; type: "profile_reminder" | "admin_reflection"; title: string; message: string; missingFields: string[]; reflectionId?: string; createdByAdminId: string; createdAt: string; readAt: string | null; }
-export interface AdminAuditLog { id: string; adminId: string; action: "profile_reminder_sent" | "notification_resent" | "user_data_deleted" | "user_data_viewed" | "export_generated" | "admin_reflection_published" | "admin_reflection_updated" | "admin_reflection_deleted"; targetUserId: string | null; createdAt: string; metadata: Record<string, string | number | boolean | null>; }
+export interface AdminAuditLog {
+  id: string;
+  adminId: string;
+  action:
+    | "profile_reminder_sent"
+    | "notification_resent"
+    | "user_data_deleted"
+    | "user_data_reset"
+    | "user_account_deleted"
+    | "user_data_viewed"
+    | "export_generated"
+    | "admin_reflection_published"
+    | "admin_reflection_updated"
+    | "admin_reflection_deleted";
+  targetUserId: string | null;
+  createdAt: string;
+  metadata: Record<
+    string,
+    string | number | boolean | null
+  >;
+}
 export interface AdminUserSummary { id: string; email: string; name: string; authProvider: string; createdAt: string; profileCompleted: boolean; completion: AdminProfileCompletion; lastLinkOpen: string | null; }
 export interface AdminDashboardOverview { totalUsers: number; completeProfiles: number; incompleteProfiles: number; totalVisits: number; qrVisits: number; commonVisits: number; qrOpensToday: number; commonOpensToday: number; recentActivity: LinkOpenEvent[]; recentUsers: AdminUserSummary[]; recentReminders: SystemNotification[]; }
 export interface AdminUserData { user: Record<string, unknown>; profile: Record<string, unknown> | null; privateProfile: Record<string, unknown> | null; draft: Record<string, unknown> | null; collections: Record<string, Record<string, unknown>[]>; }

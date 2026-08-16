@@ -30,10 +30,16 @@ export function RouteGuard({
       destination = isIntentionalAuthExitPending()
         ? "/"
         : `/auth?mode=login&next=${encodeURIComponent(pathname)}`;
-    } else if (!user.profileCompleted) {
-      destination = pathname === "/create" ? null : "/create";
     } else if (user.mustChangePassword !== false) {
-      destination = pathname === "/settings" ? null : "/settings";
+      destination =
+        pathname === "/settings"
+          ? null
+          : "/settings";
+    } else if (!user.profileCompleted) {
+      destination =
+        pathname === "/create"
+          ? null
+          : "/create";
     } else if (requireConsent && !user.privacyConsentAt) {
       destination = "/privacy";
     } else if (

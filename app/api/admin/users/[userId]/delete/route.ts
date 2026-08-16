@@ -3,7 +3,7 @@ import { adminError, noStoreHeaders, requireAdmin } from "@/lib/admin-auth";
 import { deleteOneNonAdminUser } from "@/lib/admin-delete-records";
 
 export const runtime = "nodejs";
-const CONFIRMATION = "DELETE USER";
+const CONFIRMATION = "DELETE ACCOUNT";
 
 export async function POST(request: Request, { params }: { params: Promise<{ userId: string }> }) {
   try {
