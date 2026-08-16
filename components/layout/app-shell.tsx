@@ -2,11 +2,13 @@
 
 import {
   useEffect,
+  useRef,
   useState
 } from "react";
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+
 
 import {
   Footprints,
@@ -90,6 +92,58 @@ export function AppShell({
   const isProfile =
     pathname === "/profile";
 
+  const needsMobileFooterSpace = [
+    "/community",
+    "/reflect",
+    "/reflections",
+    "/journey",
+    "/settings"
+  ].some((route) => pathname === route || pathname.startsWith(`${route}/`));
+
+  const [profileHeaderActive, setProfileHeaderActive] = useState(false);
+  const [mobileNavHidden, setMobileNavHidden] = useState(false);
+  const scrollPositions = useRef(new WeakMap<object, number>());
+
+  useEffect(() => {
+    if (!isProfile) {
+      setProfileHeaderActive(false);
+      return;
+    }
+
+    // Clear the mobile Saintagram banner first, leaving room for the profile
+    // summary to become the active sticky header.
+    const updateHeader = () => setProfileHeaderActive(window.scrollY >= 16);
+    updateHeader();
+    window.addEventListener("scroll", updateHeader, { passive: true });
+    return () => window.removeEventListener("scroll", updateHeader);
+  }, [isProfile]);
+
+  useEffect(() => {
+    const handleScroll = (event: Event) => {
+      const target = event.target;
+      if (!target || typeof target !== "object") return;
+
+      const current = target === document
+        ? window.scrollY
+        : target instanceof HTMLElement
+          ? target.scrollTop
+          : window.scrollY;
+      const previous = scrollPositions.current.get(target) ?? current;
+      scrollPositions.current.set(target, current);
+
+      if (target === document && current <= 8) {
+        setMobileNavHidden(false);
+      } else if (current > previous + 4) {
+        setMobileNavHidden(true);
+      } else if (current < previous - 4) {
+        setMobileNavHidden(false);
+      }
+    };
+
+    window.addEventListener("scroll", handleScroll, { passive: true, capture: true });
+    return () => window.removeEventListener("scroll", handleScroll, true);
+  }, []);
+
   const foundNavIndex =
     NAV_ITEMS.findIndex(
       ({ href }) =>
@@ -134,7 +188,7 @@ export function AppShell({
   }, [activeNavIndex]);
 
   return (
-    <div className="saintagram-shell min-h-screen pb-28 sm:pb-24">
+    <div className="saintagram-shell min-h-screen">
       <a
         href="#main-content"
         className="fixed left-4 top-3 z-[80] -translate-y-20 rounded-full bg-sage-800 px-4 py-3 text-sm font-bold text-white shadow-lift transition-transform focus:translate-y-0"
@@ -142,7 +196,7 @@ export function AppShell({
         Skip to main content
       </a>
 
-      <header className="sticky top-0 z-40 border-b border-sage-100/70 bg-canvas/80 backdrop-blur-2xl lg:hidden">
+      <header className={`sticky top-0 z-40 border-b border-sage-100/70 bg-canvas/80 backdrop-blur-2xl transition-transform duration-200 lg:hidden ${profileHeaderActive ? "-translate-y-full" : "translate-y-0"}`}>
         <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6">
           <Logo href="/profile" />
 
@@ -178,10 +232,10 @@ export function AppShell({
                     key={href}
                     href={href}
                     prefetch={true}
-                    className={`flex min-h-12 items-center gap-3 rounded-xl px-3 text-sm font-semibold transition-colors ${
+                    className={`sidebar-nav-link flex min-h-12 items-center gap-3 rounded-xl px-3 text-sm font-semibold transition-colors ${
                       active
-                        ? "sidebar-nav-active bg-sage-100 text-sage-800"
-                        : "text-ink hover:bg-sage-50"
+                        ? "sidebar-nav-active bg-sage-100"
+                        : "hover:bg-sage-50"
                     }`}
                     aria-current={
                       active
@@ -236,7 +290,7 @@ export function AppShell({
           className={`app-page-enter w-full ${
             isProfile
               ? "min-w-0 px-0 py-0"
-              : "mx-auto min-w-0 max-w-6xl px-4 py-7 sm:px-8 sm:py-12"
+              : `mx-auto min-w-0 max-w-6xl px-4 pt-7 sm:px-8 sm:pt-12 ${needsMobileFooterSpace ? "pb-12 sm:pb-12 lg:pb-0" : "pb-0"}`
           }`}
         >
           {(title ||
@@ -266,7 +320,7 @@ export function AppShell({
       </div>
 
       <nav
-        className="mobile-primary-nav fixed inset-x-3 bottom-3 z-50 overflow-visible rounded-[1.6rem] border border-sage-100/80 bg-paper/90 px-2 pb-[max(.5rem,env(safe-area-inset-bottom))] pt-2 shadow-lift backdrop-blur-2xl lg:hidden"
+        className={`mobile-primary-nav fixed inset-x-3 bottom-3 z-50 overflow-visible rounded-[1.6rem] border border-sage-100/80 bg-paper/90 px-2 pb-[max(.5rem,env(safe-area-inset-bottom))] pt-2 shadow-lift backdrop-blur-2xl transition-all duration-200 lg:hidden ${mobileNavHidden ? "pointer-events-none translate-y-[calc(100%+2rem)] opacity-0" : "translate-y-0 opacity-100"}`}
         aria-label="Mobile navigation"
       >
         <div

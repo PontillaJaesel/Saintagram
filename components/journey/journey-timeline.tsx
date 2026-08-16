@@ -35,6 +35,7 @@ import { useAuth } from "@/components/providers/auth-provider";
 
 import { EmptyState } from "@/components/ui/empty-state";
 import { LoadingState } from "@/components/ui/loading-state";
+import { ReflectionMediaView } from "@/components/reflections/reflection-media-view";
 
 import { appService } from "@/lib/app-service";
 import { getFirebaseServices } from "@/lib/firebase";
@@ -64,6 +65,7 @@ interface JourneyItem {
   type: JourneyItemType;
   priority: number;
   imagePath?: string;
+  media?: ReflectionPost["media"];
 }
 
 interface ProfileJourneyEvent {
@@ -1028,7 +1030,8 @@ export function JourneyTimeline() {
               post.content,
             type:
               "reflection",
-            priority: 20
+            priority: 20,
+            ...(post.media?.length ? { media: post.media } : {})
           });
         }
       );
@@ -1249,15 +1252,12 @@ export function JourneyTimeline() {
   }
 
   return (
-    <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_18rem]">
+    <div className="grid gap-6">
       <section
-        className="surface p-5 sm:p-8"
+        className="surface p-5 sm:p-8 lg:mx-auto lg:w-full lg:max-w-4xl"
         aria-labelledby="timeline-title"
       >
         <div className="mb-7">
-          <p className="eyebrow">
-            Grace over time
-          </p>
 
           <h2
             id="timeline-title"
@@ -1353,6 +1353,10 @@ export function JourneyTimeline() {
                     </p>
                   )}
 
+                  {item.media?.length ? (
+                    <ReflectionMediaView media={item.media} />
+                  ) : null}
+
                   {item.imagePath && (
                     <JourneyImagePreview
                       imagePath={item.imagePath}
@@ -1364,26 +1368,6 @@ export function JourneyTimeline() {
           )}
         </ol>
       </section>
-
-      <aside className="surface self-start p-5 lg:sticky lg:top-24">
-        <div className="grid size-11 place-items-center rounded-2xl bg-sage-100 text-sage-700">
-          <NotebookPen
-            className="size-5"
-            aria-hidden="true"
-          />
-        </div>
-
-        <h2 className="mt-4 font-serif text-xl font-bold">
-          Keep noticing.
-        </h2>
-
-        <p className="mt-2 text-sm leading-6 text-muted">
-          A journey grows
-          through honest
-          moments, not perfect
-          consistency.
-        </p>
-      </aside>
     </div>
   );
 }

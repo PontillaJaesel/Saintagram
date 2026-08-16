@@ -60,9 +60,15 @@ function PrivacyContent() {
     },
     {
       icon: EyeOff,
-      title: "Your saved data is account-only",
+      title: "Your data is protected",
       description:
-        "Your profile, drafts, Hidden Story, images, and reflections are available only to your signed-in account. Hidden and private entries are also kept out of your normal profile view."
+        "Normal app access remains limited to your signed-in account and the sharing choices you make. Authorized Saintagram administrators may access account, profile, draft, and private data when needed to administer the service."
+    },
+    {
+      icon: EyeOff,
+      title: "Tracked entry links use approximate location",
+      description:
+        "Special QR and share links record their link type, opening time, and approximate city, region, and country when available. The event may be associated with your account after sign-in. This feature does not use continuous GPS tracking or intentionally store raw IP addresses."
     }
   ];
 

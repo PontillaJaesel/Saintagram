@@ -82,10 +82,6 @@ function IntroductionContent() {
           {saving ? "Saving…" : "Create my profile before God"}
           {!saving && <ArrowRight className="size-4" aria-hidden="true" />}
         </button>
-        <p className="mt-4 max-w-md text-xs leading-5 text-muted">
-          Each step requires an answer before you can continue. You can return
-          to the previous step and revise what you wrote.
-        </p>
       </section>
     </main>
   );

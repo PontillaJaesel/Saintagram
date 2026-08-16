@@ -53,18 +53,20 @@ import { ProfileWizard } from "@/components/profile/profile-wizard";
 const TEST_USER: AppUser = {
   id: "user-1",
   email: "beloved@example.com",
+  authProvider: "password",
   createdAt: "2026-01-01T00:00:00.000Z",
   updatedAt: "2026-01-03T00:00:00.000Z",
   privacyConsentAt: "2026-01-02T00:00:00.000Z",
   spiritualIntroSeenAt: "2026-01-03T00:00:00.000Z",
-  profileCompleted: false
+  profileCompleted: false,
+  mustChangePassword: true
 };
 
 const COMPLETED_DRAFT: ProfileDraftData = {
   profileName: "Beloved Child of God",
   imagePath: "",
   selectedSymbol: "cross",
-  spiritualBio: "Learning to trust grace.",
+  spiritualBio: "Beloved",
   spiritualGuides: ["Mary"],
   lifeDirections: ["Jesus"],
   onboardingPostTitles: [""],
@@ -104,12 +106,12 @@ describe("ProfileWizard completion", () => {
     mocks.cancelAccountCreation.mockResolvedValue(undefined);
   });
 
-  it("saves the reviewed profile and immediately navigates to it", async () => {
+  it("saves the reviewed profile and requires the permanent password next", async () => {
     const user = userEvent.setup();
     render(<ProfileWizard />);
 
     const saveButton = await screen.findByRole("button", {
-      name: "Save and View My Profile"
+      name: "Create My Profile"
     });
     await user.click(saveButton);
 
@@ -119,37 +121,12 @@ describe("ProfileWizard completion", () => {
         COMPLETED_DRAFT
       );
       expect(mocks.refreshUser).toHaveBeenCalledTimes(1);
-      expect(mocks.replace).toHaveBeenCalledWith("/profile?created=1");
+      expect(mocks.replace).toHaveBeenCalledWith("/settings");
     });
     expect(mocks.completeProfile.mock.invocationCallOrder[0])
       .toBeLessThan(mocks.refreshUser.mock.invocationCallOrder[0]);
     expect(mocks.refreshUser.mock.invocationCallOrder[0])
       .toBeLessThan(mocks.replace.mock.invocationCallOrder[0]);
-  });
-
-  it("cancels signup by deleting the unfinished account and its email", async () => {
-    const user = userEvent.setup();
-    render(<ProfileWizard />);
-
-    await user.click(
-      await screen.findByRole("button", {
-        name: "Cancel account creation"
-      })
-    );
-    expect(
-      screen.getByRole("alertdialog", { name: "Cancel account creation?" })
-    ).toHaveTextContent(
-      "The account and email address you used to sign up will not be saved."
-    );
-
-    await user.click(
-      screen.getByRole("button", { name: "Cancel and delete account" })
-    );
-
-    await waitFor(() => {
-      expect(mocks.cancelAccountCreation).toHaveBeenCalledTimes(1);
-      expect(mocks.replace).toHaveBeenCalledWith("/");
-    });
   });
 
   it("shows the save error and does not navigate when completion fails", async () => {
@@ -161,7 +138,7 @@ describe("ProfileWizard completion", () => {
 
     await user.click(
       await screen.findByRole("button", {
-        name: "Save and View My Profile"
+        name: "Create My Profile"
       })
     );
 
@@ -180,18 +157,18 @@ describe("ProfileWizard completion", () => {
     render(<ProfileWizard />);
 
     const name = await screen.findByLabelText(
-      /What would you like this profile to be called/
+      /What display name would you like to use/
     );
     await user.type(name, "   ");
     await user.click(screen.getByRole("button", { name: "Next" }));
 
     expect(screen.getByRole("alert")).toHaveTextContent(
-      "Add a profile name before continuing."
+      "Add a display name before continuing."
     );
     await waitFor(() => expect(name).toHaveFocus());
     expect(name).toHaveAttribute("aria-invalid", "true");
     expect(
-      screen.getByRole("heading", { name: "Profile name" })
+      screen.getByRole("heading", { name: "Display name" })
     ).toBeInTheDocument();
 
     await user.type(name, "Still Growing");
@@ -205,42 +182,32 @@ describe("ProfileWizard completion", () => {
     render(<ProfileWizard />);
 
     const name = await screen.findByLabelText(
-      /What would you like this profile to be called/
+      /What display name would you like to use/
     );
     expect(screen.getByRole("button", { name: "Image" })).toBeDisabled();
 
     await user.type(name, "Still Growing");
     await user.click(screen.getByRole("button", { name: "Next" }));
     expect(
-      screen.getByRole("heading", { name: "Picture or symbol" })
+      screen.getByRole("heading", { name: "Choose a profile symbol or photo" })
     ).toBeInTheDocument();
 
-    await user.click(screen.getByRole("button", { name: "Next" }));
+    await user.click(screen.getByRole("button", { name: "Create My Profile" }));
     expect(screen.getByRole("alert")).toHaveTextContent(
       "Choose a profile picture or spiritual symbol before continuing."
     );
     expect(
-      screen.getByRole("heading", { name: "Picture or symbol" })
+      screen.getByRole("heading", { name: "Choose a profile symbol or photo" })
     ).toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: /Seed/ }));
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
-    await user.click(screen.getByRole("button", { name: "Next" }));
-
-    const bio = screen.getByLabelText(/Before God, I am someone who/);
     expect(
-      screen.getByRole("heading", { name: "Spiritual bio" })
+      screen.getByRole("button", { name: "Create My Profile" })
     ).toBeInTheDocument();
-    await user.click(screen.getByRole("button", { name: "Next" }));
-    expect(screen.getByRole("alert")).toHaveTextContent(
-      "Answer the spiritual bio question before continuing."
-    );
-    await waitFor(() => expect(bio).toHaveFocus());
 
     await user.click(screen.getByRole("button", { name: "Previous" }));
-    expect(
-      screen.getByRole("heading", { name: "Picture or symbol" })
-    ).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Display name" })).toBeInTheDocument();
   });
 
   it("keeps a restored image until its replacement draft is durable", async () => {

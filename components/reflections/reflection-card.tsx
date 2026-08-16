@@ -2,6 +2,8 @@
 
 import { CalendarDays, Edit3, LockKeyhole, Trash2 } from "lucide-react";
 import { formatFriendlyDate } from "@/lib/validation";
+import { fiatCategoryLabel } from "@/lib/fiat";
+import { ReflectionMediaView } from "@/components/reflections/reflection-media-view";
 import type { ReflectionPost } from "@/types";
 
 export function ReflectionCard({
@@ -22,7 +24,7 @@ export function ReflectionCard({
   return (
     <article className="rounded-[var(--radius-card)] border border-sage-100 bg-white p-5 shadow-sm sm:p-6">
       <div className="flex items-start gap-4">
-        <div className="grid size-10 shrink-0 place-items-center rounded-[var(--radius-base)] bg-sage-100 text-sage-700">
+        <div className="grid size-9 shrink-0 place-items-center rounded-[var(--radius-base)] bg-sage-100 text-sage-700">
           {post.isPrivate ? (
             <LockKeyhole className="size-4" aria-hidden="true" />
           ) : (
@@ -50,14 +52,20 @@ export function ReflectionCard({
               <span aria-label="This reflection was edited">Edited</span>
             )}
           </div>
-          {post.title && (
-            <h3 className="user-content mt-2 text-base font-bold text-ink">
-              {post.title}
-            </h3>
+          {(post.title || post.fiatCategory) && (
+            <div className="mt-2 flex flex-wrap items-center gap-2">
+              {post.title && <h3 className="user-content text-[15px] font-bold leading-6 text-ink">{post.title}</h3>}
+              {post.fiatCategory && (
+                <span className="inline-flex rounded-full border border-gold-200 bg-gold-50 px-2 py-0.5 text-[10px] font-bold leading-4 text-gold-700">
+                  Fi@ · {post.fiatCategory === "other" && post.fiatOther ? post.fiatOther : fiatCategoryLabel(post.fiatCategory)}
+                </span>
+              )}
+            </div>
           )}
-          <p className="user-content mt-3 whitespace-pre-wrap text-base leading-7 text-ink">
+          <p className={`user-content whitespace-pre-wrap text-[15px] leading-6 text-ink ${post.title || post.fiatCategory ? "mt-1" : "mt-2"}`}>
             {post.content}
           </p>
+          <ReflectionMediaView media={post.media} compact />
         </div>
       </div>
       {showActions && (

@@ -3,11 +3,7 @@ import { ProfileWizard } from "@/components/profile/profile-wizard";
 
 export default function CreateProfilePage() {
   return (
-    <RouteGuard
-      requireConsent
-      requireIntroduction
-      redirectCompleted
-    >
+    <RouteGuard requireConsent={false} redirectCompleted>
       <ProfileWizard />
     </RouteGuard>
   );

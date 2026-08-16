@@ -12,29 +12,21 @@ import {
   ArrowRight,
   Check,
   CheckCircle2,
-  ChevronRight,
   CircleAlert,
-  Cloud,
-  EyeOff,
-  FileText,
-  Heart,
   Image as ImageIcon,
   LoaderCircle,
-  MessageCircleHeart,
   Plus,
   Save,
   ShieldCheck,
   Sparkles,
   Trash2,
-  UserRound,
-  UsersRound
+  UserRound
 } from "lucide-react";
 import { Logo } from "@/components/brand/logo";
 import { ImageSymbolPicker } from "@/components/forms/image-symbol-picker";
 import { TagEditor } from "@/components/forms/tag-editor";
 import { useAuth } from "@/components/providers/auth-provider";
 import { useToast } from "@/components/providers/toast-provider";
-import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { LoadingState } from "@/components/ui/loading-state";
 import { ProfileAvatar } from "@/components/ui/profile-avatar";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
@@ -54,25 +46,8 @@ import {
 } from "@/types";
 
 const STEPS = [
-  { title: "Profile name", short: "Name", icon: UserRound },
-  { title: "Picture or symbol", short: "Image", icon: ImageIcon },
-  { title: "Spiritual bio", short: "Bio", icon: FileText },
-  {
-    title: "Who helps me lead closer to God?",
-    short: "Guides",
-    icon: UsersRound
-  },
-  {
-    title: "Who or what am I following in my life right now?",
-    short: "Influences",
-    icon: ChevronRight
-  },
-  { title: "Posts God sees", short: "Moments", icon: Sparkles },
-  { title: "Likes", short: "Likes", icon: Heart },
-  { title: "Hidden Story", short: "Private", icon: EyeOff },
-  { title: "God’s Comment", short: "Comment", icon: MessageCircleHeart },
-  { title: "Heavenly hashtag", short: "Hashtag", icon: Cloud },
-  { title: "Review your profile", short: "Review", icon: CheckCircle2 }
+  { title: "Display name", short: "Name", icon: UserRound },
+  { title: "Choose a profile symbol or photo", short: "Image", icon: ImageIcon }
 ] as const;
 
 type SaveStatus = "idle" | "saving" | "saved" | "error";
@@ -125,18 +100,21 @@ function ReviewSection({
     <section
       className={`rounded-[var(--radius-card)] border p-5 ${
         privateSection
-          ? "border-amber-300/80 bg-amber-50/90 text-amber-950 dark:border-violet-400/40 dark:bg-violet-500/15 dark:text-violet-100"
+          ? "border-amber-300/80 bg-amber-50/90 text-amber-950 dark:border-gold-500/60 dark:bg-gold-500/10 dark:text-gold-100"
           : "border-sage-100 bg-white"
       }`}
     >
       <div className="flex items-center justify-between gap-3">
         <h3 className={`flex items-center gap-2 text-sm font-bold ${privateSection ? "text-amber-950 dark:text-violet-100" : "text-ink dark:text-slate-100"}`}>
           {privateSection && (
-            <ShieldCheck className="size-4 text-amber-700 dark:text-amber-300" aria-hidden="true" />
+            <ShieldCheck className="size-4 text-gold-500" aria-hidden="true" />
           )}
           {title}
           {privateSection && (
-            <span className="rounded-full bg-white/80 px-2 py-1 text-[10px] uppercase tracking-wider text-amber-700 dark:bg-amber-500/20 dark:text-amber-200">
+            <span
+              className="rounded-full bg-white px-2 py-1 text-[10px] uppercase tracking-wider text-red-700 dark:text-red-700"
+              style={{ backgroundColor: "rgb(255 255 255)" }}
+            >
               Private
             </span>
           )}
@@ -157,7 +135,7 @@ function ReviewSection({
 }
 
 export function ProfileWizard() {
-  const { user, refreshUser, cancelAccountCreation } = useAuth();
+  const { user, refreshUser } = useAuth();
   const { notify } = useToast();
   const router = useRouter();
   const [data, setData] = useState<ProfileDraftData>(cloneEmptyDraft);
@@ -167,8 +145,6 @@ export function ProfileWizard() {
   const [saveStatus, setSaveStatus] = useState<SaveStatus>("idle");
   const [error, setError] = useState("");
   const [stepError, setStepError] = useState("");
-  const [discardOpen, setDiscardOpen] = useState(false);
-  const [discarding, setDiscarding] = useState(false);
   const [finishing, setFinishing] = useState(false);
   const [persistedImagePath, setPersistedImagePath] = useState("");
   const finishingRef = useRef(false);
@@ -388,14 +364,12 @@ export function ProfileWizard() {
   const validationMessage = (targetStep: number): string => {
     const messages = [
       !data.profileName.trim()
-        ? "Add a profile name before continuing."
+        ? "Add a display name before continuing."
         : "",
       !data.imagePath && !data.selectedSymbol
         ? "Choose a profile picture or spiritual symbol before continuing."
         : "",
-      !data.spiritualBio.trim()
-        ? "Answer the spiritual bio question before continuing."
-        : "",
+      "",
       data.spiritualGuides.length === 0
         ? "Add at least one person or holy companion before continuing."
         : "",
@@ -457,38 +431,10 @@ export function ProfileWizard() {
     setStep((current) => Math.max(0, current - 1));
   };
 
-  const discardDraft = async () => {
-    if (!user) return;
-    setDiscarding(true);
-    finishingRef.current = true;
-    try {
-      await waitForPendingSave();
-      await cancelAccountCreation();
-      skipNextAutosaveRef.current = true;
-      persistedImagePathRef.current = "";
-      latestImagePathRef.current = "";
-      knownImagePathsRef.current.clear();
-      setPersistedImagePath("");
-      setDiscardOpen(false);
-      notify("Account creation was cancelled. Your email was not saved.");
-      router.replace("/");
-    } catch (discardError) {
-      notify(
-        discardError instanceof Error
-          ? discardError.message
-          : "Account creation could not be cancelled.",
-        "error"
-      );
-    } finally {
-      finishingRef.current = false;
-      setDiscarding(false);
-    }
-  };
-
   const complete = async () => {
     if (!user) return;
     const firstIncompleteStep = Array.from(
-      { length: STEPS.length - 1 },
+      { length: STEPS.length },
       (_item, index) => index
     ).find((index) => validationMessage(index));
     if (firstIncompleteStep !== undefined) {
@@ -508,8 +454,8 @@ export function ProfileWizard() {
       setPersistedImagePath(data.imagePath);
       await cleanupKnownImages(data.imagePath, false);
       if (data.imagePath) knownImagePathsRef.current.add(data.imagePath);
-      await refreshUser();
-      router.replace("/profile?created=1");
+      const refreshed = await refreshUser();
+      router.replace(refreshed?.mustChangePassword !== false ? "/settings" : "/profile?created=1");
     } catch (completeError) {
       finishingRef.current = false;
       setFinishing(false);
@@ -536,12 +482,11 @@ export function ProfileWizard() {
         return (
           <div>
             <label htmlFor="profile-name" className="label text-base">
-              What would you like this profile to be called?{" "}
+              What display name would you like to use?{" "}
               <span className="text-clay-600">*</span>
             </label>
             <p className="mb-4 text-sm leading-6 text-muted">
-              Use your real name or a faith-centered identity that feels honest
-              today.
+              This is the name people will see on your profile. 
             </p>
             <input
               ref={nameRef}
@@ -602,34 +547,6 @@ export function ProfileWizard() {
             profileName={data.profileName}
             onChange={updateImageChoice}
           />
-        );
-      case 2:
-        return (
-          <div>
-            <label htmlFor="spiritual-bio" className="label text-base">
-              Before God, I am someone who…
-            </label>
-            <p className="mb-4 text-sm leading-6 text-muted">
-              Complete the sentence in your own words. This is a description,
-              not a performance.
-            </p>
-            <textarea
-              id="spiritual-bio"
-              className="field min-h-44 resize-y"
-              value={data.spiritualBio}
-              onChange={(event) =>
-                updateData("spiritualBio", event.target.value)
-              }
-              maxLength={LIMITS.bio}
-              placeholder="…is learning to trust, ask for help, and begin again."
-              aria-describedby="spiritual-bio-count"
-            />
-            <CharacterCount
-              id="spiritual-bio-count"
-              value={data.spiritualBio}
-              limit={LIMITS.bio}
-            />
-          </div>
         );
       case 3:
         return (
@@ -766,16 +683,14 @@ export function ProfileWizard() {
         );
       case 7:
         return (
-          <div className="rounded-[var(--radius-card)] border border-amber-300/80 bg-amber-50/90 p-5 sm:p-6 dark:border-amber-500/40 dark:bg-amber-500/15">
+          <div className="rounded-[var(--radius-card)] border border-clay-200 bg-clay-50 p-5 sm:p-6 dark:border-clay-600/40 dark:bg-clay-900/06">
             <div className="mb-5 flex items-start gap-3">
-              <div className="grid size-11 shrink-0 place-items-center rounded-[var(--radius-base)] bg-white text-amber-700 shadow-sm dark:text-amber-300">
+              <div className="grid size-11 shrink-0 place-items-center rounded-[var(--radius-base)] bg-white text-clay-600 shadow-sm dark:text-clay-500">
                 <ShieldCheck className="size-5" aria-hidden="true" />
               </div>
               <div>
-                <p className="font-bold text-slate-300">
-                  Owner-only · Required
-                </p>
-                <p className="mt-1 text-sm leading-6 text-slate-400">
+                <p className="font-bold text-ink">Owner-only · Required</p>
+                <p className="mt-1 text-sm leading-6 text-muted">
                   Your Hidden Story is stored separately and never loaded into
                   the standard profile, journey, preview, or public view.
                 </p>
@@ -786,7 +701,7 @@ export function ProfileWizard() {
             </label>
             <textarea
               id="hidden-story"
-              className="field min-h-48 resize-y border-violet-400 dark:border-violet-400/40"
+              className="field min-h-48 resize-y border-gold-400 hover:border-gold-700 focus:border-gold-700 dark:border-gold-500/40 dark:hover:border-gold-600 transition-colors"
               value={data.hiddenStory}
               onChange={(event) =>
                 updateData("hiddenStory", event.target.value)
@@ -969,8 +884,8 @@ export function ProfileWizard() {
                 {data.hiddenStory || <em>Not answered</em>}
               </ReviewSection>
             </div>
-            <div className="mt-5 rounded-[var(--radius-base)] border border-sage-200 bg-sage-50 p-4 text-sm leading-6 text-muted">
-              <strong className="text-ink">Privacy check:</strong> Your Hidden
+            <div className="mt-5 rounded-[var(--radius-base)] border border-red-300 bg-red-50 p-4 text-sm leading-6 text-red-800 privacy-check dark:border-gold-500 dark:bg-gold-500/12">
+              <strong className="text-red-800 privacy-check-strong">Privacy check:</strong> Your Hidden
               Story will not appear on the profile you are about to open. It is
               available only behind the Private Reflections confirmation.
             </div>
@@ -988,9 +903,9 @@ export function ProfileWizard() {
         </div>
       </header>
 
-      <main className="mx-auto max-w-7xl px-4 py-6 pb-28 sm:px-6 sm:py-10">
+      <main className="mx-auto max-w-7xl px-4 pb-0 pt-6 sm:px-6 sm:pb-0 sm:pt-10">
         <div className="grid gap-7 lg:grid-cols-[17rem_minmax(0,1fr)] lg:gap-10">
-          <aside className="lg:sticky lg:top-8 lg:self-start">
+          <aside className="self-start lg:sticky lg:top-8 lg:z-20">
             <div className="surface p-5">
               {restoredAt && (
                 <div
@@ -1005,9 +920,7 @@ export function ProfileWizard() {
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
                   <p className="eyebrow">
-                    {step === STEPS.length - 1
-                      ? "Final review"
-                      : `Step ${step + 1} of 10`}
+                    {`Step ${step + 1} of ${STEPS.length}`}
                   </p>
                   <div
                     className={`mt-2 flex items-center gap-2 text-xs font-semibold ${
@@ -1043,19 +956,24 @@ export function ProfileWizard() {
                 </span>
               </div>
               <div
-                className="mt-3 h-2 overflow-hidden rounded-full bg-sage-100"
+                className="mt-3 h-2 overflow-hidden rounded-full"
                 role="progressbar"
                 aria-label="Profile creation progress"
                 aria-valuemin={0}
                 aria-valuemax={100}
                 aria-valuenow={Math.round(progress)}
+                style={{ backgroundColor: "#F9DBDB" }}
               >
                 <div
-                  className="h-full rounded-full bg-sage-600 transition-[width]"
-                  style={{ width: `${progress}%` }}
+                  className="h-full rounded-full transition-[width]"
+                  style={{
+                    width: `${progress}%`,
+                    backgroundColor: "#8E1B1B",
+                    boxShadow: "0 2px 6px rgba(142,27,27,0.2)"
+                  }}
                 />
               </div>
-              <ol className="mt-5 hidden space-y-1 lg:block">
+              <ol className="mt-5 hidden space-y-1 lg:block profile-wizard-sidebar">
                 {STEPS.map((item, index) => {
                   const ItemIcon = item.icon;
                   return (
@@ -1064,10 +982,10 @@ export function ProfileWizard() {
                         type="button"
                         className={`flex min-h-10 w-full items-center gap-3 rounded-xl px-3 text-left text-xs font-semibold transition ${
                           index === step
-                            ? "bg-sage-700 text-white"
+                            ? "bg-sage-700 text-white dark:bg-slate-800 dark:text-slate-200"
                             : index < step
-                              ? "text-sage-700 hover:bg-sage-50"
-                              : "text-muted"
+                              ? "text-slate-600 dark:text-slate-400 hover:bg-sage-50 dark:hover:bg-slate-700"
+                              : "text-slate-600 dark:text-slate-400 hover:bg-sage-50 dark:hover:bg-slate-700"
                         }`}
                         disabled
                         aria-current={index === step ? "step" : undefined}
@@ -1075,10 +993,10 @@ export function ProfileWizard() {
                         <span
                           className={`grid size-6 place-items-center rounded-full ${
                             index < step
-                              ? "bg-sage-100 text-sage-700"
+                              ? "bg-sage-100 text-sage-700 dark:bg-slate-700 dark:text-slate-300"
                               : index === step
-                                ? "bg-white/15"
-                                : "bg-sage-50"
+                                ? "bg-white/15 dark:bg-slate-700"
+                                : "bg-sage-50 dark:bg-slate-800"
                           }`}
                         >
                           {index < step ? (
@@ -1110,28 +1028,18 @@ export function ProfileWizard() {
                   )}
                   Save draft
                 </button>
-                <button
-                  type="button"
-                  className="btn-destructive inline-flex min-h-10 items-center justify-center gap-2 px-3 text-[11px] font-bold"
-                  onClick={() => setDiscardOpen(true)}
-                >
-                  <Trash2 className="size-3.5" aria-hidden="true" />
-                  Cancel account creation
-                </button>
               </div>
             </div>
           </aside>
 
           <div className="min-w-0">
-            <section className="surface overflow-hidden">
+            <section className="surface overflow-hidden review-surface">
               <div className="border-b border-sage-100 bg-gradient-to-r from-sage-50 to-gold-50/50 p-5 sm:p-8">
                 <div className="mb-4 grid size-11 place-items-center rounded-[var(--radius-base)] bg-white text-sage-600 shadow-sm">
                   <CurrentIcon className="size-5" aria-hidden="true" />
                 </div>
                 <p className="eyebrow">
-                  {step === STEPS.length - 1
-                    ? "Almost there"
-                    : `Step ${step + 1}`}
+                  {`Step ${step + 1} of ${STEPS.length}`}
                 </p>
                 <h1
                   id="wizard-step-title"
@@ -1154,11 +1062,9 @@ export function ProfileWizard() {
                 )}
                 <div
                   ref={stepContentRef}
-                  className={
-                    stepError
-                      ? "rounded-[var(--radius-base)] border border-clay-300 bg-clay-50/40 p-4"
-                      : ""
-                  }
+                  className={`rounded-[var(--radius-base)] p-4 step-content ${
+                    stepError ? "border border-clay-300" : ""
+                  }`}
                   aria-describedby={
                     stepError ? "wizard-step-error" : undefined
                   }
@@ -1214,7 +1120,7 @@ export function ProfileWizard() {
                     ) : (
                       <CheckCircle2 className="size-4" aria-hidden="true" />
                     )}
-                    {finishing ? "Saving your profile…" : "Save and View My Profile"}
+                    {finishing ? "Creating your profile…" : "Create My Profile"}
                   </button>
                 )}
               </div>
@@ -1223,16 +1129,6 @@ export function ProfileWizard() {
         </div>
       </main>
 
-      <ConfirmDialog
-        open={discardOpen}
-        title="Cancel account creation?"
-        description="All profile changes and uploaded images will be permanently removed. The account and email address you used to sign up will not be saved. This cannot be undone."
-        confirmLabel="Cancel and delete account"
-        destructive
-        busy={discarding}
-        onClose={() => setDiscardOpen(false)}
-        onConfirm={() => void discardDraft()}
-      />
     </div>
   );
 }

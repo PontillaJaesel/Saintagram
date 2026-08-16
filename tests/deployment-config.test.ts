@@ -20,7 +20,7 @@ describe("production deployment versioning", () => {
     expect(packageJson.scripts["build:vinext"]).toContain(
       "run-vinext-build.mjs"
     );
-    expect(packageJson.scripts["deploy:vinext"]).toContain("npm run build");
+    expect(packageJson.scripts.deploy).toContain("npm run build");
     expect(buildRunner).toContain("NEXT_DEPLOYMENT_ID: deploymentId");
     expect(buildRunner).toContain("randomUUID()");
   });

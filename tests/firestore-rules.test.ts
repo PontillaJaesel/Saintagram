@@ -16,6 +16,7 @@ import {
   updateDoc,
   where
 } from "firebase/firestore";
+import { Timestamp } from "firebase/firestore";
 import { afterAll, beforeAll, beforeEach, describe, it } from "vitest";
 
 const ALICE_ID = "alice";
@@ -49,6 +50,8 @@ const aliceUser = {
   privacyConsentAt: NOW,
   spiritualIntroSeenAt: NOW,
   profileCompleted: false,
+  authProvider: "password",
+  mustChangePassword: false,
   privacyPreferences: {
     requirePrivateCheck: true,
     showReflectionDates: true
@@ -62,8 +65,8 @@ const aliceProfile = {
   imagePath: "",
   selectedSymbol: "seed",
   spiritualBio: "Before God, I am learning to receive grace.",
-  followers: ["Jesus", "My family"],
-  following: ["God's will"],
+  spiritualGuides: ["Jesus", "My family"],
+  lifeDirections: ["God's will"],
   heartSeeks: ["Peace", "Truth"],
   godsComment: "You are known and loved.",
   heavenlyHashtag: "#StillGrowing",
@@ -86,8 +89,8 @@ const aliceDraft = {
     imagePath: "",
     selectedSymbol: "seed",
     spiritualBio: "",
-    followers: [],
-    following: [],
+    spiritualGuides: [],
+    lifeDirections: [],
     onboardingPosts: [""],
     heartSeeks: [],
     hiddenStory: "",
@@ -142,14 +145,14 @@ describe("Saintagram Firestore ownership rules", () => {
     await assertFails(setDoc(doc(unverifiedDb, "users", ALICE_ID), aliceUser));
   });
 
-  it("allows an anonymous guest account", async () => {
+  it("rejects an anonymous guest account", async () => {
     const guestDb = testEnv
       .authenticatedContext("guest-user", {
         firebase: { sign_in_provider: "anonymous" }
       })
       .firestore();
 
-    await assertSucceeds(
+    await assertFails(
       setDoc(doc(guestDb, "users", "guest-user"), {
         ...aliceUser,
         id: "guest-user",
@@ -159,14 +162,14 @@ describe("Saintagram Firestore ownership rules", () => {
     );
   });
 
-  it("allows a guest to upgrade to a previously unused Google identity", async () => {
+  it("rejects legacy guest and Google-provider account writes", async () => {
     const guestId = "upgrading-guest";
     const guestDb = testEnv
       .authenticatedContext(guestId, {
         firebase: { sign_in_provider: "anonymous" }
       })
       .firestore();
-    await assertSucceeds(
+    await assertFails(
       setDoc(doc(guestDb, "users", guestId), {
         ...aliceUser,
         id: guestId,
@@ -184,7 +187,7 @@ describe("Saintagram Firestore ownership rules", () => {
         firebase: { sign_in_provider: "google.com" }
       })
       .firestore();
-    await assertSucceeds(
+    await assertFails(
       updateDoc(doc(googleDb, "users", guestId), {
         email: googleEmail,
         isGuest: false,
@@ -221,7 +224,36 @@ describe("Saintagram Firestore ownership rules", () => {
       })
     );
     await assertFails(deleteDoc(doc(bobDb, "users", ALICE_ID)));
+    await assertFails(deleteDoc(doc(aliceDb, "users", ALICE_ID)));
     await assertSucceeds(deleteDoc(aliceRef));
+  });
+
+  it("allows server-provisioned username and password-change metadata", async () => {
+    const aliceDb = testEnv
+      .authenticatedContext(ALICE_ID, {
+        email: aliceUser.email,
+        email_verified: true,
+        firebase: { sign_in_provider: "password" }
+      })
+      .firestore();
+    const aliceRef = doc(aliceDb, "users", ALICE_ID);
+
+    await assertSucceeds(
+      setDoc(aliceRef, {
+        ...aliceUser,
+        username: "USR001",
+        fullName: "Alice Example",
+        role: "user",
+        mustChangePassword: true
+      })
+    );
+
+    await assertSucceeds(
+      updateDoc(aliceRef, {
+        mustChangePassword: true,
+        updatedAt: NOW
+      })
+    );
   });
 
   it("allows owners, rejects cross-user access, and forbids hiddenStory on profiles", async () => {
@@ -397,6 +429,26 @@ describe("Saintagram Firestore ownership rules", () => {
     );
   });
 
+  it("protects server-created system notifications", async () => {
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      await setDoc(doc(context.firestore(), "systemNotifications", "reminder-1"), {
+        id: "reminder-1", userId: ALICE_ID, type: "profile_reminder",
+        title: "Complete your Saintagram profile", message: "A reminder.",
+        missingFields: ["Bio"], createdByAdminId: "admin",
+        createdAt: Timestamp.fromDate(new Date(NOW)), readAt: null
+      });
+    });
+    const aliceDb = testEnv.authenticatedContext(ALICE_ID, VERIFIED_EMAIL).firestore();
+    const bobDb = testEnv.authenticatedContext(BOB_ID, VERIFIED_EMAIL).firestore();
+    const ref = doc(aliceDb, "systemNotifications", "reminder-1");
+    await assertSucceeds(getDoc(ref));
+    await assertFails(getDoc(doc(bobDb, "systemNotifications", "reminder-1")));
+    await assertFails(setDoc(doc(aliceDb, "systemNotifications", "fake"), { userId: ALICE_ID }));
+    await assertSucceeds(updateDoc(ref, { readAt: Timestamp.now() }));
+    await assertFails(updateDoc(ref, { title: "Changed", readAt: Timestamp.now() }));
+    await assertFails(deleteDoc(ref));
+  });
+
   it("allows only the owner to access a reflection post", async () => {
     const aliceDb = testEnv.authenticatedContext(ALICE_ID, VERIFIED_EMAIL).firestore();
     const bobDb = testEnv.authenticatedContext(BOB_ID, VERIFIED_EMAIL).firestore();
@@ -416,7 +468,7 @@ describe("Saintagram Firestore ownership rules", () => {
         )
       )
     );
-    await assertFails(
+    await assertSucceeds(
       getDoc(doc(bobDb, "reflectionPosts", aliceReflection.id))
     );
     await assertFails(
@@ -449,5 +501,21 @@ describe("Saintagram Firestore ownership rules", () => {
       deleteDoc(doc(bobDb, "reflectionPosts", aliceReflection.id))
     );
     await assertSucceeds(deleteDoc(aliceRef));
+  });
+
+  it("accepts only canonical optional FiAt fields on reflections", async () => {
+    const aliceDb = testEnv.authenticatedContext(ALICE_ID, VERIFIED_EMAIL).firestore();
+    const validRef = doc(aliceDb, "reflectionPosts", "fiat-valid");
+    await assertSucceeds(setDoc(validRef, { ...aliceReflection, id: "fiat-valid", fiatCategory: "prayer", fiatDateKey: "2026-07-28" }));
+    await assertFails(setDoc(doc(aliceDb, "reflectionPosts", "fiat-invalid"), { ...aliceReflection, id: "fiat-invalid", fiatCategory: "points", fiatDateKey: "2026-07-28" }));
+    await assertFails(setDoc(doc(aliceDb, "reflectionPosts", "fiat-missing-date"), { ...aliceReflection, id: "fiat-missing-date", fiatCategory: "service" }));
+    await assertSucceeds(setDoc(doc(aliceDb, "reflectionPosts", "fiat-other"), { ...aliceReflection, id: "fiat-other", fiatCategory: "other", fiatDateKey: "2026-07-28", fiatOther: "Listened patiently" }));
+    for (const category of ["forgiveness", "act-of-love", "responsible-choice"]) {
+      await assertSucceeds(setDoc(doc(aliceDb, "reflectionPosts", `fiat-${category}`), { ...aliceReflection, id: `fiat-${category}`, fiatCategory: category, fiatDateKey: "2026-07-28" }));
+    }
+    await assertFails(setDoc(doc(aliceDb, "reflectionPosts", "fiat-obsolete-kindness"), { ...aliceReflection, id: "fiat-obsolete-kindness", fiatCategory: "kindness", fiatDateKey: "2026-07-28" }));
+    await assertFails(setDoc(doc(aliceDb, "reflectionPosts", "fiat-other-empty"), { ...aliceReflection, id: "fiat-other-empty", fiatCategory: "other", fiatDateKey: "2026-07-28", fiatOther: "" }));
+    await assertFails(setDoc(doc(aliceDb, "reflectionPosts", "fiat-other-long"), { ...aliceReflection, id: "fiat-other-long", fiatCategory: "other", fiatDateKey: "2026-07-28", fiatOther: "x".repeat(26) }));
+    await assertFails(setDoc(doc(aliceDb, "reflectionPosts", "fiat-extra-other"), { ...aliceReflection, id: "fiat-extra-other", fiatCategory: "service", fiatDateKey: "2026-07-28", fiatOther: "Not allowed" }));
   });
 });

@@ -1,0 +1,61 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"label": "Auth regression check",
+			"type": "shell",
+			"command": "npx vitest run tests/app-service.test.ts --reporter=dot",
+			"isBackground": false,
+			"problemMatcher": [],
+			"group": "test"
+		},
+		{
+			"label": "Auth suite via bypass",
+			"type": "shell",
+			"command": "powershell -ExecutionPolicy Bypass -NoLogo -NoProfile -Command \"Set-Location 'c:\\Users\\ASUS RYZEN 7\\Saintagram'; node .\\node_modules\\vitest\\vitest.mjs run tests/app-service.test.ts --reporter=dot\"",
+			"isBackground": false,
+			"problemMatcher": [],
+			"group": "test"
+		},
+		{
+			"label": "Verify auth regression",
+			"type": "shell",
+			"command": "cmd /d /c \"cd /d \\\"c:\\Users\\ASUS RYZEN 7\\Saintagram\\\" && node .\\node_modules\\vitest\\vitest.mjs run tests/app-service.test.ts --reporter=dot\"",
+			"isBackground": false,
+			"problemMatcher": [],
+			"group": "test"
+		},
+		{
+			"label": "Verify auth regression after fix",
+			"type": "shell",
+			"command": "cd /d \"c:\\Users\\ASUS RYZEN 7\\Saintagram\" && node .\\node_modules\\vitest\\vitest.mjs run tests/app-service.test.ts --reporter=dot",
+			"isBackground": false,
+			"problemMatcher": [],
+			"group": "test"
+		},
+		{
+			"label": "Verify temporary-password auth flow",
+			"type": "shell",
+			"command": "Set-Location \"c:\\Users\\ASUS RYZEN 7\\Saintagram\"; node .\\node_modules\\vitest\\vitest.mjs run tests/app-service.test.ts --reporter=dot",
+			"isBackground": false,
+			"problemMatcher": [],
+			"group": "test"
+		},
+		{
+			"label": "Auth regression verification",
+			"type": "shell",
+			"command": "Set-Location \"c:\\Users\\ASUS RYZEN 7\\Saintagram\"; node .\\node_modules\\vitest\\vitest.mjs run tests/app-service.test.ts --reporter=dot",
+			"isBackground": false,
+			"problemMatcher": [],
+			"group": "test"
+		},
+		{
+			"label": "Auth regression verification after seed fix",
+			"type": "shell",
+			"command": "Set-Location \"c:\\Users\\ASUS RYZEN 7\\Saintagram\"; node .\\node_modules\\vitest\\vitest.mjs run tests/app-service.test.ts --reporter=dot",
+			"isBackground": false,
+			"problemMatcher": [],
+			"group": "test"
+		}
+	]
+}

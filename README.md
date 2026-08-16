@@ -118,23 +118,43 @@ the project's **Public-facing name** to `Saintagram` so Firebase's internal app
 name is not shown to recipients. For each template, choose **Customize domain**,
 enter `saintagram.com`, then add Firebase's TXT and CNAME records at the DNS
 provider. After Firebase reports verification complete, apply the custom domain.
-This console and DNS configuration controls the From address and cannot be set
-by browser code. Also add every deployed Saintagram host under
-**Authentication → Settings → Authorized domains**, because verification and
-password-reset emails return to the origin that requested them.
+Saintagram uses provisioned username codes, not public email registration or
+Google sign-in. Each username maps server-side to a private Firebase Auth email
+such as `usr001@accounts.saintagram.local`; users never enter that address.
+Firebase Authentication owns password verification and issues the UID used by
+all Firestore and Storage access.
 
-Firebase-mode registrations are signed out after the verification message is
-sent. Unverified accounts cannot log in, read or write Firestore data, or gain
-Firebase Storage access. A login attempt for an unverified account sends a
-fresh verification message. The local demo mode intentionally skips email
-delivery.
+Provision or reconcile every issued account without manually editing Firestore:
+
+```bash
+npm run auth:provision
+```
+
+For a repeatable end-to-end test, reset only the dedicated test account:
+
+```bash
+npm run auth:provision -- --reset-test-user
+```
+
+Test logins:
+
+- `USRTEST1` / `NewTemp1@2026`
+- `USRTEST3` / `NewTemp3@2026`
+- `USRTEST2` / `NewTemp2@2026`
+
+Each temporary password becomes invalid after its required permanent-password
+change succeeds.
+
+This preserves accounts that already have permanent passwords. Use
+`npm run auth:provision -- --reset-incomplete` only to rotate temporary
+passwords for accounts still awaiting their first password change.
 
 Deploy the supplied rules and indexes after selecting the project:
 
 ```bash
 npx firebase login
 npx firebase use --add
-npx firebase deploy --only firestore:rules,firestore:indexes
+npx firebase deploy --only firestore:rules,firestore:indexes,storage
 ```
 
 The application uses these collections:
@@ -255,3 +275,21 @@ App Check, abuse monitoring, and an approved pastoral/privacy review of prompts
 and copy. Deleting a Firebase user prevents token refresh but an already-issued
 ID token can remain valid until it expires, so high-assurance deletion needs
 that delayed privileged cleanup.
+# Administration
+
+The administrator portal is available at `/admin` after both the site access gate and Firebase sign-in. Authorization is enforced by protected server APIs using the Firebase Authentication custom claim `admin: true`; local/demo users are never treated as administrators.
+
+Grant or revoke the claim with server credentials in `.env.production`:
+
+```bash
+npm run admin:claim -- --email admin@example.com --grant
+npm run admin:claim -- --uid FIREBASE_UID --revoke
+```
+
+The account must refresh its Firebase ID token (usually by signing out and back in) after a claim change.
+
+Tracked entry URLs are `/open/qr?campaign=event-2026&next=/` and `/open/common?next=/`. `campaign` accepts up to 64 letters, numbers, underscores, and hyphens; `next` must be a safe internal Saintagram path. These routes store server time and approximate Cloudflare city/region/country when supplied, never raw IP addresses. Events are associated with a signed-in account through a short-lived, HTTP-only pending-event cookie.
+
+The Export Data page produces one `.xlsx` workbook with separate worksheets. Exports and sensitive user-data views are written to `adminAuditLogs`.
+
+Deploy `firestore.rules` with `firebase deploy --only firestore:rules` after review. Firebase Admin variables and the site-access secrets must be configured in the Cloudflare production environment. `.env.production` is ignored and must never be committed.

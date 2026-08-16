@@ -3,6 +3,7 @@ import { LIMITS } from "@/lib/constants";
 import {
   cleanText,
   formatFriendlyDate,
+  formatReflectionAge,
   isValidEmail,
   normalizeCoverColor,
   normalizeHashtag,
@@ -150,5 +151,20 @@ describe("formatFriendlyDate", () => {
     expect(formatFriendlyDate(iso)).toContain("2026");
     expect(formatFriendlyDate(iso, true)).toContain("2026");
     expect(formatFriendlyDate(iso, true)).not.toBe(formatFriendlyDate(iso));
+  });
+});
+
+describe("formatReflectionAge", () => {
+  const now = new Date("2026-08-16T12:00:00.000Z");
+
+  it("uses compact relative times through seven days", () => {
+    expect(formatReflectionAge("2026-08-16T11:59:30.000Z", now)).toBe("1m");
+    expect(formatReflectionAge("2026-08-16T09:00:00.000Z", now)).toBe("3h");
+    expect(formatReflectionAge("2026-08-09T12:00:00.000Z", now)).toBe("7d");
+  });
+
+  it("uses short calendar dates after seven days", () => {
+    expect(formatReflectionAge("2026-08-03T12:00:00.000Z", now)).toBe("Aug 3");
+    expect(formatReflectionAge("2025-08-03T12:00:00.000Z", now)).toBe("Aug 3, 2025");
   });
 });

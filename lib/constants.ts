@@ -63,19 +63,21 @@ export const HASHTAG_IDEAS = [
   "#LearningToTrust"
 ];
 
-export const DEMO_EMAIL = "grace@saintagram.demo";
-export const DEMO_PASSWORD = "Beloved123!";
-
 export const LIMITS = {
   profileName: 60,
   bio: 320,
   listEntry: 60,
-  momentTitle: 60,
+  momentTitle: 30,
   post: 500,
+  fiatOther: 25,
   hiddenStory: 1000,
   godsComment: 280,
   hashtag: 40,
   imageBytes: 2 * 1024 * 1024,
   imagePath: 512,
   localImageDataUrl: 3 * 1024 * 1024
+  ,reflectionImages: 5
+  ,reflectionImageBytes: 10 * 1024 * 1024
+  ,reflectionVideoBytes: 50 * 1024 * 1024
+  ,reflectionVideoSeconds: 15
 } as const;

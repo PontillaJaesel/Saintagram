@@ -95,3 +95,27 @@ export function formatFriendlyDate(iso: string, includeTime = false): string {
     ...(includeTime ? { hour: "numeric", minute: "2-digit" } : {})
   }).format(date);
 }
+
+export function formatReflectionAge(
+  iso: string,
+  now = new Date()
+): string {
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return "Date unavailable";
+
+  const elapsed = Math.max(0, now.getTime() - date.getTime());
+  const minutes = Math.floor(elapsed / 60_000);
+  if (minutes < 60) return `${Math.max(1, minutes)}m`;
+
+  const hours = Math.floor(elapsed / 3_600_000);
+  if (hours < 24) return `${hours}h`;
+
+  const days = Math.floor(elapsed / 86_400_000);
+  if (days <= 7) return `${days}d`;
+
+  return new Intl.DateTimeFormat("en-US", {
+    month: "short",
+    day: "numeric",
+    ...(date.getFullYear() === now.getFullYear() ? {} : { year: "numeric" })
+  }).format(date);
+}

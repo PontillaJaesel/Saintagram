@@ -6,18 +6,17 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const mocks = vi.hoisted(() => ({
   fetch: vi.fn(),
   next: null as string | null,
-  refresh: vi.fn(),
-  replace: vi.fn()
+  navigate: vi.fn()
 }));
 
 vi.mock("next/navigation", () => ({
-  useRouter: () => ({
-    refresh: mocks.refresh,
-    replace: mocks.replace
-  }),
   useSearchParams: () => ({
     get: (name: string) => (name === "next" ? mocks.next : null)
   })
+}));
+
+vi.mock("@/lib/browser-navigation", () => ({
+  replaceBrowserLocation: mocks.navigate
 }));
 
 import { AccessGate } from "@/components/access/access-gate";
@@ -106,7 +105,7 @@ describe("AccessGate", () => {
     );
     expect(code).toHaveAttribute("aria-invalid", "true");
     expect(code).toHaveAttribute("aria-describedby", "access-code-error");
-    expect(mocks.replace).not.toHaveBeenCalled();
+    expect(mocks.navigate).not.toHaveBeenCalled();
 
     await user.type(code, "x");
 
@@ -144,7 +143,7 @@ describe("AccessGate", () => {
 
     resolveRequest?.(accessResponse(true, { ok: true, next: "/profile" }));
     await waitFor(() =>
-      expect(mocks.replace).toHaveBeenCalledWith("/profile")
+      expect(mocks.navigate).toHaveBeenCalledWith("/profile")
     );
   });
 
@@ -163,8 +162,7 @@ describe("AccessGate", () => {
     );
 
     await waitFor(() => {
-      expect(mocks.replace).toHaveBeenCalledWith("/journey?day=1");
-      expect(mocks.refresh).toHaveBeenCalledOnce();
+      expect(mocks.navigate).toHaveBeenCalledWith("/journey?day=1");
     });
     expect(localSetItem).not.toHaveBeenCalled();
   });
@@ -184,8 +182,7 @@ describe("AccessGate", () => {
       screen.getByRole("button", { name: "Enter Saintagram" })
     );
 
-    await waitFor(() => expect(mocks.replace).toHaveBeenCalledWith("/"));
-    expect(mocks.refresh).toHaveBeenCalledOnce();
+    await waitFor(() => expect(mocks.navigate).toHaveBeenCalledWith("/"));
   });
 
   it("shows a useful alert when the private entrance cannot be reached", async () => {
@@ -201,6 +198,6 @@ describe("AccessGate", () => {
     expect(await screen.findByRole("alert")).toHaveTextContent(
       "We could not reach the private entrance. Check your connection and try again."
     );
-    expect(mocks.replace).not.toHaveBeenCalled();
+    expect(mocks.navigate).not.toHaveBeenCalled();
   });
 });

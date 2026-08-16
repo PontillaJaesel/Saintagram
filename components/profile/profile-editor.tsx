@@ -69,11 +69,7 @@ function EditorSection({
           <Icon className="size-5" aria-hidden="true" />
         </div>
         <div>
-          <h2
-            className={`font-serif text-xl font-bold ${
-              privateSection ? "text-clay-600 dark:text-clay-200" : "text-ink"
-            }`}
-          >
+          <h2 className="font-serif text-xl font-bold">
             {title}
           </h2>
           {description && (
@@ -95,10 +91,12 @@ export function ProfileEditor() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [privacyConfirmed, setPrivacyConfirmed] = useState(false);
+  const [pendingDestination, setPendingDestination] = useState<string | null>(null);
   const nameRef = useRef<HTMLInputElement>(null);
   const errorRef = useRef<HTMLDivElement>(null);
   const committedImagePathRef = useRef("");
   const latestImagePathRef = useRef("");
+  const initialProfileRef = useRef("");
 
   useEffect(() => {
     if (!user || !privacyConfirmed) return;
@@ -109,6 +107,7 @@ export function ProfileEditor() {
         if (active) {
           committedImagePathRef.current = nextProfile?.imagePath ?? "";
           latestImagePathRef.current = nextProfile?.imagePath ?? "";
+          initialProfileRef.current = nextProfile ? JSON.stringify(nextProfile) : "";
           setProfile(nextProfile);
         }
       })
@@ -147,6 +146,49 @@ export function ProfileEditor() {
       }
     };
   }, [user]);
+
+  const hasUnsavedChanges = Boolean(
+    profile &&
+      initialProfileRef.current &&
+      JSON.stringify(profile) !== initialProfileRef.current
+  );
+
+  useEffect(() => {
+    if (!hasUnsavedChanges) return;
+    const warnBeforeUnload = (event: BeforeUnloadEvent) => {
+      event.preventDefault();
+      event.returnValue = "";
+    };
+    window.addEventListener("beforeunload", warnBeforeUnload);
+    return () => window.removeEventListener("beforeunload", warnBeforeUnload);
+  }, [hasUnsavedChanges]);
+
+  useEffect(() => {
+    if (!hasUnsavedChanges) return;
+    const confirmInternalNavigation = (event: MouseEvent) => {
+      if (event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+      const anchor = (event.target as Element | null)?.closest("a[href]") as HTMLAnchorElement | null;
+      if (!anchor || anchor.target === "_blank" || anchor.hasAttribute("download")) return;
+      const destination = new URL(anchor.href, window.location.href);
+      if (destination.href === window.location.href || destination.hash && destination.pathname === window.location.pathname && destination.search === window.location.search) return;
+      event.preventDefault();
+      setPendingDestination(destination.href);
+    };
+    document.addEventListener("click", confirmInternalNavigation, true);
+    return () => document.removeEventListener("click", confirmInternalNavigation, true);
+  }, [hasUnsavedChanges]);
+
+  const discardChangesAndExit = () => {
+    if (!pendingDestination) return;
+    const destination = new URL(pendingDestination, window.location.href);
+    initialProfileRef.current = profile ? JSON.stringify(profile) : "";
+    setPendingDestination(null);
+    if (destination.origin === window.location.origin) {
+      router.push(`${destination.pathname}${destination.search}${destination.hash}`);
+    } else {
+      window.location.assign(destination.href);
+    }
+  };
 
   const setField = <Key extends keyof SpiritualProfile>(
     key: Key,
@@ -188,9 +230,9 @@ export function ProfileEditor() {
     return (
       <ConfirmDialog
         open
-        title="Open your private profile editor?"
-        description="This editor includes your Hidden Story. Confirm that you are in a place where only you can read the screen before it is loaded."
-        confirmLabel="I’m ready to edit privately"
+        title="Edit your profile?"
+        description="Update how your profile appears to others."
+        confirmLabel="Continue editing"
         cancelLabel="Back to profile"
         headerIcon={
           <div className="flex h-16 w-16 items-center justify-center rounded-full border border-gray-100 bg-white text-gold-700 shadow-sm">
@@ -199,15 +241,7 @@ export function ProfileEditor() {
         }
         onClose={() => router.replace("/profile")}
         onConfirm={() => setPrivacyConfirmed(true)}
-      >
-        <div className="flex items-start gap-3 rounded-[var(--radius-base)] bg-clay-50 p-4 text-sm leading-6 text-muted">
-          <ShieldCheck
-            className="mt-0.5 size-5 shrink-0 text-clay-600"
-            aria-hidden="true"
-          />
-          Your Hidden Story stays unloaded until you confirm.
-        </div>
-      </ConfirmDialog>
+      />
     );
   }
 
@@ -261,12 +295,12 @@ export function ProfileEditor() {
 
       <div className="space-y-5">
         <EditorSection
-          title="Profile Name"
-          description="Choose the name shown at the top of your profile."
+          title="Display Name"
+          description="Choose the display name shown at the top of your profile."
           icon={UserRound}
         >
           <label htmlFor="edit-profile-name" className="label">
-            Profile name <span className="text-clay-600">*</span>
+            Display name <span className="text-clay-600">*</span>
           </label>
           <input
             ref={nameRef}
@@ -288,7 +322,7 @@ export function ProfileEditor() {
               id="edit-profile-name-error"
               className="mt-2 text-sm font-semibold text-muted"
             >
-              A profile name is required.
+              A display name is required.
             </p>
           )}
           <div className="mt-4 rounded-[var(--radius-base)] border border-sage-100 bg-sage-50/70 p-4">
@@ -315,6 +349,21 @@ export function ProfileEditor() {
           <p className="mt-4 text-right text-xs text-muted">
             {profile.profileName.length} / {LIMITS.profileName}
           </p>
+          <div className="mt-5 border-t border-sage-100 pt-5">
+            <label htmlFor="profile-username" className="label">
+              Username
+            </label>
+            <input
+              id="profile-username"
+              className="field bg-sage-50 text-muted"
+              value={user?.email || "Guest account"}
+              readOnly
+              aria-describedby="profile-username-help"
+            />
+            <p id="profile-username-help" className="mt-2 text-xs text-muted">
+              Your username is the issued account code and cannot be changed.
+            </p>
+          </div>
         </EditorSection>
 
         <EditorSection
@@ -492,26 +541,159 @@ export function ProfileEditor() {
           </fieldset>
         </EditorSection>
 
-        <EditorSection
-          title="Hidden Story"
-          description="Owner-only content. It is saved separately and never loaded into your standard profile or journey."
-          icon={ShieldCheck}
-          privateSection
+        {/* Password management lives in Settings so account security has one
+            clear and mandatory destination. */}
+        {/* <EditorSection
+          title="Account security"
+          description="Update your sign-in password from your profile settings."
+          icon={KeyRound}
         >
-          <label htmlFor="edit-hidden-story" className="label">
-            What does God know that others may not see?
-          </label>
-          <textarea
-            id="edit-hidden-story"
-            className="field min-h-48 resize-y"
-            value={profile.hiddenStory}
-            onChange={(event) => setField("hiddenStory", event.target.value)}
-            maxLength={LIMITS.hiddenStory}
-          />
-          <p className="mt-2 text-right text-xs text-muted">
-            {profile.hiddenStory.length} / {LIMITS.hiddenStory}
-          </p>
-        </EditorSection>
+          {user?.authProvider && user.authProvider !== "password" ? (
+            <p className="text-sm leading-6 text-muted">
+              This account does not use a password login.
+            </p>
+          ) : (
+            <form onSubmit={submitPassword} className="space-y-4" noValidate>
+              <div>
+                <label htmlFor="profile-current-password" className="label">
+                  Current password
+                </label>
+                <input
+                  ref={currentPasswordRef}
+                  id="profile-current-password"
+                  type="password"
+                  autoComplete="current-password"
+                  className={`field ${
+                    passwordFieldErrors.current
+                      ? "border-clay-500 ring-2 ring-clay-100"
+                      : ""
+                  }`}
+                  value={currentPassword}
+                  onChange={(event) => {
+                    setCurrentPassword(event.target.value);
+                    setPasswordErrorMessage("");
+                    setPasswordFieldErrors((current) => ({
+                      ...current,
+                      current: undefined
+                    }));
+                  }}
+                  required
+                  aria-invalid={Boolean(passwordFieldErrors.current)}
+                  aria-describedby={
+                    passwordFieldErrors.current
+                      ? "profile-current-password-error"
+                      : undefined
+                  }
+                />
+                {passwordFieldErrors.current && (
+                  <p
+                    id="profile-current-password-error"
+                    className="mt-2 text-sm font-semibold text-clay-600"
+                    role="alert"
+                  >
+                    {passwordFieldErrors.current}
+                  </p>
+                )}
+              </div>
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div>
+                  <label htmlFor="profile-new-password" className="label">
+                    New password
+                  </label>
+                  <input
+                    ref={newPasswordRef}
+                    id="profile-new-password"
+                    type="password"
+                    autoComplete="new-password"
+                    className={`field ${
+                      passwordFieldErrors.new
+                        ? "border-clay-500 ring-2 ring-clay-100"
+                        : ""
+                    }`}
+                    value={newPassword}
+                    onChange={(event) => {
+                      setNewPassword(event.target.value);
+                      setPasswordErrorMessage("");
+                      setPasswordFieldErrors((current) => ({
+                        ...current,
+                        new: undefined
+                      }));
+                    }}
+                    required
+                    aria-invalid={Boolean(passwordFieldErrors.new)}
+                    aria-describedby={
+                      passwordFieldErrors.new ? "profile-new-password-error" : undefined
+                    }
+                  />
+                  {passwordFieldErrors.new && (
+                    <p
+                      id="profile-new-password-error"
+                      className="mt-2 text-sm font-semibold text-clay-600"
+                      role="alert"
+                    >
+                      {passwordFieldErrors.new}
+                    </p>
+                  )}
+                </div>
+                <div>
+                  <label htmlFor="profile-confirm-new-password" className="label">
+                    Confirm new password
+                  </label>
+                  <input
+                    ref={confirmPasswordRef}
+                    id="profile-confirm-new-password"
+                    type="password"
+                    autoComplete="new-password"
+                    className={`field ${
+                      passwordFieldErrors.confirm
+                        ? "border-clay-500 ring-2 ring-clay-100"
+                        : ""
+                    }`}
+                    value={confirmPassword}
+                    onChange={(event) => {
+                      setConfirmPassword(event.target.value);
+                      setPasswordErrorMessage("");
+                      setPasswordFieldErrors((current) => ({
+                        ...current,
+                        confirm: undefined
+                      }));
+                    }}
+                    required
+                    aria-invalid={Boolean(passwordFieldErrors.confirm)}
+                    aria-describedby={
+                      passwordFieldErrors.confirm
+                        ? "profile-confirm-new-password-error"
+                        : undefined
+                    }
+                  />
+                  {passwordFieldErrors.confirm && (
+                    <p
+                      id="profile-confirm-new-password-error"
+                      className="mt-2 text-sm font-semibold text-clay-600"
+                      role="alert"
+                    >
+                      {passwordFieldErrors.confirm}
+                    </p>
+                  )}
+                </div>
+              </div>
+              {passwordErrorMessage && (
+                <p className="text-sm font-semibold text-clay-600" role="alert">
+                  {passwordErrorMessage}
+                </p>
+              )}
+              <button type="submit" className="btn-secondary" disabled={passwordBusy}>
+                {passwordBusy ? (
+                  <LoaderCircle className="size-4 animate-spin" aria-hidden="true" />
+                ) : (
+                  <KeyRound className="size-4" aria-hidden="true" />
+                )}
+                {passwordBusy ? "Changing…" : "Change password"}
+              </button>
+            </form>
+          )}
+        </EditorSection> */}
+
       </div>
 
       <div className="mx-auto mt-6 flex max-w-6xl flex-col-reverse gap-3 rounded-[var(--radius-card)] border border-gray-100 bg-paper/95 px-4 py-4 shadow-lift backdrop-blur-xl sm:flex-row sm:items-center sm:justify-between sm:px-6">
@@ -528,6 +710,17 @@ export function ProfileEditor() {
           {saving ? "Saving changes…" : "Save profile changes"}
         </button>
       </div>
+
+      <ConfirmDialog
+        open={Boolean(pendingDestination)}
+        title="Unsaved profile changes"
+        description="Save your changes before leaving. If you exit now, your edits will be lost."
+        confirmLabel="Exit without saving"
+        cancelLabel="Keep editing"
+        destructive
+        onClose={() => setPendingDestination(null)}
+        onConfirm={discardChangesAndExit}
+      />
 
     </form>
   );

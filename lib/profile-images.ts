@@ -170,7 +170,7 @@ export async function uploadFirebaseProfileImage(
     `${profileImageFolder(userId)}/${crypto.randomUUID()}.${extension}`;
   try {
     await uploadBytes(ref(storage.storage, imagePath), file, {
-      cacheControl: "public,max-age=31536000,immutable",
+      cacheControl: "300",
       contentType: file.type
     });
   } catch (error) {

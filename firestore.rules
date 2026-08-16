@@ -4,11 +4,8 @@ service cloud.firestore {
   match /databases/{database}/documents {
     function signedIn() {
       return request.auth != null
-        && (
-          request.auth.token.email_verified == true
-          || request.auth.token.firebase.sign_in_provider == 'google.com'
-          || request.auth.token.firebase.sign_in_provider == 'anonymous'
-        );
+        && request.auth.token.get('email_verified', false) == true
+        && request.auth.token.firebase.sign_in_provider == 'password';
     }
 
     function isCurrentUser(userId) {
@@ -16,11 +13,7 @@ service cloud.firestore {
     }
 
     function authProviderName() {
-      return request.auth.token.firebase.sign_in_provider == 'anonymous'
-        ? 'guest'
-        : request.auth.token.firebase.sign_in_provider == 'google.com'
-          ? 'google'
-          : 'password';
+      return 'password';
     }
 
     function ownsExistingDocument() {
@@ -85,6 +78,9 @@ service cloud.firestore {
       return data.keys().hasOnly([
           'id',
           'email',
+          'username',
+          'fullName',
+          'role',
           'isGuest',
           'authProvider',
           'createdAt',
@@ -92,6 +88,7 @@ service cloud.firestore {
           'privacyConsentAt',
           'spiritualIntroSeenAt',
           'profileCompleted',
+          'mustChangePassword',
           'privacyPreferences'
         ])
         && data.keys().hasAll([
@@ -99,16 +96,23 @@ service cloud.firestore {
           'email',
           'createdAt',
           'updatedAt',
-          'profileCompleted'
+          'profileCompleted',
+          'authProvider',
+          'mustChangePassword'
         ])
         && data.id is string
         && data.email is string
         && data.email.size() <= 320
+        && (!('username' in data) || data.username is string)
+        && (!('username' in data) || data.username.size() <= 80)
+        && (!('fullName' in data) || isShortString(data.fullName, 120))
+        && (!('role' in data) || data.role in ['user', 'tester'])
         && (!('isGuest' in data) || data.isGuest is bool)
-        && (!('authProvider' in data) || data.authProvider in ['password', 'google', 'guest'])
+        && data.authProvider == 'password'
         && isIsoDate(data.createdAt)
         && isIsoDate(data.updatedAt)
         && data.profileCompleted is bool
+        && data.mustChangePassword is bool
         && (
           !('privacyConsentAt' in data)
           || data.privacyConsentAt == null
@@ -307,7 +311,11 @@ service cloud.firestore {
           'isPrivate',
           'createdAt',
           'updatedAt',
-          'editedAt'
+          'editedAt',
+          'fiatCategory',
+          'fiatDateKey',
+          'fiatOther',
+          'media'
         ])
         && data.keys().hasAll([
           'id',
@@ -320,13 +328,30 @@ service cloud.firestore {
         ])
         && data.id is string
         && data.userId is string
-        && (!data.keys().hasAny(['title']) || isShortString(data.title, 60))
+        && (!data.keys().hasAny(['title']) || isShortString(data.title, 30))
         && isShortString(data.content, 500)
         && data.content.size() > 0
         && data.isPrivate is bool
         && isIsoDate(data.createdAt)
         && isIsoDate(data.updatedAt)
-        && (!('editedAt' in data) || isIsoDate(data.editedAt));
+        && (!('editedAt' in data) || isIsoDate(data.editedAt))
+        && (
+          !('fiatCategory' in data)
+          || (
+            data.fiatCategory in ['prayer', 'forgiveness', 'service', 'sacrifice', 'act-of-love', 'responsible-choice', 'other']
+            && data.fiatDateKey is string
+            && data.fiatDateKey.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$')
+            && (
+              (data.fiatCategory == 'other'
+                && isShortString(data.fiatOther, 25)
+                && data.fiatOther.size() > 0)
+              || (data.fiatCategory != 'other' && !('fiatOther' in data))
+            )
+          )
+        )
+        && (!('fiatDateKey' in data) || 'fiatCategory' in data)
+        && (!('fiatOther' in data) || data.fiatCategory == 'other')
+        && (!('media' in data) || data.media is list);
     }
 
     function hasValidSocialProfileShape(data) {
@@ -754,11 +779,11 @@ service cloud.firestore {
       allow create: if isCurrentUser(userId)
         && request.resource.data.id == userId
         && (
-          request.auth.token.email == null
-          || request.resource.data.email == request.auth.token.email
+          request.auth.token.get('email', null) == null
+          || request.resource.data.email == request.auth.token.get('email', null)
         )
         && request.resource.data.get('isGuest', false)
-          == (request.auth.token.firebase.sign_in_provider == 'anonymous')
+          == false
         && request.resource.data.get('authProvider', 'password')
           == authProviderName()
         && hasValidUserShape(request.resource.data);
@@ -783,9 +808,15 @@ service cloud.firestore {
             && authProviderName() != 'guest'
           )
         )
-        && request.resource.data.createdAt == resource.data.createdAt;
+        && request.resource.data.createdAt == resource.data.createdAt
+        && request.resource.data.get('username', '')
+          == resource.data.get('username', '')
+        && request.resource.data.get('fullName', '')
+          == resource.data.get('fullName', '')
+        && request.resource.data.get('role', 'user')
+          == resource.data.get('role', 'user');
 
-      allow delete: if isCurrentUser(userId);
+      allow delete: if false;
     }
 
     // Public-facing profile data is still owner-accessible only. hiddenStory is
@@ -1270,6 +1301,19 @@ service cloud.firestore {
           resource.data.userId == request.auth.uid
           || resource.data.actorUserId == request.auth.uid
         );
+    }
+
+    match /systemNotifications/{notificationId} {
+      allow get, list: if signedIn()
+        && resource.data.userId == request.auth.uid;
+
+      allow create, delete: if false;
+
+      allow update: if signedIn()
+        && resource.data.userId == request.auth.uid
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['readAt'])
+        && request.resource.data.readAt != null
+        && isIsoDate(request.resource.data.readAt);
     }
 
     /*
