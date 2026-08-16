@@ -1,6 +1,9 @@
 import { NextResponse } from "next/server";
 import { getFirebaseAdminAuth, getFirebaseAdminFirestore } from "@/lib/firebase-admin";
 import { passwordError } from "@/lib/validation";
+import {
+  setFirebaseAuthPassword
+} from "@/lib/firebase-auth-rest";
 
 export const runtime = "nodejs";
 
@@ -14,7 +17,9 @@ export async function POST(request: Request) {
       return reply({ error: "Authentication is required." }, 401);
     }
     const auth = getFirebaseAdminAuth();
-    const token = await auth.verifyIdToken(authorization.slice(7), true);
+    const token = await auth.verifyIdToken(
+      authorization.slice(7)
+    );
     const body = await request.json() as { newPassword?: string };
     const newPassword = typeof body.newPassword === "string" ? body.newPassword : "";
     const validationError = passwordError(newPassword);
