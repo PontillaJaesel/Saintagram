@@ -137,6 +137,7 @@ export function ProfileDashboard() {
   const [privateUnlocked, setPrivateUnlocked] = useState(false);
   const [privateLoading, setPrivateLoading] = useState(false);
   const [privatePosts, setPrivatePosts] = useState<ReflectionPost[]>([]);
+  const [privateStory, setPrivateStory] = useState("");
   const [deleteTarget, setDeleteTarget] =
   useState<ReflectionPost | null>(null);
   const [deleteBusy, setDeleteBusy] =
@@ -444,9 +445,11 @@ export function ProfileDashboard() {
 
   const chooseTab = (nextTab: ProfileTab) => {
     setTab(nextTab);
+
     if (nextTab !== "private") {
       setPrivateUnlocked(false);
       setPrivatePosts([]);
+      setPrivateStory("");
     }
   };
 
@@ -474,17 +477,31 @@ export function ProfileDashboard() {
 
   const unlockPrivate = async () => {
     if (!user) return;
+
     setPrivacyDialog(false);
     setPrivateLoading(true);
+
     try {
-      const reflections = await appService.getPrivateReflections(user.id);
+      const [
+        story,
+        reflections
+      ] = await Promise.all([
+        appService.getPrivateStory(user.id),
+        appService.getPrivateReflections(user.id)
+      ]);
+
+      setPrivateStory(story);
       setPrivatePosts(reflections);
       setPrivateUnlocked(true);
     } catch (unlockError) {
+      setPrivateStory("");
+      setPrivatePosts([]);
+      setPrivateUnlocked(false);
+
       notify(
         unlockError instanceof Error
           ? unlockError.message
-          : "Private reflections could not be opened.",
+          : "Private content could not be opened.",
         "error"
       );
     } finally {
@@ -856,27 +873,14 @@ const confirmDeleteReflection = async () => {
                         new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime();
                     })
                     .map((post) => (
-                      <SocialReflectionCard
+                      <ReflectionCard
                         key={post.id}
-                        post={{
-                          ...post,
-                          author: {
-                            id: profile.id,
-                            userId: profile.userId,
-                            profileName: profile.profileName,
-                            imagePath: profile.imagePath,
-                            spiritualBio: profile.spiritualBio,
-                            heavenlyHashtag: profile.heavenlyHashtag,
-                            createdAt: profile.createdAt,
-                            updatedAt: profile.updatedAt
-                          }
-                        }}
-                        initialFollowing={false}
-                        compactTimestamp
-                        hideViewProfile
-                        onEdit={editReflection}
-                        onDelete={(post) =>
-                          setDeleteTarget(post)
+                        post={post}
+                        showPrivacy={false}
+                        showDate={
+                          user?.privacyPreferences
+                            ?.showReflectionDates ??
+                          true
                         }
                       />
                     ))}
@@ -941,6 +945,28 @@ const confirmDeleteReflection = async () => {
                         aria-hidden="true"
                       />
                     </div>
+                    <section className="mb-5 rounded-[var(--radius-card)] border border-clay-100 bg-clay-50/50 p-5">
+                      <div className="flex items-center gap-2">
+                        <LockKeyhole
+                          className="size-5 text-clay-600"
+                          aria-hidden="true"
+                        />
+
+                        <h3 className="font-serif text-lg font-bold text-ink">
+                          Hidden Story
+                        </h3>
+                      </div>
+
+                      {privateStory ? (
+                        <p className="user-content mt-3 whitespace-pre-wrap font-secondary text-sm leading-7 text-ink">
+                          {privateStory}
+                        </p>
+                      ) : (
+                        <p className="mt-3 font-secondary text-sm italic text-muted">
+                          No Hidden Story has been added yet.
+                        </p>
+                      )}
+                    </section>
                     <div className="space-y-3">
                       {privatePosts.length ? (
                         privatePosts.map((post) => (

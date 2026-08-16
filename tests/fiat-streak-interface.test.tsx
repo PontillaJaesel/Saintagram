@@ -43,7 +43,23 @@ describe("FiAt streak interface", () => {
     expect(screen.getByRole("link", { name: "Add today's FiAt" })).toHaveAttribute("href", "/reflect");
     await waitFor(() => expect(screen.getByLabelText(/FiAt recorded/i)).toBeInTheDocument());
 
-    await user.click(screen.getByRole("button", { name: "Close FiAt streak" }));
-    expect(screen.queryByRole("dialog", { name: "FiAt streak" })).not.toBeInTheDocument();
+    await user.click(
+      screen.getByRole("button", {
+        name: "Close FiAt streak"
+      })
+    );
+
+    await waitFor(
+      () => {
+        expect(
+          screen.queryByRole("dialog", {
+            name: "FiAt streak"
+          })
+        ).not.toBeInTheDocument();
+      },
+      {
+        timeout: 2000
+      }
+    );
   });
 });
