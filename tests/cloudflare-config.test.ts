@@ -10,6 +10,16 @@ interface WranglerConfig {
 }
 
 describe("Cloudflare Worker configuration", () => {
+  it("defines the CommonJS dirname global required by Firebase Admin", () => {
+    const viteConfig = readFileSync(
+      join(process.cwd(), "vite.config.ts"),
+      "utf8"
+    );
+
+    expect(viteConfig).toContain('__dirname: JSON.stringify("/")');
+    expect(viteConfig).toContain("^firebase-admin/${specifier}$");
+  });
+
   it("rebuilds and validates artifacts before every direct deployment", () => {
     const packageJson = JSON.parse(
       readFileSync(join(process.cwd(), "package.json"), "utf8")
