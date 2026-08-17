@@ -1283,37 +1283,12 @@ async function getFirebaseUserRecord(
       const snapshot = await transaction.get(userRef);
 
       if (snapshot.exists()) {
-        const stored = snapshot.data() as AppUser;
-
-        if (
-          stored.email !== email ||
-          stored.authProvider !== "password" ||
-          Boolean(stored.isGuest)
-        ) {
-          const identityPatch = {
-            email: email.trim().toLocaleLowerCase(),
-            isGuest: false,
-            authProvider: "password" as const,
-            updatedAt: nowIso()
-          };
-
-          transaction.update(
-            userRef,
-            identityPatch
-          );
-
-          return {
-            ...stored,
-            ...identityPatch
-          };
-        }
-
-        return stored;
+        return snapshot.data() as AppUser;
       }
 
       const user = createUserRecord(
         userId,
-        email
+        email.trim().toLowerCase()
       );
 
       transaction.set(

@@ -16,7 +16,6 @@
     "test:watch": "vitest",
     "test:rules": "npx firebase-tools emulators:exec --only firestore \"vitest run --config vitest.rules.config.ts\"",
     "test:firebase-live": "node --env-file=.env.local scripts/verify-firebase-connectivity.mjs",
-    "test:firebase-live": "node --env-file=.env.local scripts/verify-firebase-connectivity.mjs",
     "dev:vinext": "vinext dev --port 3001",
     "build:vinext": "node scripts/run-vinext-build.mjs && node scripts/validate-deployment-artifacts.mjs && node scripts/prepare-admin-deployment.mjs",
     "build:admin": "npm run build",
@@ -61,7 +60,8 @@
     "typescript": "^5.8.2",
     "vinext": "^1.0.0-beta.4",
     "vite": "^8.1.5",
-    "vitest": "^4.1.10"
+    "vitest": "^4.1.10",
+    "wrangler": "^4.123.0"
   },
   "allowScripts": {
     "esbuild@0.28.1": true,
