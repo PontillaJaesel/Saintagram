@@ -10,6 +10,7 @@ import {
   sendPasswordResetEmail,
   signInWithEmailAndPassword,
   signOut,
+  updatePassword,
   type Unsubscribe
 } from "firebase/auth";
 import {
@@ -30,8 +31,8 @@ import {
   writeBatch
 } from "firebase/firestore";
 import { LIMITS } from "@/lib/constants";
-import { isFiatCategory, localDateKey } from "@/lib/fiat";
 import { getFirebaseServices, isFirebaseConfigured } from "@/lib/firebase";
+import { isFiatCategory, localDateKey } from "@/lib/fiat";
 import { usernameAccountEmail } from "@/lib/account-identity";
 import {
   deleteAllFirebaseProfileImages,
@@ -39,10 +40,7 @@ import {
   isOwnedProfileImagePath,
   uploadFirebaseProfileImage
 } from "@/lib/profile-images";
-import {
-  deleteAllReflectionMedia,
-  deleteReflectionMedia
-} from "@/lib/reflection-media";
+import { deleteAllReflectionMedia } from "@/lib/reflection-media";
 import {
   normalizeDraft,
   normalizeProfileImageReference,
@@ -221,7 +219,7 @@ function createUserRecord(
   id: string,
   email: string,
   username?: string,
-  mustChangePassword = true
+  mustChangePassword?: boolean
 ): AppUser {
   const now = nowIso();
   return {
@@ -379,6 +377,11 @@ function storedReflection(
   ) {
     return null;
   }
+  const fiatCategory = isFiatCategory(data.fiatCategory) ? data.fiatCategory : undefined;
+  const fiatDateKey = fiatCategory && /^\d{4}-\d{2}-\d{2}$/.test(stringValue(data.fiatDateKey))
+    ? stringValue(data.fiatDateKey)
+    : undefined;
+
   return {
     id,
     userId,
@@ -388,10 +391,10 @@ function storedReflection(
     createdAt,
     updatedAt,
     ...(editedAt ? { editedAt } : {}),
-    ...(isFiatCategory(data.fiatCategory) ? { fiatCategory: data.fiatCategory } : {}),
+    ...(fiatCategory ? { fiatCategory } : {}),
     ...(data.fiatCategory === "other" && fiatOther ? { fiatOther } : {}),
-    ...(isFiatCategory(data.fiatCategory) && /^\d{4}-\d{2}-\d{2}$/.test(stringValue(data.fiatDateKey)) ? { fiatDateKey: stringValue(data.fiatDateKey) } : {})
-    ,...(media.length ? { media } : {})
+    ...(fiatDateKey ? { fiatDateKey } : {}),
+    ...(media.length ? { media } : {})
   };
 }
 
@@ -664,13 +667,8 @@ function storedSocialNotification(
 
 function newestFirst(posts: ReflectionPost[]): ReflectionPost[] {
   return posts.sort(
-    (a, b) => {
-      const createdDifference =
-        new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
-      if (createdDifference !== 0) return createdDifference;
-
-      return new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime();
-    }
+    (a, b) =>
+      new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
   );
 }
 
@@ -763,7 +761,6 @@ async function ensureLocalSeed(): Promise<void> {
             id: userId,
             email: DEMO_EMAIL,
             username: DEMO_USERNAME,
-            authProvider: "password",
             createdAt,
             updatedAt,
             privacyConsentAt: createdAt,
@@ -805,6 +802,7 @@ async function ensureLocalSeed(): Promise<void> {
 
       const isStillInTemporaryFlow = Boolean(
         actual.user.mustChangePassword ||
+        actual.mustChangePassword ||
         actual.mustChangePassword
       );
 
@@ -2564,11 +2562,16 @@ export const appService = {
       )
     );
 
-    return newestFirst(snapshot.docs
+    return snapshot.docs
       .map((item) =>
         storedReflection(item.id, item.data(), profileUserId)
       )
-      .filter((post): post is ReflectionPost => Boolean(post)));
+      .filter((post): post is ReflectionPost => Boolean(post))
+      .sort(
+        (a, b) =>
+          new Date(b.createdAt).getTime() -
+          new Date(a.createdAt).getTime()
+      );
   },
 
   async getPublicReflectionById(
@@ -2898,14 +2901,19 @@ export const appService = {
             return;
           }
           const passwordOnly = firebaseUser.providerData.length > 0
-            && firebaseUser.providerData.every((provider) => provider.providerId === "password");
+            && firebaseUser.providerData.every(
+              (provider) => provider.providerId === "password"
+            );
           if (!passwordOnly || !firebaseUser.emailVerified) {
             await signOut(services.auth);
             callback(null);
             return;
           }
           try {
-            callback(await getFirebaseUserRecord(firebaseUser.uid, firebaseUser.email ?? ""));
+            callback(await getFirebaseUserRecord(
+              firebaseUser.uid,
+              firebaseUser.email ?? ""
+            ));
           } catch {
             callback(null);
           }
@@ -2940,9 +2948,6 @@ export const appService = {
   },
 
   async register(email: string, password: string): Promise<AppUser> {
-    if (isFirebaseConfigured) {
-      throw new Error("Accounts are issued by a Saintagram administrator.");
-    }
     if (isFirebaseConfigured) {
       const invalidEmail = registrationEmailError(email);
       if (invalidEmail) throw new Error(invalidEmail);
@@ -3062,6 +3067,7 @@ export const appService = {
               : "";
           if (![
             "auth/invalid-credential",
+            "auth/invalid-login-credentials",
             "auth/user-not-found",
             "auth/wrong-password"
           ].includes(code)) {
@@ -3155,9 +3161,6 @@ export const appService = {
   },
 
   async requestPasswordReset(email: string): Promise<void> {
-    if (isFirebaseConfigured) {
-      throw new Error("Contact Saintagram support to recover a managed account.");
-    }
     try {
       if (isFirebaseConfigured) {
         const services = getFirebaseServices();
@@ -3259,14 +3262,11 @@ export const appService = {
           firebaseUser,
           EmailAuthProvider.credential(firebaseUser.email, currentPassword)
         );
-        const token = await firebaseUser.getIdToken(true);
-        const response = await fetch("/api/change-password", {
-          method: "POST",
-          headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
-          body: JSON.stringify({ newPassword })
+        await updatePassword(firebaseUser, newPassword);
+        await updateDoc(doc(services.db, "users", userId), {
+          mustChangePassword: false,
+          updatedAt: nowIso()
         });
-        const body = await response.json() as { error?: string };
-        if (!response.ok) throw new Error(body.error || "Your password could not be saved.");
         return;
       }
 
@@ -3513,20 +3513,6 @@ export const appService = {
       assertStoredProfileImagePath(userId, data.imagePath);
       const services = getFirebaseServices();
       if (!services) throw new Error("Firebase is not available.");
-      const firebaseUser = services.auth.currentUser;
-      if (!firebaseUser || firebaseUser.uid !== userId) throw new Error("Please log in again.");
-      const token = await firebaseUser.getIdToken();
-      const completionResponse = await fetch("/api/complete-profile", {
-        method: "POST",
-        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
-        body: JSON.stringify({ profile: data })
-      });
-      const completionBody = await completionResponse.json() as { profile?: SpiritualProfile; error?: string };
-      if (!completionResponse.ok || !completionBody.profile) throw new Error(completionBody.error || "Your profile could not be created.");
-      if (storageAvailable()) window.localStorage.removeItem(firebaseDraftCacheKey(userId));
-      return completionBody.profile;
-
-      /* Legacy direct-write path kept unreachable for compatibility while deployments migrate.
       const existing = await this.getProfileView(userId);
       const fullProfile: SpiritualProfile = {
         id: userId,
@@ -3582,7 +3568,6 @@ export const appService = {
         fullProfile.imagePath
       );
       return fullProfile;
-      */
     }
 
     assertLocalOwner(userId);
@@ -4287,7 +4272,10 @@ export const appService = {
         readJson<JsonMap<ReflectionPost>>(LOCAL_KEYS.reflections, {})
       ).filter((post) => post.userId === userId);
     }
-    return newestFirst(posts);
+    return posts.sort(
+      (a, b) =>
+        new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+    );
   },
 
   async getPublicReflections(userId: string): Promise<ReflectionPost[]> {
@@ -4302,15 +4290,22 @@ export const appService = {
           where("isPrivate", "==", false)
         )
       );
-      return newestFirst(snapshot.docs
+      return snapshot.docs
         .map((item) => storedReflection(item.id, item.data(), userId))
-        .filter((post): post is ReflectionPost => Boolean(post)));
+        .filter((post): post is ReflectionPost => Boolean(post))
+        .sort((a, b) =>
+          new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+        );
     }
     assertLocalOwner(userId);
-    return newestFirst(Object.values(
+    return Object.values(
       readJson<JsonMap<ReflectionPost>>(LOCAL_KEYS.reflections, {})
     )
-      .filter((post) => post.userId === userId && !post.isPrivate));
+      .filter((post) => post.userId === userId && !post.isPrivate)
+      .sort(
+        (a, b) =>
+          new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+      );
   },
 
   async getPrivateReflections(userId: string): Promise<ReflectionPost[]> {
@@ -4399,9 +4394,9 @@ export const appService = {
         isPrivate: input.isPrivate,
         createdAt,
         updatedAt: now,
-        ...(input.id ? { editedAt: now } : {})
-        ,...(fiatCategory ? { fiatCategory, fiatDateKey, ...(fiatCategory === "other" ? { fiatOther } : {}) } : {})
-        ,...(media.length ? { media } : {})
+        ...(input.id ? { editedAt: now } : {}),
+        ...(fiatCategory ? { fiatCategory, fiatDateKey, ...(fiatCategory === "other" ? { fiatOther } : {}) } : {}),
+        ...(media.length ? { media } : {})
       };
       await setDoc(postRef, {
         ...post,
@@ -4434,9 +4429,9 @@ export const appService = {
         ? normalizedCreatedAt
         : existingCreatedAt ?? now,
       updatedAt: now,
-      ...(input.id ? { editedAt: now } : {})
-      ,...(fiatCategory ? { fiatCategory, fiatDateKey, ...(fiatCategory === "other" ? { fiatOther } : {}) } : {})
-      ,...(input.media?.length ? { media: input.media } : input.id && reflections[input.id]?.media?.length ? { media: reflections[input.id].media } : {})
+      ...(input.id ? { editedAt: now } : {}),
+      ...(fiatCategory ? { fiatCategory, fiatDateKey, ...(fiatCategory === "other" ? { fiatOther } : {}) } : {}),
+      ...(input.media?.length ? { media: input.media } : input.id && reflections[input.id]?.media?.length ? { media: reflections[input.id].media } : {})
     };
     reflections[id] = post;
     writeJson(LOCAL_KEYS.reflections, reflections);
@@ -4450,31 +4445,10 @@ export const appService = {
       if (!services) throw new Error("Firebase is not available.");
       const postRef = doc(services.db, "reflectionPosts", reflectionId);
       const existing = await getDoc(postRef);
-
-      if (
-        !existing.exists() ||
-        existing.data().userId !== userId
-      ) {
-        throw new Error(
-          "That reflection could not be found."
-        );
+      if (!existing.exists() || existing.data().userId !== userId) {
+        throw new Error("That reflection could not be found.");
       }
-
-      const existingPost =
-        storedReflection(
-          existing.id,
-          existing.data(),
-          userId
-        );
-
       await deleteDoc(postRef);
-
-      if (existingPost?.media?.length) {
-        await deleteReflectionMedia(
-          existingPost.media
-        );
-      }
-
       return;
     }
 
@@ -4509,9 +4483,6 @@ export const appService = {
   },
 
   async cancelAccountCreation(userId: string): Promise<void> {
-    if (isFirebaseConfigured) {
-      throw new Error("Managed accounts cannot be cancelled from the application.");
-    }
     if (isFirebaseConfigured) {
       assertFirebaseOwner(userId);
       const services = getFirebaseServices();
@@ -4607,9 +4578,6 @@ export const appService = {
     userId: string,
     currentPassword: string
   ): Promise<void> {
-    if (isFirebaseConfigured) {
-      throw new Error("Managed accounts can only be removed by an administrator.");
-    }
     if (isFirebaseConfigured) {
       assertFirebaseOwner(userId);
       const services = getFirebaseServices();

@@ -11,11 +11,11 @@ interface TemporaryAccount {
 }
 
 describe("temporary test accounts", () => {
-  it("recognizes USRTEST1 and its issued temporary credentials", () => {
-    expect(TEMPORARY_ACCOUNTS.find((account: TemporaryAccount) => account.username === "USRTEST1")).toEqual({
-      fullName: "Test User 1",
-      username: "USRTEST1",
-      temporaryPassword: "NewTemp1@2026",
+  it("recognizes USRTEST3 and its issued temporary credentials", () => {
+    expect(TEMPORARY_ACCOUNTS.find((account: TemporaryAccount) => account.username === "USRTEST3")).toEqual({
+      fullName: "Saintagram Replacement Test User",
+      username: "USRTEST3",
+      temporaryPassword: "NewTemp3@2026",
       role: "tester"
     });
   });

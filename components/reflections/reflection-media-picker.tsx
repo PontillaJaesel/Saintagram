@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Camera, Images, Trash2, Video } from "lucide-react";
+import { Images, Trash2, Video } from "lucide-react";
 
 export function ReflectionMediaPicker({ files, onChange, disabled = false }: { files: File[]; onChange: (files: File[]) => void; disabled?: boolean }) {
   const [previews, setPreviews] = useState<string[]>([]);
@@ -20,7 +20,6 @@ export function ReflectionMediaPicker({ files, onChange, disabled = false }: { f
     <p className="text-sm font-bold">Add media <span className="font-normal text-muted">(optional)</span></p>
     <p className="mt-1 text-xs text-muted">Up to 5 photos, or one video no longer than 15 seconds.</p>
     <div className="mt-3 flex flex-wrap gap-2">
-      <label className="btn-secondary cursor-pointer"><Camera className="size-4" />Camera<input className="sr-only" type="file" accept="image/*,video/*" capture="environment" disabled={disabled} onChange={(event) => choose(event.target.files)} /></label>
       <label className="btn-secondary cursor-pointer"><Images className="size-4" />Gallery<input className="sr-only" type="file" accept="image/jpeg,image/png,image/webp,video/mp4,video/webm,video/quicktime" multiple disabled={disabled} onChange={(event) => choose(event.target.files)} /></label>
     </div>
 
