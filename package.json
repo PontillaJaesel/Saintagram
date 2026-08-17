@@ -15,6 +15,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:rules": "npx firebase-tools emulators:exec --only firestore \"vitest run --config vitest.rules.config.ts\"",
+    "test:firebase-live": "node --env-file=.env.local scripts/verify-firebase-connectivity.mjs",
+    "test:firebase-live": "node --env-file=.env.local scripts/verify-firebase-connectivity.mjs",
     "dev:vinext": "vinext dev --port 3001",
     "build:vinext": "node scripts/run-vinext-build.mjs && node scripts/validate-deployment-artifacts.mjs && node scripts/prepare-admin-deployment.mjs",
     "build:admin": "npm run build",

@@ -7,19 +7,19 @@ Saintagram is a responsive, private reflection application inspired by the
 familiar shape of a social profile without popularity metrics, public follower
 counts, rankings, streaks, or competitive engagement.
 
-The core experience moves from registration and privacy consent through a
-Matthew 5:3 reflection, a ten-part Profile Before God builder, and an
-owner-only profile with reflection, journey, private-area, editing, and account
-controls.
+The production experience starts with an administrator-issued username and
+temporary password. A first-time user creates their private profile, replaces
+the temporary password in Settings, completes the privacy gate, and then enters
+their owner-only reflection space.
 
 ## What is included
 
-- Google sign-in, verified email/password accounts, and persistent anonymous
-  guest accounts, plus logout, password reset, password change, and deletion
+- Provisioned username/password authentication with mandatory first-login
+  profile creation and one-time temporary-password replacement
 - A server-verified invitation-code entrance protecting every application route
 - Consent and spiritual introduction gates
 - Protected-route routing based on consent and profile completion
-- Ten-step profile builder with automatic draft saves, explicit save,
+- Two-step profile builder with automatic draft saves, explicit save,
   restoration, discard confirmation, review, edit links, and immediate profile
   navigation
 - Image upload validation plus candle, seed, cross, heart, open-hands, and road
@@ -83,10 +83,9 @@ New accounts and the entire onboarding journey also work in demo mode.
 ## Firebase setup
 
 1. Create a Firebase project.
-2. Under **Authentication → Sign-in method**, enable **Email/Password**,
-   **Google**, and **Anonymous**. Google and anonymous authentication are
-   supported on Firebase's no-cost Spark plan. Add each deployed host under
-   **Authentication → Settings → Authorized domains**.
+2. Under **Authentication → Sign-in method**, enable **Email/Password** only.
+   Do not enable Google or Anonymous sign-in for the production workflow. Add
+   each deployed host under **Authentication → Settings → Authorized domains**.
 3. Create a Firestore database.
 4. Copy `.env.example` to `.env.local`.
 5. Fill in the Firebase web configuration:
@@ -104,20 +103,9 @@ code. Never add an Admin SDK private key, service-account JSON, or other server
 secret to a `NEXT_PUBLIC_` variable.
 
 Firebase Auth uses local browser persistence, so closing and reopening the site
-restores the last signed-in account. A guest therefore keeps the same anonymous
-Firebase UID and data until they explicitly log out, clear this site's browser
-data, switch browsers/devices, or lose access to that browser profile. Guest
-accounts have no recovery method; users should use Google or email for durable,
-cross-device access.
+restores the last signed-in provisioned account until the user logs out or the
+site's browser data is cleared.
 
-### Verification and branded authentication email
-
-In **Firebase Console → Authentication → Templates**, enable and edit both
-**Email address verification** and **Password reset**. Set the sender name and
-the project's **Public-facing name** to `Saintagram` so Firebase's internal app
-name is not shown to recipients. For each template, choose **Customize domain**,
-enter `saintagram.com`, then add Firebase's TXT and CNAME records at the DNS
-provider. After Firebase reports verification complete, apply the custom domain.
 Saintagram uses provisioned username codes, not public email registration or
 Google sign-in. Each username maps server-side to a private Firebase Auth email
 such as `usr001@accounts.saintagram.local`; users never enter that address.
@@ -175,8 +163,8 @@ Firebase remains the identity provider, Firestore remains the database, and
 Firebase Storage now holds profile images directly.
 
 1. In **Firebase Console → Build → Storage**, enable Cloud Storage if it is not
-  already enabled for this project. The default bucket is usually
-  `<project-id>.appspot.com`.
+  already enabled for this project. New projects commonly use
+  `<project-id>.firebasestorage.app`; use the exact bucket shown by Firebase.
 2. Open `storage.rules` in this repo and deploy it to Firebase Storage, or paste
   the same rules into the Console rules editor. The rules allow only the signed
   in owner to read, upload, or delete files under

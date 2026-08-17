@@ -67,7 +67,9 @@ describe("Cloudflare Worker configuration", () => {
     expect(config.assets?.run_worker_first).toEqual([
       "/*",
       "!/favicon.ico",
-      "!/robots.txt"
+      "!/robots.txt",
+      "!/Saintagram_Logo.png",
+      "!/Saintagram_Logo.svg"
     ]);
   });
 

@@ -20,9 +20,9 @@ function makeUser(overrides: Partial<AppUser> = {}): AppUser {
 describe("resolvePostAuthRoute", () => {
   it.each([
     {
-      state: "is using a temporary password",
+      state: "is using a temporary password without a completed profile",
       user: makeUser({ mustChangePassword: true }),
-      expected: "/settings"
+      expected: "/create"
     },
     {
       state: "has not accepted privacy",
