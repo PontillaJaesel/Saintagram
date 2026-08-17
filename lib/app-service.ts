@@ -220,7 +220,6 @@ function emailActionSettings(path: string) {
 function createUserRecord(
   id: string,
   email: string,
-  authProvider: "password" = "password",
   username?: string,
   mustChangePassword = true
 ): AppUser {
@@ -229,7 +228,7 @@ function createUserRecord(
     id,
     email: email.trim().toLocaleLowerCase(),
     ...(username ? { username: username.trim().toLocaleLowerCase() } : {}),
-    authProvider,
+    authProvider: "password",
     createdAt: now,
     updatedAt: now,
     privacyConsentAt: null,
@@ -782,7 +781,6 @@ async function ensureLocalSeed(): Promise<void> {
         user: createUserRecord(
           `issued-${normalizedUsername}`,
           `${normalizedUsername}@accounts.saintagram.local`,
-          "password",
           username,
           true
         ),
@@ -1267,8 +1265,7 @@ async function deleteFirebaseOwnedDocuments(
 
 async function getFirebaseUserRecord(
   userId: string,
-  email = "",
-  authProvider?: "password"
+  email = ""
 ): Promise<AppUser> {
   const services = getFirebaseServices();
 
@@ -1291,17 +1288,14 @@ async function getFirebaseUserRecord(
         const stored = snapshot.data() as AppUser;
 
         if (
-          authProvider &&
-          (
-            stored.email !== email ||
-            stored.authProvider !== authProvider ||
-            Boolean(stored.isGuest)
-          )
+          stored.email !== email ||
+          stored.authProvider !== "password" ||
+          Boolean(stored.isGuest)
         ) {
           const identityPatch = {
             email: email.trim().toLocaleLowerCase(),
             isGuest: false,
-            authProvider,
+            authProvider: "password" as const,
             updatedAt: nowIso()
           };
 
@@ -1321,8 +1315,7 @@ async function getFirebaseUserRecord(
 
       const user = createUserRecord(
         userId,
-        email,
-        authProvider ?? "password"
+        email
       );
 
       transaction.set(
@@ -2912,7 +2905,7 @@ export const appService = {
             return;
           }
           try {
-            callback(await getFirebaseUserRecord(firebaseUser.uid, firebaseUser.email ?? "", "password"));
+            callback(await getFirebaseUserRecord(firebaseUser.uid, firebaseUser.email ?? ""));
           } catch {
             callback(null);
           }
@@ -2973,8 +2966,7 @@ export const appService = {
 
         const user = createUserRecord(
           credential.user.uid,
-          credential.user.email ?? email,
-          "password"
+          credential.user.email ?? email
         );
 
         try {
@@ -3139,128 +3131,6 @@ export const appService = {
     }
   },
 
-  /* Removed: Google, Apple, anonymous, and account-linking authentication.
-  async signInWithGoogle(): Promise<AppUser> {
-    try {
-      const services = getFirebaseServices();
-      if (!services) throw new Error("Google sign-in is currently unavailable.");
-      await services.persistenceReady;
-      const provider = new GoogleAuthProvider();
-      provider.setCustomParameters({ prompt: "select_account" });
-      const credential = await signInWithPopup(services.auth, provider);
-      return await getFirebaseUserRecord(
-        credential.user.uid,
-        credential.user.email ?? "",
-        "google"
-      );
-    } catch (error) {
-      throw friendlyAuthError(error);
-    }
-  },
-
-  async signInWithApple(): Promise<AppUser> {
-    try {
-      const services = getFirebaseServices();
-      if (!services) throw new Error("Apple sign-in is currently unavailable.");
-      await services.persistenceReady;
-      const provider = new OAuthProvider("apple.com");
-      provider.addScope("email");
-      provider.addScope("name");
-      const credential = await signInWithPopup(services.auth, provider);
-      return await getFirebaseUserRecord(
-        credential.user.uid,
-        credential.user.email ?? "",
-        "apple"
-      );
-    } catch (error) {
-      throw friendlyAuthError(error);
-    }
-  },
-
-  async continueAsGuest(): Promise<AppUser> {
-    try {
-      const services = getFirebaseServices();
-
-      if (!services) {
-        throw new Error("Guest access is currently unavailable.");
-      }
-
-      await services.persistenceReady;
-
-      if (services.auth.currentUser?.isAnonymous) {
-        return await getFirebaseUserRecord(
-          services.auth.currentUser.uid,
-          "",
-          "guest"
-        );
-      }
-
-      const credential = await signInAnonymously(services.auth);
-
-      return await getFirebaseUserRecord(
-        credential.user.uid,
-        "",
-        "guest"
-      );
-    } catch (error) {
-      console.error("GUEST ACCOUNT FAILED:", error);
-
-      if (error instanceof Error) {
-        throw error;
-      }
-
-      throw new Error("Guest account creation failed.");
-    }
-  },
-
-  async upgradeGuestWithGoogle(): Promise<AppUser> {
-    try {
-      const services = getFirebaseServices();
-      const guest = services?.auth.currentUser;
-      if (!services || !guest?.isAnonymous) {
-        throw new Error("Only a guest account can be upgraded.");
-      }
-      const provider = new GoogleAuthProvider();
-      provider.setCustomParameters({ prompt: "select_account" });
-      const credential = await linkWithPopup(guest, provider);
-      await credential.user.getIdToken(true);
-      return await getFirebaseUserRecord(
-        credential.user.uid,
-        credential.user.email ?? "",
-        "google"
-      );
-    } catch (error) {
-      throw friendlyAuthError(error);
-    }
-  },
-
-  async upgradeGuestWithEmail(email: string, password: string): Promise<void> {
-    const invalidEmail = registrationEmailError(email);
-    if (invalidEmail) throw new Error(invalidEmail);
-    try {
-      const services = getFirebaseServices();
-      const guest = services?.auth.currentUser;
-      if (!services || !guest?.isAnonymous) {
-        throw new Error("Only a guest account can be upgraded.");
-      }
-      const credential = await linkWithCredential(
-        guest,
-        EmailAuthProvider.credential(email.trim(), password)
-      );
-      try {
-        await sendEmailVerification(
-          credential.user,
-          emailActionSettings("/auth?mode=login&verified=1")
-        );
-      } finally {
-        await signOut(services.auth);
-      }
-    } catch (error) {
-      throw friendlyAuthError(error);
-    }
-  },
-
-  */
   async logout(): Promise<void> {
     if (isFirebaseConfigured) {
       const services = getFirebaseServices();
