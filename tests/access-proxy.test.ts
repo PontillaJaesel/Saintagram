@@ -53,7 +53,8 @@ describe("access proxy", () => {
     "/_next/static/chunk.js",
     "/_next/image",
     "/favicon.ico",
-    "/robots.txt"
+    "/robots.txt",
+    "/Saintagram_Logo.png"
   ])("allows the public framework endpoint %s", async (path) => {
     const response = await proxy(nextRequest(path));
 

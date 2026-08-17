@@ -21,6 +21,10 @@ export const metadata: Metadata = {
   robots: {
     index: false,
     follow: false
+  },
+  icons: {
+    icon: "/Saintagram_Logo.png",
+    apple: "/Saintagram_Logo.png"
   }
 };
 
