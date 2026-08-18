@@ -208,7 +208,7 @@ export function AppShell({
       </header>
 
       <div className="mx-auto w-full max-w-[92rem] lg:grid lg:grid-cols-[15rem_minmax(0,1fr)] xl:grid-cols-[16rem_minmax(0,1fr)]">
-        <aside className="saintagram-sidebar sticky top-0 hidden h-screen border-r border-sage-100 bg-paper/55 px-3 py-6 backdrop-blur-xl lg:flex lg:flex-col xl:px-4">
+        <aside className="saintagram-sidebar sticky top-0 z-[100] hidden h-screen overflow-visible border-r border-sage-100 bg-paper/55 px-3 py-6 backdrop-blur-xl lg:flex lg:flex-col xl:px-4">
           <Logo href="/profile" />
 
           <nav

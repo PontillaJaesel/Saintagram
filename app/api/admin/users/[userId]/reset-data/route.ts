@@ -10,7 +10,7 @@ import {
 
 export const runtime = "nodejs";
 
-const CONFIRMATION = "DELETE USER DATA";
+const CONFIRMATION = "RESET USER DATA";
 
 export async function POST(
   request: Request,
@@ -79,7 +79,7 @@ export async function POST(
       return NextResponse.json(
         {
           error:
-            "This user does not have a verified issued/default password, so their data was not deleted."
+            "This user cannot be reset because they do not have a verified issued/default password. To permanently remove this user, choose Delete Account & All Data instead."
         },
         {
           status: 409,

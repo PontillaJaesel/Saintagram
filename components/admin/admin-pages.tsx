@@ -681,7 +681,7 @@ export function UserDetail({
       const expectedConfirmation =
         destructiveAction ===
         "reset-data"
-          ? "DELETE USER DATA"
+          ? "RESET USER DATA"
           : "DELETE ACCOUNT";
 
       if (
@@ -723,7 +723,7 @@ export function UserDetail({
           );
 
           notify(
-            "User data deleted. The login account was preserved and the password was reset to the issued default password."
+            "User data reset. The login account was preserved and the password was restored to the issued default password."
           );
 
           setDestructiveAction(
@@ -792,7 +792,7 @@ export function UserDetail({
 
   const expectedDeleteText =
     isResetAction
-      ? "DELETE USER DATA"
+      ? "RESET USER DATA"
       : "DELETE ACCOUNT";
 
   return (
@@ -929,15 +929,15 @@ export function UserDetail({
           </div>
 
           <div className="mt-6 grid gap-4 md:grid-cols-2">
-            {/* DELETE USER DATA ONLY */}
+            {/* RESET USER DATA ONLY */}
 
             <div className="rounded-2xl border border-clay-100 bg-clay-50/40 p-5">
               <h3 className="font-serif text-lg font-bold text-ink">
-                Delete User Data
+                Reset User Data
               </h3>
 
               <p className="mt-2 text-sm leading-6 text-muted">
-                Delete the user&apos;s
+                Reset the user&apos;s
                 Saintagram profile,
                 reflections, FiAt data,
                 likes, comments,
@@ -974,7 +974,7 @@ export function UserDetail({
                   )
                 }
               >
-                Delete User Data
+                Reset User Data
               </button>
             </div>
 
@@ -1053,7 +1053,7 @@ export function UserDetail({
         }
         title={
           isResetAction
-            ? "Delete this user's data?"
+            ? "Reset this user's data?"
             : "Permanently delete this account?"
         }
         description={
@@ -1063,7 +1063,7 @@ export function UserDetail({
         }
         confirmLabel={
           isResetAction
-            ? "Delete User Data"
+            ? "Reset User Data"
             : "Delete Account & All Data"
         }
         destructive
