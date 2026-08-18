@@ -455,7 +455,11 @@ export function ProfileWizard() {
       await cleanupKnownImages(data.imagePath, false);
       if (data.imagePath) knownImagePathsRef.current.add(data.imagePath);
       const refreshed = await refreshUser();
-      router.replace(refreshed?.mustChangePassword !== false ? "/settings" : "/profile?created=1");
+      router.replace(
+        refreshed?.mustChangePassword !== false
+          ? "/settings"
+          : "/profile?created=1"
+      );
     } catch (completeError) {
       finishingRef.current = false;
       setFinishing(false);

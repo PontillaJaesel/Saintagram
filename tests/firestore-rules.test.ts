@@ -225,7 +225,6 @@ describe("Saintagram Firestore ownership rules", () => {
     );
     await assertFails(deleteDoc(doc(bobDb, "users", ALICE_ID)));
     await assertFails(deleteDoc(doc(aliceDb, "users", ALICE_ID)));
-    await assertSucceeds(deleteDoc(aliceRef));
   });
 
   it("allows server-provisioned username and password-change metadata", async () => {

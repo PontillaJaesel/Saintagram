@@ -12,7 +12,6 @@ import {
   Edit3,
   Heart,
   MessageCircle,
-  NotebookPen,
   Sparkles,
   UserRoundPlus
 } from "lucide-react";

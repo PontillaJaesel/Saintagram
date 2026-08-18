@@ -16,7 +16,6 @@ import {
   PenLine
 } from "lucide-react";
 import { LoadingState } from "@/components/ui/loading-state";
-import { ReflectionMediaView } from "@/components/reflections/reflection-media-view";
 import { useAuth } from "@/components/providers/auth-provider";
 import { useToast } from "@/components/providers/toast-provider";
 import { ReflectionMediaPicker } from "@/components/reflections/reflection-media-picker";

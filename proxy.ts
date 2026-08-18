@@ -26,9 +26,20 @@ function isFrameworkAsset(pathname: string): boolean {
   );
 }
 
+function isPublicAssetPath(pathname: string): boolean {
+  return /\.(?:png|jpe?g|gif|svg|webp|avif|ico|bmp|pdf|css|js|woff2?|ttf|eot|json|txt|xml|map|mp4|webm|mp3|wav|ogg)$/i.test(
+    pathname
+  );
+}
+
 function adminWorkerResponse(request: NextRequest): NextResponse {
   const pathname = request.nextUrl.pathname;
-  if (isFrameworkAsset(pathname) || isAdminPagePath(pathname) || isAdminApiPath(pathname)) {
+  if (
+    isFrameworkAsset(pathname) ||
+    isPublicAssetPath(pathname) ||
+    isAdminPagePath(pathname) ||
+    isAdminApiPath(pathname)
+  ) {
     return NextResponse.next();
   }
 
@@ -71,7 +82,14 @@ export async function enforceAccessGate(request: NextRequest) {
     return NextResponse.redirect(new URL(`/open/qr${search}`, request.url));
   }
 
-  if (isFrameworkAsset(pathname) || pathname === ACCESS_ENDPOINT || TRACKED_ENTRY_PATHS.has(pathname)) {
+  if (
+    isFrameworkAsset(pathname) ||
+    isPublicAssetPath(pathname) ||
+    pathname === "/Saintagram_Logo.png" ||
+    pathname === "/Saintagram_Logo.svg" ||
+    pathname === ACCESS_ENDPOINT ||
+    TRACKED_ENTRY_PATHS.has(pathname)
+  ) {
     return NextResponse.next();
   }
 

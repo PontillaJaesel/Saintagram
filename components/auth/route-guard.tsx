@@ -10,8 +10,6 @@ import { isIntentionalAuthExitPending } from "@/lib/auth-navigation";
 export function RouteGuard({
   children,
   requireConsent = true,
-  requireIntroduction = false,
-  requireProfile = false,
   redirectCompleted = false
 }: {
   children: ReactNode;
@@ -30,26 +28,18 @@ export function RouteGuard({
       destination = isIntentionalAuthExitPending()
         ? "/"
         : `/auth?mode=login&next=${encodeURIComponent(pathname)}`;
-    } else if (user.mustChangePassword !== false) {
-      destination =
-        pathname === "/settings"
-          ? null
-          : "/settings";
     } else if (!user.profileCompleted) {
       destination =
         pathname === "/create"
           ? null
           : "/create";
+    } else if (user.mustChangePassword !== false) {
+      destination =
+        pathname === "/settings"
+          ? null
+          : "/settings";
     } else if (requireConsent && !user.privacyConsentAt) {
       destination = "/privacy";
-    } else if (
-      (requireIntroduction || requireProfile) &&
-      !user.profileCompleted &&
-      !user.spiritualIntroSeenAt
-    ) {
-      destination = "/introduction";
-    } else if (requireProfile && !user.profileCompleted) {
-      destination = "/create";
     } else if (redirectCompleted && user.profileCompleted) {
       destination = resolvePostAuthRoute(user);
     }
