@@ -3,6 +3,7 @@
 import { deleteObject, getDownloadURL, listAll, ref, uploadBytes } from "firebase/storage";
 import { getFirebaseServices } from "@/lib/firebase";
 import { LIMITS } from "@/lib/constants";
+import { MODERATION_IMAGE_ERROR, moderateWithServerRoute, validateModerationImageFile } from "@/lib/moderation";
 import type { ReflectionMedia } from "@/types";
 
 const IMAGE_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
@@ -32,6 +33,23 @@ export async function validateReflectionMedia(files: File[]): Promise<void> {
   if (videos.length && (videos.length !== 1 || images.length)) throw new Error("Choose either up to five photos or one video.");
   if (images.length > LIMITS.reflectionImages) throw new Error("Choose no more than five photos.");
   if (images.some((file) => file.size > LIMITS.reflectionImageBytes)) throw new Error("Each photo must be 10 MB or smaller.");
+  for (const image of images) {
+    const imageError = validateModerationImageFile(image);
+    if (imageError) throw new Error(MODERATION_IMAGE_ERROR);
+    await moderateWithServerRoute("", "image", {
+      imageDataUrl: await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(String(reader.result ?? ""));
+        reader.onerror = () => reject(new Error("This image could not be checked."));
+        reader.readAsDataURL(image);
+      }),
+      fileName: image.name,
+      mimeType: image.type,
+      size: image.size
+    }).catch(() => {
+      throw new Error(MODERATION_IMAGE_ERROR);
+    });
+  }
   if (videos.length) {
     if (videos[0].size > LIMITS.reflectionVideoBytes) throw new Error("The video must be 50 MB or smaller.");
     if ((await videoDuration(videos[0])) > LIMITS.reflectionVideoSeconds + 0.1) throw new Error("The video must be 15 seconds or shorter.");

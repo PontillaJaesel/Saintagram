@@ -1,4 +1,5 @@
 import { getFirebaseServices, type FirebaseServices } from "@/lib/firebase";
+import { MODERATION_IMAGE_ERROR, moderateWithServerRoute, validateModerationImageFile } from "@/lib/moderation";
 import { validateImage } from "@/lib/validation";
 import {
   deleteObject,
@@ -158,6 +159,23 @@ export async function uploadFirebaseProfileImage(
 ): Promise<string> {
   const validationError = validateImage(file);
   if (validationError) throw new Error(validationError);
+  const moderationError = validateModerationImageFile(file);
+  if (moderationError) throw new Error(moderationError);
+
+  const imageDataUrl = await new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result ?? ""));
+    reader.onerror = () => reject(new Error("This image could not be checked."));
+    reader.readAsDataURL(file);
+  });
+  await moderateWithServerRoute("", "image", {
+    imageDataUrl,
+    fileName: file.name,
+    mimeType: file.type,
+    size: file.size
+  }).catch(() => {
+    throw new Error(MODERATION_IMAGE_ERROR);
+  });
 
   const extension =
     PROFILE_IMAGE_MIME_EXTENSIONS[

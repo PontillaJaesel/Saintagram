@@ -7,6 +7,8 @@ Saintagram is a responsive, private reflection application inspired by the
 familiar shape of a social profile without popularity metrics, public follower
 counts, rankings, streaks, or competitive engagement.
 
+For the complete first-visit walkthrough, see the [Saintagram user guide](docs/user-guide.md).
+
 The production experience starts with an administrator-issued username and
 temporary password. A first-time user creates their private profile, replaces
 the temporary password in Settings, completes the privacy gate, and then enters

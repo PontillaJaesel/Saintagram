@@ -659,6 +659,12 @@ export function SocialReflectionCard({
         return;
       }
 
+      const moderation = await moderateTextContent(content);
+      if (!moderation.allowed) {
+        setError(moderation.reason || MODERATION_TEXT_ERROR);
+        setCommentBusy(false);
+        return;
+      }
       setCommentBusy(true);
       setError("");
 
@@ -714,6 +720,12 @@ export function SocialReflectionCard({
             return;
             }
 
+            const moderation = await moderateTextContent(content);
+            if (!moderation.allowed) {
+                setError(moderation.reason || MODERATION_TEXT_ERROR);
+                setReplyBusy(false);
+                return;
+            }
             setReplyBusy(true);
             setError("");
 

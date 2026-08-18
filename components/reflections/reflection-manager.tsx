@@ -23,6 +23,7 @@ import { FiatCategorySelector } from "@/components/fiat/fiat-category-selector";
 import { appService } from "@/lib/app-service";
 import { LIMITS } from "@/lib/constants";
 import { deleteReflectionMedia, reflectionMediaId, uploadReflectionMedia, validateReflectionMedia } from "@/lib/reflection-media";
+import { MODERATION_TEXT_ERROR, moderateTextContent } from "@/lib/moderation";
 import type { FiatCategory, ReflectionPost } from "@/types";
 
 export function ReflectionManager() {
@@ -45,11 +46,40 @@ export function ReflectionManager() {
   const [fiatOther, setFiatOther] = useState("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+  const [liveWarningField, setLiveWarningField] = useState<
+    "title" | "content" | "fiatOther" | null
+  >(null);
+  const [liveWarningMessage, setLiveWarningMessage] = useState("");
   const [errorField, setErrorField] = useState<
     "content" | "fiatOther" | "form" | null
   >(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
+
+  const checkLiveTextWarning = async (
+    field: "title" | "content" | "fiatOther",
+    value: string
+  ) => {
+    if (!value.trim()) {
+      if (liveWarningField === field) {
+        setLiveWarningField(null);
+        setLiveWarningMessage("");
+      }
+      return;
+    }
+
+    const moderation = await moderateTextContent(value);
+    if (moderation.allowed) {
+      if (liveWarningField === field) {
+        setLiveWarningField(null);
+        setLiveWarningMessage("");
+      }
+      return;
+    }
+
+    setLiveWarningField(field);
+    setLiveWarningMessage(moderation.reason || MODERATION_TEXT_ERROR);
+  };
 
   const resetComposer = () => {
     setContent("");
@@ -59,6 +89,8 @@ export function ReflectionManager() {
     setFiatCategory(undefined);
     setFiatOther("");
     setError("");
+    setLiveWarningField(null);
+    setLiveWarningMessage("");
     setErrorField(null);
   };
 
@@ -75,6 +107,13 @@ export function ReflectionManager() {
     if (fiatCategory === "other" && !fiatOther.trim()) {
       setError("Please describe your other FiAt before saving.");
       setErrorField("fiatOther");
+      return;
+    }
+    const moderation = await moderateTextContent(`${title}\n${content}\n${fiatOther}`);
+    if (!moderation.allowed) {
+      setError(moderation.reason || MODERATION_TEXT_ERROR);
+      setErrorField("form");
+      setSaving(false);
       return;
     }
     setSaving(true);
@@ -272,10 +311,19 @@ export function ReflectionManager() {
             id="reflection-title"
             className="field"
             value={title}
-            onChange={(event) => setTitle(event.target.value)}
+            onChange={(event) => {
+              const nextValue = event.target.value;
+              setTitle(nextValue);
+              void checkLiveTextWarning("title", nextValue); 
+            }}
             maxLength={LIMITS.momentTitle}
             placeholder="Give this moment a name"
           />
+          {liveWarningField === "title" && liveWarningMessage && (
+            <p className="mt-2 text-sm font-semibold text-clay-600" role="alert" aria-live="polite">
+              {liveWarningMessage}
+            </p>
+          )}
           <p className="mt-2 text-right text-xs tabular-nums text-muted">
             {title.length} / {LIMITS.momentTitle}
           </p>
@@ -293,7 +341,9 @@ export function ReflectionManager() {
             }`}
             value={content}
             onChange={(event) => {
-              setContent(event.target.value);
+              const nextValue = event.target.value;
+              setContent(nextValue);
+              void checkLiveTextWarning("content", nextValue);
               if (errorField === "content") {
                 setError("");
                 setErrorField(null);
@@ -308,6 +358,11 @@ export function ReflectionManager() {
                 : "reflection-count"
             }
           />
+          {liveWarningField === "content" && liveWarningMessage && (
+            <p className="mt-2 text-sm font-semibold text-clay-600" role="alert" aria-live="polite">
+              {liveWarningMessage}
+            </p>
+          )}
           <p
             id="reflection-count"
             className="mt-2 text-right text-xs tabular-nums text-muted"

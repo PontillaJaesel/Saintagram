@@ -32,6 +32,10 @@ import {
   LIMITS,
   PROFILE_NAME_IDEAS
 } from "@/lib/constants";
+import {
+  MODERATION_TEXT_ERROR,
+  moderateTextContent
+} from "@/lib/moderation";
 import { normalizeHashtag } from "@/lib/validation";
 import type { SpiritualProfile } from "@/types";
 
@@ -90,6 +94,10 @@ export function ProfileEditor() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+  const [liveWarningField, setLiveWarningField] = useState<
+    "profileName" | "spiritualBio" | "godsComment" | "heavenlyHashtag" | null
+  >(null);
+  const [liveWarningMessage, setLiveWarningMessage] = useState("");
   const [privacyConfirmed, setPrivacyConfirmed] = useState(false);
   const [pendingDestination, setPendingDestination] = useState<string | null>(null);
   const nameRef = useRef<HTMLInputElement>(null);
@@ -198,6 +206,31 @@ export function ProfileEditor() {
     setError("");
   };
 
+  const checkLiveTextWarning = async (
+    field: "profileName" | "spiritualBio" | "godsComment" | "heavenlyHashtag",
+    value: string
+  ) => {
+    if (!value.trim()) {
+      if (liveWarningField === field) {
+        setLiveWarningField(null);
+        setLiveWarningMessage("");
+      }
+      return;
+    }
+
+    const moderation = await moderateTextContent(value);
+    if (moderation.allowed) {
+      if (liveWarningField === field) {
+        setLiveWarningField(null);
+        setLiveWarningMessage("");
+      }
+      return;
+    }
+
+    setLiveWarningField(field);
+    setLiveWarningMessage(moderation.reason || MODERATION_TEXT_ERROR);
+  };
+
   const submit = async (event: FormEvent) => {
     event.preventDefault();
     if (!user || !profile) return;
@@ -206,8 +239,31 @@ export function ProfileEditor() {
       nameRef.current?.focus();
       return;
     }
-    setSaving(true);
+
+    const checks = [
+      { field: "profileName" as const, value: profile.profileName },
+      { field: "spiritualBio" as const, value: profile.spiritualBio },
+      { field: "godsComment" as const, value: profile.godsComment },
+      { field: "heavenlyHashtag" as const, value: profile.heavenlyHashtag }
+    ];
+
+    for (const check of checks) {
+      const moderation = await moderateTextContent(check.value);
+      if (!moderation.allowed) {
+        setLiveWarningField(check.field);
+        setLiveWarningMessage(moderation.reason || MODERATION_TEXT_ERROR);
+        setError(moderation.reason || MODERATION_TEXT_ERROR);
+        if (check.field === "profileName") {
+          nameRef.current?.focus();
+        }
+        return;
+      }
+    }
+
+    setLiveWarningField(null);
+    setLiveWarningMessage("");
     setError("");
+    setSaving(true);
     try {
       const updated = await appService.updateProfile(user.id, profile);
       committedImagePathRef.current = updated.imagePath;
@@ -307,7 +363,10 @@ export function ProfileEditor() {
             id="edit-profile-name"
             className="field"
             value={profile.profileName}
-            onChange={(event) => setField("profileName", event.target.value)}
+            onChange={(event) => {
+              setField("profileName", event.target.value);
+              void checkLiveTextWarning("profileName", event.target.value);
+            }}
             maxLength={LIMITS.profileName}
             required
             aria-invalid={!profile.profileName.trim() && Boolean(error)}
@@ -317,6 +376,11 @@ export function ProfileEditor() {
                 : undefined
             }
           />
+          {liveWarningField === "profileName" && liveWarningMessage && (
+            <p className="mt-2 text-sm font-semibold text-clay-600" role="alert" aria-live="polite">
+              {liveWarningMessage}
+            </p>
+          )}
           {!profile.profileName.trim() && error && (
             <p
               id="edit-profile-name-error"
@@ -427,9 +491,17 @@ export function ProfileEditor() {
             id="edit-bio"
             className="field min-h-40 resize-y"
             value={profile.spiritualBio}
-            onChange={(event) => setField("spiritualBio", event.target.value)}
+            onChange={(event) => {
+              setField("spiritualBio", event.target.value);
+              void checkLiveTextWarning("spiritualBio", event.target.value);
+            }}
             maxLength={LIMITS.bio}
           />
+          {liveWarningField === "spiritualBio" && liveWarningMessage && (
+            <p className="mt-2 text-sm font-semibold text-clay-600" role="alert" aria-live="polite">
+              {liveWarningMessage}
+            </p>
+          )}
           <p className="mt-2 text-right text-xs text-muted">
             {profile.spiritualBio.length} / {LIMITS.bio}
           </p>
@@ -485,9 +557,17 @@ export function ProfileEditor() {
             id="edit-gods-comment"
             className="field min-h-40 resize-y"
             value={profile.godsComment}
-            onChange={(event) => setField("godsComment", event.target.value)}
+            onChange={(event) => {
+              setField("godsComment", event.target.value);
+              void checkLiveTextWarning("godsComment", event.target.value);
+            }}
             maxLength={LIMITS.godsComment}
           />
+          {liveWarningField === "godsComment" && liveWarningMessage && (
+            <p className="mt-2 text-sm font-semibold text-clay-600" role="alert" aria-live="polite">
+              {liveWarningMessage}
+            </p>
+          )}
           <p className="mt-2 text-right text-xs text-muted">
             {profile.godsComment.length} / {LIMITS.godsComment}
           </p>
@@ -529,15 +609,19 @@ export function ProfileEditor() {
                   ? ""
                   : profile.heavenlyHashtag
               }
-              onChange={(event) =>
-                setField(
-                  "heavenlyHashtag",
-                  normalizeHashtag(event.target.value)
-                )
-              }
+              onChange={(event) => {
+                const nextValue = normalizeHashtag(event.target.value);
+                setField("heavenlyHashtag", nextValue);
+                void checkLiveTextWarning("heavenlyHashtag", nextValue);
+              }}
               maxLength={LIMITS.hashtag}
               placeholder="#YourGraceForToday"
             />
+            {liveWarningField === "heavenlyHashtag" && liveWarningMessage && (
+              <p className="mt-2 text-sm font-semibold text-clay-600" role="alert" aria-live="polite">
+                {liveWarningMessage}
+              </p>
+            )}
           </fieldset>
         </EditorSection>
 
