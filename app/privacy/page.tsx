@@ -68,7 +68,7 @@ function PrivacyContent() {
       icon: EyeOff,
       title: "Tracked entry links may use location",
       description:
-        "Special QR and share links record their link type, opening time, and approximate city, region, and country when available. If you explicitly allow the browser's location request, Saintagram also stores the device coordinates, reported accuracy, and a reverse-geocoded street, city, region, and country for that visit. The event may be associated with your account after sign-in. This feature does not continuously track location or intentionally store raw IP addresses."
+        "Special QR and share links may record the type of link you opened, the time you opened it, and your location when available. If location access is turned on in your device or browser settings and you allow Saintagram to use it, the app may record your exact location at the time you open the link. This can include your street, city, region, country, and location accuracy. The visit may also be connected to your Saintagram account after you sign in. Saintagram only checks your location when the tracked link is opened and does not continuously track where you go."
     }
   ];
 
