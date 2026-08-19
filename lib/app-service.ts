@@ -36,13 +36,11 @@ import { isFiatCategory, localDateKey } from "@/lib/fiat";
 import { usernameAccountEmail } from "@/lib/account-identity";
 import {
   deleteAllFirebaseProfileImages,
-  deleteFirebaseProfileCover,
   deleteFirebaseProfileImage,
-  isOwnedProfileCoverPath,
   isOwnedProfileImagePath,
-  uploadFirebaseProfileCover,
   uploadFirebaseProfileImage
 } from "@/lib/profile-images";
+import { isProfileCoverId } from "@/lib/profile-covers";
 import { deleteAllReflectionMedia } from "@/lib/reflection-media";
 import {
   normalizeDraft,
@@ -54,10 +52,12 @@ import {
   normalizeCoverColor,
   normalizeHashtag,
   normalizeList,
-  registrationEmailError,
-  validateCoverImage
+  registrationEmailError
 } from "@/lib/validation";
 import { MODERATION_TEXT_ERROR, moderateTextContent } from "@/lib/moderation";
+import {
+  syncAdminReflectionNotifications
+} from "@/lib/system-notification-bootstrap";
 import {
   DEFAULT_PRIVACY_PREFERENCES,
   EMPTY_DRAFT,
@@ -274,22 +274,20 @@ function storedPublicProfile(
       ? (value as Record<string, unknown>)
       : {};
   const storedImagePath = stringValue(data.imagePath);
-  const storedCoverImagePath = stringValue(data.coverImagePath);
+  const storedCoverImageId = stringValue(data.coverImageId);
   return {
     id: stringValue(data.id),
     userId: stringValue(data.userId),
     profileName: stringValue(data.profileName),
     coverColor: expectedUserId
       ? normalizeCoverColor(
-          readJson<JsonMap<string>>(LOCAL_KEYS.coverColors, {})[expectedUserId]
+          data.coverColor ??
+            readJson<JsonMap<string>>(LOCAL_KEYS.coverColors, {})[expectedUserId]
         )
-      : "#DDD2F6",
-    coverImagePath:
-      expectedUserId &&
-      storedCoverImagePath &&
-      !isOwnedProfileCoverPath(storedCoverImagePath, expectedUserId)
-        ? ""
-        : storedCoverImagePath,
+      : normalizeCoverColor(data.coverColor),
+    coverImageId: isProfileCoverId(storedCoverImageId)
+      ? storedCoverImageId
+      : "",
     imagePath:
       expectedUserId &&
       storedImagePath &&
@@ -400,6 +398,8 @@ function storedReflection(
     title: cleanText(stringValue(data.title), LIMITS.momentTitle),
     content,
     isPrivate: data.isPrivate,
+      accountPrivate:
+        data.accountPrivate === true,
     createdAt,
     updatedAt,
     ...(editedAt ? { editedAt } : {}),
@@ -435,13 +435,18 @@ function storedSocialProfile(
     id,
     userId,
     profileName,
-    coverImagePath:
-      isOwnedProfileCoverPath(stringValue(data.coverImagePath), userId)
-        ? stringValue(data.coverImagePath)
-        : "",
+    coverColor: normalizeCoverColor(data.coverColor),
+    coverImageId: isProfileCoverId(data.coverImageId)
+      ? data.coverImageId
+      : "",
     imagePath: stringValue(data.imagePath),
     spiritualBio: stringValue(data.spiritualBio),
-    heavenlyHashtag: stringValue(data.heavenlyHashtag),
+    heavenlyHashtag:
+      stringValue(
+        data.heavenlyHashtag
+      ),
+    isPrivateAccount:
+      data.isPrivateAccount === true,
     createdAt,
     updatedAt
   };
@@ -834,7 +839,7 @@ async function ensureLocalSeed(): Promise<void> {
     userId,
     profileName: "Still Growing",
     coverColor: "#DDD2F6",
-    coverImagePath: "",
+    coverImageId: "",
     imagePath: "",
     selectedSymbol: "seed",
     spiritualBio:
@@ -1473,11 +1478,11 @@ function profileJourneyChanges(
     );
   }
 
-  if (before.coverImagePath !== after.coverImagePath) {
+  if (before.coverImageId !== after.coverImageId) {
     changes.push(
-      after.coverImagePath
-        ? "Profile cover photo was changed."
-        : "Profile cover photo was removed."
+      after.coverImageId
+        ? "Profile cover design was changed."
+        : "Profile cover design was removed."
     );
   }
 
@@ -1511,10 +1516,29 @@ export const appService = {
         userId
       );
 
-    const existing =
-      await getDoc(
-        socialProfileRef
+    const userRef =
+      doc(
+        services.db,
+        "users",
+        userId
       );
+
+    const [
+      existing,
+      userSnapshot
+    ] =
+      await Promise.all([
+        getDoc(
+          socialProfileRef
+        ),
+        getDoc(userRef)
+      ]);
+
+    const isPrivateAccount =
+      userSnapshot.exists() &&
+      userSnapshot.data()
+        .privacyPreferences
+        ?.accountPrivate === true;
 
     const socialProfile:
       SocialProfile = {
@@ -1524,8 +1548,11 @@ export const appService = {
       profileName:
         profile.profileName,
 
-      coverImagePath:
-        profile.coverImagePath,
+      coverColor:
+        profile.coverColor,
+
+      coverImageId:
+        profile.coverImageId,
 
       imagePath:
         profile.imagePath,
@@ -1535,6 +1562,8 @@ export const appService = {
 
       heavenlyHashtag:
         profile.heavenlyHashtag,
+
+      isPrivateAccount,
 
       createdAt:
         profile.createdAt,
@@ -1546,38 +1575,39 @@ export const appService = {
     if (
       existing.exists()
     ) {
-      /*
-      * Update only mutable fields.
-      *
-      * Do NOT touch createdAt.
-      */
       await updateDoc(
         socialProfileRef,
         {
           profileName:
-            socialProfile.profileName,
+            socialProfile
+              .profileName,
 
-          coverImagePath:
-            socialProfile.coverImagePath,
+          coverColor:
+            socialProfile.coverColor,
+
+          coverImageId:
+            socialProfile.coverImageId,
 
           imagePath:
-            socialProfile.imagePath,
+            socialProfile
+              .imagePath,
 
           spiritualBio:
-            socialProfile.spiritualBio,
+            socialProfile
+              .spiritualBio,
 
           heavenlyHashtag:
-            socialProfile.heavenlyHashtag,
+            socialProfile
+              .heavenlyHashtag,
+
+          isPrivateAccount,
 
           updatedAt:
-            socialProfile.updatedAt
+            socialProfile
+              .updatedAt
         }
       );
     } else {
-      /*
-      * Only a brand-new social
-      * profile receives createdAt.
-      */
       await setDoc(
         socialProfileRef,
         socialProfile
@@ -2279,6 +2309,15 @@ export const appService = {
       );
     }
 
+    if (
+      target.data()
+        .isPrivateAccount === true
+    ) {
+      throw new Error(
+        "This account is private. Send a follow request instead."
+      );
+    }
+
     const followId =
       `${followerId}_${followingId}`;
 
@@ -2564,29 +2603,102 @@ export const appService = {
   async getPublicReflectionsByUser(
     profileUserId: string
   ): Promise<ReflectionPost[]> {
-    const services = getFirebaseServices();
+    const services =
+      getFirebaseServices();
 
-    if (!services?.auth.currentUser) {
-      throw new Error("Please log in to view reflections.");
+    const currentUser =
+      services?.auth.currentUser;
+
+    if (!currentUser) {
+      throw new Error(
+        "Please log in to view reflections."
+      );
     }
 
-    const snapshot = await getDocs(
-      query(
-        collection(services.db, "reflectionPosts"),
-        where("userId", "==", profileUserId),
-        where("isPrivate", "==", false)
-      )
-    );
+    const profileSnapshot =
+      await getDoc(
+        doc(
+          services.db,
+          "socialProfiles",
+          profileUserId
+        )
+      );
+
+    if (
+      !profileSnapshot.exists()
+    ) {
+      return [];
+    }
+
+    const privateAccount =
+      profileSnapshot.data()
+        .isPrivateAccount === true;
+
+    if (
+      privateAccount &&
+      currentUser.uid !==
+        profileUserId
+    ) {
+      const followSnapshot =
+        await getDoc(
+          doc(
+            services.db,
+            "follows",
+            `${currentUser.uid}_${profileUserId}`
+          )
+        );
+
+      if (
+        !followSnapshot.exists()
+      ) {
+        return [];
+      }
+    }
+
+    const snapshot =
+      await getDocs(
+        query(
+          collection(
+            services.db,
+            "reflectionPosts"
+          ),
+
+          where(
+            "userId",
+            "==",
+            profileUserId
+          ),
+
+          where(
+            "isPrivate",
+            "==",
+            false
+          )
+        )
+      );
 
     return snapshot.docs
       .map((item) =>
-        storedReflection(item.id, item.data(), profileUserId)
+        storedReflection(
+          item.id,
+          item.data(),
+          profileUserId
+        )
       )
-      .filter((post): post is ReflectionPost => Boolean(post))
+      .filter(
+        (
+          post
+        ): post is ReflectionPost =>
+          Boolean(post)
+      )
       .sort(
         (a, b) =>
-          new Date(b.createdAt).getTime() -
-          new Date(a.createdAt).getTime()
+          new Date(
+            b.createdAt
+          ).getTime() -
+          new Date(
+            a.createdAt
+          ).getTime()
       );
   },
 
@@ -2719,8 +2831,17 @@ export const appService = {
         const snapshot = await getDocs(
           query(
             collection(services.db, "reflectionPosts"),
-            where("userId", "==", followingId),
-            where("isPrivate", "==", false)
+            where(
+              "userId",
+              "==",
+              followingId
+            ),
+
+            where(
+              "isPrivate",
+              "==",
+              false
+            )
           )
         );
 
@@ -2780,6 +2901,12 @@ export const appService = {
           ),
           where(
             "isPrivate",
+            "==",
+            false
+          ),
+
+          where(
+            "accountPrivate",
             "==",
             false
           )
@@ -2926,12 +3053,42 @@ export const appService = {
             return;
           }
           try {
-            callback(await getFirebaseUserRecord(
-              firebaseUser.uid,
-              firebaseUser.email ?? ""
-            ));
+            const appUser =
+              await getFirebaseUserRecord(
+                firebaseUser.uid,
+                firebaseUser.email ?? ""
+              );
+
+            /*
+            * Account is now successfully initialized.
+            *
+            * Show the user immediately.
+            */
+            callback(
+              appUser
+            );
+
+            /*
+            * Then asynchronously make sure the user
+            * has notifications for every previous
+            * Saintagram Admin reflection.
+            *
+            * Do not block login if notification
+            * synchronization temporarily fails.
+            */
+            void syncAdminReflectionNotifications()
+              .catch(
+                (error) => {
+                  console.error(
+                    "[ADMIN REFLECTION NOTIFICATION SYNC]",
+                    error
+                  );
+                }
+              );
           } catch {
-            callback(null);
+            callback(
+              null
+            );
           }
         });
       });
@@ -3122,10 +3279,32 @@ export const appService = {
           }
           throw Object.assign(new Error(), { code: "auth/email-not-verified" });
         }
-        const nextUser = await getFirebaseUserRecord(
-          credential.user.uid,
-          credential.user.email ?? email
-        );
+        const nextUser =
+          await getFirebaseUserRecord(
+            credential.user.uid,
+            credential.user.email ??
+              email
+          );
+
+        /*
+        * Make sure this account has received
+        * every existing Saintagram Admin
+        * reflection notification.
+        *
+        * This is deliberately idempotent:
+        * existing reflection notifications
+        * are detected and skipped.
+        */
+        void syncAdminReflectionNotifications()
+          .catch(
+            (error) => {
+              console.error(
+                "[ADMIN REFLECTION NOTIFICATION SYNC]",
+                error
+              );
+            }
+          );
+
         return nextUser;
       }
 
@@ -3534,12 +3713,31 @@ export const appService = {
       const services = getFirebaseServices();
       if (!services) throw new Error("Firebase is not available.");
       const existing = await this.getProfileView(userId);
+      const userRef = doc(
+        services.db,
+        "users",
+        userId
+      );
+
+      const userSnapshot =
+        await getDoc(userRef);
+
+      if (!userSnapshot.exists()) {
+        throw new Error(
+          "Your account record could not be found."
+        );
+      }
+
+      const accountPrivate =
+        userSnapshot.data()
+          .privacyPreferences
+          ?.accountPrivate === true;
       const fullProfile: SpiritualProfile = {
         id: userId,
         userId,
         profileName: data.profileName,
         coverColor: "#DDD2F6",
-        coverImagePath: existing?.coverImagePath ?? "",
+        coverImageId: existing?.coverImageId ?? "",
         imagePath: data.imagePath,
         selectedSymbol: data.selectedSymbol,
         spiritualBio: data.spiritualBio,
@@ -3559,19 +3757,25 @@ export const appService = {
         hiddenStory: fullProfile.hiddenStory,
         updatedAt: now
       });
-      batch.update(doc(services.db, "users", userId), {
-        profileCompleted: true,
-        updatedAt: now
-      });
+      batch.update(
+        userRef,
+        {
+          profileCompleted: true,
+          updatedAt: now
+        }
+      );
       batch.delete(doc(services.db, "drafts", userId));
       data.onboardingPosts.forEach((content, index) => {
         const postRef = doc(collection(services.db, "reflectionPosts"));
         const post: ReflectionPost = {
           id: postRef.id,
           userId,
-          title: data.onboardingPostTitles?.[index] || `Moment ${index + 1}`,
+          title:
+            data.onboardingPostTitles?.[index] ||
+            `Moment ${index + 1}`,
           content,
           isPrivate: false,
+          accountPrivate,
           createdAt: now,
           updatedAt: now
         };
@@ -3602,7 +3806,7 @@ export const appService = {
       userId,
       profileName: data.profileName,
       coverColor: "#DDD2F6",
-      coverImagePath: existing?.coverImagePath ?? "",
+      coverImageId: existing?.coverImageId ?? "",
       imagePath: data.imagePath,
       selectedSymbol: data.selectedSymbol,
       spiritualBio: data.spiritualBio,
@@ -3679,10 +3883,10 @@ export const appService = {
             ""
         ),
 
-      coverImagePath:
-        normalizeProfileImageReference(
-          profile.coverImagePath
-        ),
+      coverImageId:
+        isProfileCoverId(profile.coverImageId)
+          ? profile.coverImageId
+          : "",
 
       imagePath:
         normalizeProfileImageReference(
@@ -3771,13 +3975,6 @@ export const appService = {
         updated.imagePath
       );
 
-      if (
-        updated.coverImagePath &&
-        !isOwnedProfileCoverPath(updated.coverImagePath, userId)
-      ) {
-        throw new Error("The selected cover photo is not valid for this account.");
-      }
-
       const services =
         getFirebaseServices();
 
@@ -3857,10 +4054,25 @@ export const appService = {
       * Missing profile:
       *   CREATE the full document.
       */
-      const socialProfileSnapshot =
-        await getDoc(
-          socialProfileRef
-        );
+      const [
+        socialProfileSnapshot,
+        accountSnapshot
+      ] =
+        await Promise.all([
+          getDoc(
+            socialProfileRef
+          ),
+
+          getDoc(
+            userRef
+          )
+        ]);
+
+      const isPrivateAccount =
+        accountSnapshot.exists() &&
+        accountSnapshot.data()
+          .privacyPreferences
+          ?.accountPrivate === true;
 
       const batch =
         writeBatch(
@@ -3882,8 +4094,11 @@ export const appService = {
           profileName:
             updated.profileName,
 
-          coverImagePath:
-            updated.coverImagePath,
+          coverColor:
+            updated.coverColor,
+
+          coverImageId:
+            updated.coverImageId,
 
           imagePath:
             updated.imagePath,
@@ -3974,8 +4189,13 @@ export const appService = {
             imagePath:
               updated.imagePath,
 
-            coverImagePath:
-              updated.coverImagePath,
+            coverColor:
+              updated.coverColor,
+
+            coverImageId:
+              updated.coverImageId,
+
+            isPrivateAccount,
 
             spiritualBio:
               updated.spiritualBio,
@@ -3999,8 +4219,11 @@ export const appService = {
           profileName:
             updated.profileName,
 
-          coverImagePath:
-            updated.coverImagePath,
+          coverColor:
+            updated.coverColor,
+
+          coverImageId:
+            updated.coverImageId,
 
           imagePath:
             updated.imagePath,
@@ -4010,6 +4233,8 @@ export const appService = {
 
           heavenlyHashtag:
             updated.heavenlyHashtag,
+
+          isPrivateAccount,
 
           createdAt:
             updated.createdAt,
@@ -4064,7 +4289,85 @@ export const appService = {
       * All Firestore changes happen
       * together.
       */
-      await batch.commit();
+      const profileSaveWrites = [
+        {
+          path: `profiles/${userId}`,
+          fields: [
+            "profileName",
+            "coverColor",
+            "coverImageId",
+            "imagePath",
+            "selectedSymbol",
+            "spiritualBio",
+            "spiritualGuides",
+            "lifeDirections",
+            "heartSeeks",
+            "godsComment",
+            "heavenlyHashtag",
+            "followers(deleteField)",
+            "following(deleteField)",
+            "updatedAt"
+          ]
+        },
+        {
+          path: `privateProfiles/${userId}`,
+          fields: ["userId", "hiddenStory", "updatedAt"]
+        },
+        { path: `users/${userId}`, fields: ["updatedAt"] },
+        {
+          path: `socialProfiles/${userId}`,
+          fields: [
+            "profileName",
+            "imagePath",
+            "coverColor",
+            "coverImageId",
+            "isPrivateAccount",
+            "spiritualBio",
+            "heavenlyHashtag",
+            "updatedAt"
+          ]
+        },
+        ...(changes.length > 0
+          ? [
+              {
+                path: `profileJourneyEvents/{id}`,
+                fields: [
+                  "id",
+                  "userId",
+                  "changes",
+                  ...(profileImageChanged && updated.imagePath
+                    ? ["imagePath"]
+                    : []),
+                  "createdAt"
+                ]
+              }
+            ]
+          : [])
+      ];
+
+      if (process.env.NODE_ENV !== "production") {
+        console.debug("Profile save batch writes.", profileSaveWrites);
+      }
+
+      try {
+        await batch.commit();
+      } catch (error) {
+        if (process.env.NODE_ENV !== "production") {
+          const details =
+            typeof error === "object" && error
+              ? {
+                  code: "code" in error ? String(error.code) : "",
+                  message: "message" in error ? String(error.message) : "",
+                  name: "name" in error ? String(error.name) : ""
+                }
+              : { code: "", message: String(error), name: "" };
+          console.error("Profile save batch failed.", {
+            writes: profileSaveWrites,
+            error: details
+          });
+        }
+        throw error;
+      }
 
       await cleanupReplacedProfileImage(
         userId,
@@ -4072,15 +4375,6 @@ export const appService = {
           "",
         updated.imagePath
       );
-
-      if (
-        existing.coverImagePath &&
-        existing.coverImagePath !== updated.coverImagePath
-      ) {
-        await deleteFirebaseProfileCover(userId, existing.coverImagePath).catch(
-          () => undefined
-        );
-      }
 
       return updated;
     }
@@ -4172,37 +4466,12 @@ export const appService = {
     return imagePath;
   },
 
-  async uploadProfileCover(userId: string, file: File): Promise<string> {
-    if (isFirebaseConfigured) {
-      assertFirebaseOwner(userId);
-      return uploadFirebaseProfileCover(userId, file);
-    }
-
-    assertLocalOwner(userId);
-    const validationError = validateCoverImage(file);
-    if (validationError) throw new Error(validationError);
-    return new Promise<string>((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = () => resolve(String(reader.result ?? ""));
-      reader.onerror = () => reject(new Error("The cover photo could not be read."));
-      reader.readAsDataURL(file);
-    });
-  },
-
   async deleteProfileImage(userId: string, imagePath: string): Promise<void> {
     if (!imagePath) return;
     if (isFirebaseConfigured) {
       assertFirebaseOwner(userId);
       if (await hasFirebaseProfileImageReference(userId, imagePath)) return;
       await deleteFirebaseProfileImage(userId, imagePath);
-    }
-  },
-
-  async deleteProfileCover(userId: string, imagePath: string): Promise<void> {
-    if (!imagePath) return;
-    if (isFirebaseConfigured) {
-      assertFirebaseOwner(userId);
-      await deleteFirebaseProfileCover(userId, imagePath);
     }
   },
 
@@ -4456,6 +4725,20 @@ export const appService = {
       assertFirebaseOwner(userId);
       const services = getFirebaseServices();
       if (!services) throw new Error("Firebase is not available.");
+      const userSnapshot =
+        await getDoc(
+          doc(
+            services.db,
+            "users",
+            userId
+          )
+        );
+
+      const accountPrivate =
+        userSnapshot.exists() &&
+        userSnapshot.data()
+          .privacyPreferences
+          ?.accountPrivate === true;
       const postRef = input.id
         ? doc(services.db, "reflectionPosts", input.id)
         : input.newId
@@ -4477,6 +4760,7 @@ export const appService = {
         title,
         content,
         isPrivate: input.isPrivate,
+        accountPrivate,
         createdAt,
         updatedAt: now,
         ...(input.id ? { editedAt: now } : {}),

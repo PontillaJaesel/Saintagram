@@ -52,8 +52,6 @@ import {
   deleteFirebaseProfileImage,
   downloadFirebaseProfileImage,
   isLocalProfileImageSource,
-  isOwnedProfileCoverPath,
-  profileCoverFolder,
   isOwnedProfileImagePath,
   profileImageFolder,
   uploadFirebaseProfileImage
@@ -97,8 +95,6 @@ describe("Firebase profile-image storage", () => {
 
   it("recognizes only exact owner paths and local demo image data", () => {
     expect(profileImageFolder("alice")).toBe("users/alice/profile");
-    expect(profileCoverFolder("alice")).toBe("users/alice/cover");
-    expect(isOwnedProfileCoverPath("users/alice/cover/04fefae1-e03e-42ee-9cd4-dc86823426e8.png", "alice")).toBe(true);
     expect(isOwnedProfileImagePath(VALID_IMAGE_PATH, "alice")).toBe(true);
     expect(isOwnedProfileImagePath(VALID_IMAGE_PATH, "bob")).toBe(false);
     expect(

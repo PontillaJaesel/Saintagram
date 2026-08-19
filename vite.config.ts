@@ -11,9 +11,10 @@ export default defineConfig({
   define: {
     __dirname: JSON.stringify("/"),
   },
-  // firebase-admin 14's ESM entrypoints are wrappers around CommonJS. Rolldown
-  // currently miscompiles one of those wrappers as `default.SDK_VERSION`.
-  // Bundle the underlying modules directly until that interop bug is fixed.
+
+  // firebase-admin 14's ESM entrypoints are wrappers around CommonJS.
+  // Rolldown currently miscompiles one of those wrappers as
+  // `default.SDK_VERSION`.
   resolve: {
     alias: [
       ["app", "app"],
@@ -30,8 +31,10 @@ export default defineConfig({
       ),
     })),
   },
+
   plugins: [
     vinext(),
+
     cloudflare({
       viteEnvironment: {
         name: "rsc",

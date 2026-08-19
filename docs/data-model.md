@@ -36,6 +36,8 @@ standard profile interface, this collection remains owner-only.
 | `id` | string | Must equal the Firestore document ID. |
 | `userId` | string | Firebase UID; immutable and used for ownership checks. |
 | `profileName` | string | Display name or faith-centered identity. |
+| `coverColor` | string | Hex fallback cover color, such as `#DDD2F6`. |
+| `coverImageId` | string | Optional ID from the local `PROFILE_COVERS` configuration. Unknown IDs fall back to `coverColor`. |
 | `imagePath` | string | Empty or the private Firebase Storage path `users/{uid}/profile/{uuid}.{jpg|png|webp}`. |
 | `coverImagePath` | string | Empty or the private Firebase Storage path `users/{uid}/cover/{uuid}.{jpg|png|webp}`. Optional on legacy documents. |
 | `selectedSymbol` | string | Predefined symbol key, or an empty string when skipped. |

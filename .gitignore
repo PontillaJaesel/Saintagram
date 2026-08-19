@@ -50,3 +50,6 @@ coverage/
 
 *-firebase-adminsdk-*.json
 service-account*.json
+
+serviceAccountKey.json
+*.service-account.json

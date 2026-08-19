@@ -45,6 +45,29 @@ service cloud.firestore {
         );
     }
 
+    function hasValidCoverColor(value) {
+      return isShortString(value, 7)
+        && value.matches('^#[0-9A-Fa-f]{6}$');
+    }
+
+    function hasValidCoverImageId(value) {
+      return isShortString(value, 32)
+        && (value == '' || value.matches('^cover-[0-9]{2}$'));
+    }
+
+    function hasValidLegacyCoverImagePath(value, userId) {
+      return isShortString(value, 512)
+        && (
+          value == ''
+          || value.matches(
+            '^users/' + userId
+              + '/cover/[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-'
+              + '[1-5][0-9A-Fa-f]{3}-[89AaBb][0-9A-Fa-f]{3}-'
+              + '[0-9A-Fa-f]{12}[.](jpg|png|webp)$'
+          )
+        );
+    }
+
     function isStringList(value, maximumItems) {
       return value is list && value.size() <= maximumItems;
     }
@@ -62,6 +85,7 @@ service cloud.firestore {
     function hasValidPrivacyPreferences(value) {
       return value is map
         && value.keys().hasOnly([
+          'accountPrivate',
           'requirePrivateCheck',
           'showReflectionDates'
         ])
@@ -69,8 +93,8 @@ service cloud.firestore {
           'requirePrivateCheck',
           'showReflectionDates'
         ])
+        && (!('accountPrivate' in value) || value.accountPrivate is bool)
         && value.requirePrivateCheck is bool
-        && value.requirePrivateCheck == true
         && value.showReflectionDates is bool;
     }
 
@@ -104,7 +128,7 @@ service cloud.firestore {
         && (!('username' in data) || data.username is string)
         && (!('username' in data) || data.username.size() <= 80)
         && (!('fullName' in data) || isShortString(data.fullName, 120))
-        && (!('role' in data) || data.role in ['user', 'tester'])
+        && (!('role' in data) || data.role in ['user', 'tester', 'app_admin'])
         && (!('isGuest' in data) || data.isGuest is bool)
         && (!('authProvider' in data) || data.authProvider == 'password')
         && isIsoDate(data.createdAt)
@@ -132,6 +156,8 @@ service cloud.firestore {
           'id',
           'userId',
           'profileName',
+          'coverColor',
+          'coverImageId',
           'coverImagePath',
           'imagePath',
           'selectedSymbol',
@@ -163,7 +189,9 @@ service cloud.firestore {
         && data.userId is string
         && isShortString(data.profileName, 60)
         && data.profileName.size() > 0
-        && (!('coverImagePath' in data) || hasValidProfileImagePath(data.coverImagePath, data.userId))
+        && (!('coverColor' in data) || hasValidCoverColor(data.coverColor))
+        && (!('coverImageId' in data) || hasValidCoverImageId(data.coverImageId))
+        && (!('coverImagePath' in data) || hasValidLegacyCoverImagePath(data.coverImagePath, data.userId))
         && hasValidProfileImagePath(data.imagePath, data.userId)
         && data.selectedSymbol in [
           '',
@@ -309,6 +337,7 @@ service cloud.firestore {
           'title',
           'content',
           'isPrivate',
+          'accountPrivate',
           'createdAt',
           'updatedAt',
           'editedAt',
@@ -323,6 +352,7 @@ service cloud.firestore {
           'title',
           'content',
           'isPrivate',
+          'accountPrivate',
           'createdAt',
           'updatedAt'
         ])
@@ -332,6 +362,7 @@ service cloud.firestore {
         && isShortString(data.content, 500)
         && data.content.size() > 0
         && data.isPrivate is bool
+        && data.accountPrivate is bool
         && (
           !data.keys().hasAny(['media'])
           || (
@@ -386,10 +417,13 @@ service cloud.firestore {
           'id',
           'userId',
           'profileName',
+          'coverColor',
+          'coverImageId',
           'coverImagePath',
           'imagePath',
           'spiritualBio',
           'heavenlyHashtag',
+          'isPrivateAccount',
           'createdAt',
           'updatedAt'
         ])
@@ -400,6 +434,7 @@ service cloud.firestore {
           'imagePath',
           'spiritualBio',
           'heavenlyHashtag',
+          'isPrivateAccount',
           'createdAt',
           'updatedAt'
         ])
@@ -407,10 +442,13 @@ service cloud.firestore {
         && data.userId is string
         && isShortString(data.profileName, 60)
         && data.profileName.size() > 0
-        && (!('coverImagePath' in data) || hasValidProfileImagePath(data.coverImagePath, data.userId))
+        && (!('coverColor' in data) || hasValidCoverColor(data.coverColor))
+        && (!('coverImageId' in data) || hasValidCoverImageId(data.coverImageId))
+        && (!('coverImagePath' in data) || hasValidLegacyCoverImagePath(data.coverImagePath, data.userId))
         && hasValidProfileImagePath(data.imagePath, data.userId)
         && isShortString(data.spiritualBio, 320)
         && isShortString(data.heavenlyHashtag, 40)
+        && data.isPrivateAccount is bool
         && isIsoDate(data.createdAt)
         && isIsoDate(data.updatedAt);
     }
@@ -432,6 +470,30 @@ service cloud.firestore {
         && data.followerId is string
         && data.followingId is string
         && data.followerId != data.followingId
+        && isIsoDate(data.createdAt);
+    }
+
+    function hasValidFollowRequestShape(data) {
+      return data.keys().hasOnly([
+          'id',
+          'requesterId',
+          'targetUserId',
+          'createdAt'
+        ])
+        && data.keys().hasAll([
+          'id',
+          'requesterId',
+          'targetUserId',
+          'createdAt'
+        ])
+        && data.id is string
+        && data.requesterId is string
+        && data.targetUserId is string
+        && data.requesterId != data.targetUserId
+        && data.id ==
+          data.requesterId
+          + '_'
+          + data.targetUserId
         && isIsoDate(data.createdAt);
     }
 
@@ -562,18 +624,6 @@ service cloud.firestore {
           == data.replyToUserId;
     }
 
-    function isPublicReflectionOwnedBy(
-      reflectionId,
-      postOwnerId
-    ) {
-      let reflectionPath =
-        /databases/$(database)/documents/reflectionPosts/$(reflectionId);
-
-      return exists(reflectionPath)
-        && get(reflectionPath).data.userId == postOwnerId
-        && get(reflectionPath).data.isPrivate == false;
-    }
-
     function followsPostOwner(
       followerId,
       postOwnerId
@@ -588,6 +638,109 @@ service cloud.firestore {
         && exists(followPath)
         && get(followPath).data.followerId == followerId
         && get(followPath).data.followingId == postOwnerId;
+    }
+
+    function socialProfilePath(userId) {
+      return /databases/$(database)/documents/socialProfiles/$(userId);
+    }
+
+    function targetIsPrivate(userId) {
+      let path = socialProfilePath(userId);
+
+      return exists(path)
+        && get(path).data.get(
+          'isPrivateAccount',
+          false
+        ) == true;
+    }
+
+    function targetIsPublic(userId) {
+      let path = socialProfilePath(userId);
+
+      /*
+      * Legacy socialProfiles documents may not contain
+      * isPrivateAccount yet.
+      *
+      * Missing privacy flag = PUBLIC by default.
+      */
+      return exists(path)
+        && get(path).data.get(
+          'isPrivateAccount',
+          false
+        ) == false;
+    }
+
+    function matchingPendingFollowRequest(
+      followerId,
+      followingId
+    ) {
+      let requestId =
+        followerId + '_' + followingId;
+
+      let path =
+        /databases/$(database)/documents/followRequests/$(requestId);
+
+      return exists(path)
+        && get(path).data.requesterId == followerId
+        && get(path).data.targetUserId == followingId;
+    }
+
+    function incomingReflectionPrivacyMatchesUser(data) {
+      let userPath =
+        /databases/$(database)/documents/users/$(data.userId);
+
+      return existsAfter(userPath)
+        && getAfter(userPath)
+          .data
+          .get('privacyPreferences', {})
+          .get('accountPrivate', false) == data.accountPrivate;
+    }
+
+    function incomingSocialPrivacyMatchesUser(data) {
+      let userPath =
+        /databases/$(database)/documents/users/$(data.userId);
+
+      return existsAfter(userPath)
+        && getAfter(userPath)
+          .data
+          .get('privacyPreferences', {})
+          .get('accountPrivate', false) == data.isPrivateAccount;
+    }
+
+    function canViewReflection(data) {
+      return signedIn()
+        && (
+          data.userId == request.auth.uid
+          || (
+            data.isPrivate == false
+            && (
+              data.accountPrivate == false
+              || followsPostOwner(
+                request.auth.uid,
+                data.userId
+              )
+            )
+          )
+        );
+    }
+
+    function isPublicReflectionOwnedBy(
+      reflectionId,
+      postOwnerId
+    ) {
+      let reflectionPath =
+        /databases/$(database)/documents/reflectionPosts/$(reflectionId);
+
+      return exists(reflectionPath)
+        && get(reflectionPath).data.userId == postOwnerId
+        && get(reflectionPath).data.isPrivate == false
+        && (
+          get(reflectionPath).data.accountPrivate == false
+          || followsPostOwner(
+            request.auth.uid,
+            postOwnerId
+          )
+        );
     }
 
     function hasValidSocialNotificationShape(data) {
@@ -992,32 +1145,38 @@ service cloud.firestore {
     }
 
     match /reflectionPosts/{reflectionId} {
-      allow get, list: if signedIn()
-      && (
-        resource.data.userId == request.auth.uid
-        || resource.data.isPrivate == false
-      );
+      allow get, list: if canViewReflection(resource.data);
 
       allow create: if ownsIncomingDocument()
         && request.resource.data.id == reflectionId
-        && hasValidReflectionShape(request.resource.data);
+        && hasValidReflectionShape(request.resource.data)
+        && incomingReflectionPrivacyMatchesUser(
+          request.resource.data
+        );
 
       allow update: if ownsExistingDocument()
         && ownsIncomingDocument()
         && request.resource.data.id == resource.data.id
         && request.resource.data.userId == resource.data.userId
-        && hasValidReflectionShape(request.resource.data);
+        && hasValidReflectionShape(request.resource.data)
+        && incomingReflectionPrivacyMatchesUser(
+          request.resource.data
+        );
 
       allow delete: if ownsExistingDocument();
     }
 
     match /socialProfiles/{userId} {
+      // Private accounts remain searchable.
       allow get, list: if signedIn();
 
       allow create: if isCurrentUser(userId)
         && request.resource.data.id == userId
         && request.resource.data.userId == userId
-        && hasValidSocialProfileShape(request.resource.data);
+        && hasValidSocialProfileShape(request.resource.data)
+        && incomingSocialPrivacyMatchesUser(
+          request.resource.data
+        );
 
       allow update: if isCurrentUser(userId)
         && resource.data.id == userId
@@ -1025,36 +1184,211 @@ service cloud.firestore {
         && request.resource.data.id == userId
         && request.resource.data.userId == userId
         && request.resource.data.createdAt == resource.data.createdAt
-        && hasValidSocialProfileShape(request.resource.data);
+        && hasValidSocialProfileShape(request.resource.data)
+        && incomingSocialPrivacyMatchesUser(
+          request.resource.data
+        );
 
       allow delete: if isCurrentUser(userId);
     }
 
-    match /follows/{followId} {
-      allow get, list: if signedIn();
+    match /followRequests/{requestId} {
 
-      allow create: if signedIn()
-        && request.resource.data.followerId
-          == request.auth.uid
-        && request.resource.data.followingId
-          != request.auth.uid
-        && request.resource.data.id
-          == followId
-        && followId ==
-          request.resource.data.followerId
-          + '_'
-          + request.resource.data.followingId
-        && hasValidFollowShape(
-          request.resource.data
+      /*
+      * ==========================================================
+      * READ SINGLE FOLLOW REQUEST
+      * ==========================================================
+      *
+      * The requester needs to be able to check whether:
+      *
+      * requesterUID_targetUID
+      *
+      * already exists.
+      *
+      * The target may also inspect incoming requests.
+      */
+      allow get: if signedIn()
+        && (
+          requestId.matches(
+            request.auth.uid + '_.*'
+          )
+          ||
+          requestId.matches(
+            '.*_' + request.auth.uid
+          )
         );
 
+      /*
+      * ==========================================================
+      * QUERY FOLLOW REQUESTS
+      * ==========================================================
+      */
+      allow list: if signedIn()
+        && (
+          resource.data.requesterId
+            == request.auth.uid
+          ||
+          resource.data.targetUserId
+            == request.auth.uid
+        );
+
+      /*
+      * ==========================================================
+      * CREATE PRIVATE FOLLOW REQUEST
+      * ==========================================================
+      */
+      allow create: if signedIn()
+
+        && request.resource.data.id
+          == requestId
+
+        && request.resource.data.requesterId
+          == request.auth.uid
+
+        && request.resource.data.targetUserId
+          != request.auth.uid
+
+        && requestId
+          ==
+            request.resource.data.requesterId
+            + '_'
+            + request.resource.data.targetUserId
+
+        && hasValidFollowRequestShape(
+          request.resource.data
+        )
+
+        /*
+        * A request can only be created for an explicitly
+        * private social profile.
+        */
+        && targetIsPrivate(
+          request.resource.data.targetUserId
+        )
+
+        /*
+        * Don't create a request if already following.
+        */
+        && !exists(
+          /databases/$(database)/documents/follows/$(requestId)
+        );
+
+      /*
+      * Follow requests cannot be edited.
+      */
       allow update: if false;
 
+      /*
+      * Requester:
+      *   cancel request.
+      *
+      * Target:
+      *   approve/reject request.
+      */
+      allow delete: if signedIn()
+        && (
+          resource.data.requesterId
+            == request.auth.uid
+          ||
+          resource.data.targetUserId
+            == request.auth.uid
+        );
+    }
+
+
+    match /follows/{followId} {
+
+      /*
+      * Follow relationships are visible to authenticated
+      * Saintagram users.
+      */
+      allow get, list: if signedIn();
+
+      /*
+      * ==========================================================
+      * CREATE FOLLOW
+      * ==========================================================
+      */
+      allow create: if signedIn()
+
+        && request.resource.data.id
+          == followId
+
+        && followId
+          ==
+            request.resource.data.followerId
+            + '_'
+            + request.resource.data.followingId
+
+        && hasValidFollowShape(
+          request.resource.data
+        )
+
+        && (
+
+          /*
+          * ========================================================
+          * PUBLIC ACCOUNT
+          * ========================================================
+          *
+          * Requester may immediately follow.
+          *
+          * Missing legacy isPrivateAccount is treated as false.
+          */
+          (
+            request.resource.data.followerId
+              == request.auth.uid
+
+            && request.resource.data.followingId
+              != request.auth.uid
+
+            && targetIsPublic(
+              request.resource.data.followingId
+            )
+          )
+
+          ||
+
+          /*
+          * ========================================================
+          * PRIVATE ACCOUNT
+          * ========================================================
+          *
+          * The PRIVATE ACCOUNT OWNER creates the relationship
+          * when approving a valid pending request.
+          */
+          (
+            request.resource.data.followingId
+              == request.auth.uid
+
+            && request.resource.data.followerId
+              != request.auth.uid
+
+            && targetIsPrivate(
+              request.resource.data.followingId
+            )
+
+            && matchingPendingFollowRequest(
+              request.resource.data.followerId,
+              request.resource.data.followingId
+            )
+          )
+        );
+
+      /*
+      * Relationships are immutable.
+      */
+      allow update: if false;
+
+      /*
+      * Either participant can remove the relationship.
+      */
       allow delete: if signedIn()
         && (
           resource.data.followerId
             == request.auth.uid
-          || resource.data.followingId
+          ||
+          resource.data.followingId
             == request.auth.uid
         );
     }

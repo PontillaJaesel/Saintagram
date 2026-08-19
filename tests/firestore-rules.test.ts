@@ -14,7 +14,8 @@ import {
   query,
   setDoc,
   updateDoc,
-  where
+  where,
+  writeBatch
 } from "firebase/firestore";
 import { Timestamp } from "firebase/firestore";
 import { afterAll, beforeAll, beforeEach, describe, it } from "vitest";
@@ -312,6 +313,63 @@ describe("Saintagram Firestore ownership rules", () => {
         [LEGACY_IMAGE_FIELD]: "https://legacy.example.test/avatar.png"
       })
     );
+  });
+
+  it("allows the current profile cover color and design fields", async () => {
+    const aliceDb = testEnv.authenticatedContext(ALICE_ID, VERIFIED_EMAIL).firestore();
+    const profileRef = doc(aliceDb, "profiles", ALICE_ID);
+    const socialRef = doc(aliceDb, "socialProfiles", ALICE_ID);
+
+    await assertSucceeds(
+      setDoc(profileRef, {
+        ...aliceProfile,
+        coverColor: "#DDD2F6",
+        coverImageId: "cover-03"
+      })
+    );
+    await assertSucceeds(
+      setDoc(socialRef, {
+        id: ALICE_ID,
+        userId: ALICE_ID,
+        profileName: aliceProfile.profileName,
+        imagePath: "",
+        coverColor: "#DDD2F6",
+        coverImageId: "cover-03",
+        spiritualBio: aliceProfile.spiritualBio,
+        heavenlyHashtag: aliceProfile.heavenlyHashtag,
+        isPrivateAccount: false,
+        createdAt: NOW,
+        updatedAt: NOW
+      })
+    );
+  });
+
+  it("supports profile synchronization for legacy users without privacy preferences", async () => {
+    const aliceDb = testEnv.authenticatedContext(ALICE_ID, VERIFIED_EMAIL).firestore();
+    const { privacyPreferences: _privacyPreferences, ...legacyUser } = aliceUser;
+    const socialProfile = {
+      id: ALICE_ID,
+      userId: ALICE_ID,
+      profileName: aliceProfile.profileName,
+      imagePath: "",
+      spiritualBio: aliceProfile.spiritualBio,
+      heavenlyHashtag: aliceProfile.heavenlyHashtag,
+      isPrivateAccount: false,
+      createdAt: NOW,
+      updatedAt: NOW
+    };
+
+    await setDoc(doc(aliceDb, "users", ALICE_ID), legacyUser);
+    await setDoc(doc(aliceDb, "socialProfiles", ALICE_ID), socialProfile);
+
+    const batch = writeBatch(aliceDb);
+    batch.update(doc(aliceDb, "users", ALICE_ID), { updatedAt: NOW });
+    batch.update(doc(aliceDb, "socialProfiles", ALICE_ID), {
+      isPrivateAccount: false,
+      updatedAt: NOW
+    });
+
+    await assertSucceeds(batch.commit());
   });
 
   it("allows only the owner to access the private profile", async () => {

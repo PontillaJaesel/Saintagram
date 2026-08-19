@@ -4,6 +4,7 @@ import {
   FormEvent,
   Suspense,
   useEffect,
+  useMemo,
   useRef,
   useState
 } from "react";
@@ -39,16 +40,18 @@ function AuthForm() {
   const [errorField, setErrorField] = useState<AuthErrorField>(null);
   const [message, setMessage] = useState("");
   const [submitting, setSubmitting] = useState(false);
-  const [failedAttempts, setFailedAttempts] = useState(0);
-  const [requestingReset, setRequestingReset] = useState(false);
   const usernameRef = useRef<HTMLInputElement>(null);
   const passwordRef = useRef<HTMLInputElement>(null);
 
-  useEffect(() => {
-    if (auth.user) {
-      router.replace(resolvePostAuthRoute(auth.user));
-    }
-  }, [auth.user, router]);
+  const copy = useMemo(
+    () => ({
+      eyebrow: "Welcome back",
+      title: "Return to your reflection.",
+      description:
+        "Use the one-time credentials below, then choose a permanent password before continuing."
+    }),
+    []
+  );
 
   const navigateAfterLogin = (nextUser: Awaited<ReturnType<typeof auth.login>>) => {
     const destination = resolvePostAuthRoute(nextUser);
@@ -83,39 +86,16 @@ function AuthForm() {
     setSubmitting(true);
     try {
       const nextUser = await auth.login(username.trim(), password);
-      setFailedAttempts(0);
       navigateAfterLogin(nextUser);
     } catch (submitError) {
-      const errorMessage = submitError instanceof Error
-        ? submitError.message
-        : "Something went wrong. Please try again.";
-      if (errorMessage.toLocaleLowerCase().includes("password do not match")) {
-        setFailedAttempts((attempts) => attempts + 1);
-      }
-      setError(errorMessage);
+      setError(
+        submitError instanceof Error
+          ? submitError.message
+          : "Something went wrong. Please try again."
+      );
       setErrorField("credentials");
     } finally {
       setSubmitting(false);
-    }
-  };
-
-  const requestPasswordReset = async () => {
-    if (!username.trim() || requestingReset) return;
-    setRequestingReset(true);
-    setError("");
-    try {
-      const response = await fetch("/api/password-reset-requests", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ username: username.trim() })
-      });
-      const body = await response.json() as { message?: string; error?: string };
-      if (!response.ok) throw new Error(body.error ?? "The request could not be sent.");
-      setMessage(body.message ?? "Your password reset request was sent to an administrator.");
-    } catch (requestError) {
-      setError(requestError instanceof Error ? requestError.message : "The request could not be sent.");
-    } finally {
-      setRequestingReset(false);
     }
   };
 
@@ -143,12 +123,18 @@ function AuthForm() {
           </div>
           <ThemeToggle />
         </div>
-        <div className="mx-auto flex w-full max-w-md flex-1 -translate-y-[50px] flex-col items-center justify-center py-10 text-center lg:translate-y-0 lg:items-stretch lg:text-left">
-          <h1 className="font-serif text-4xl font-bold tracking-tight sm:text-5xl">
-            Log In
+        <div className="mx-auto flex w-full max-w-md flex-1 flex-col justify-center py-10">
+          <p className="eyebrow">{copy.eyebrow}</p>
+          <h1 className="mt-3 font-serif text-4xl font-bold tracking-tight sm:text-5xl">
+            {copy.title}
           </h1>
+          {copy.description && (
+            <p className="mt-4 text-base leading-7 text-muted">
+              {copy.description}
+            </p>
+          )}
 
-          <form className="mt-8 w-full space-y-5 text-left" onSubmit={submit} noValidate>
+          <form className="mt-8 space-y-5" onSubmit={submit} noValidate>
             <div>
               <label htmlFor="username" className="label">
                 Username
@@ -180,7 +166,7 @@ function AuthForm() {
             <div>
               <div className="flex items-center justify-between">
                 <label htmlFor="password" className="label">
-                  Password
+                  Temporary password
                 </label>
               </div>
               <div className="relative">
@@ -206,8 +192,8 @@ function AuthForm() {
                   aria-invalid={errorField === "password" || errorField === "credentials"}
                   aria-describedby={
                     error && (errorField === "password" || errorField === "credentials")
-                      ? "auth-error"
-                      : undefined
+                      ? "password-help auth-error"
+                      : "password-help"
                   }
                 />
                 <button
@@ -223,6 +209,9 @@ function AuthForm() {
                   )}
                 </button>
               </div>
+              <p id="password-help" className="mt-2 text-xs text-muted">
+                Your one-time temporary password is required to sign in.
+              </p>
             </div>
             {error && (
               <div
@@ -241,19 +230,9 @@ function AuthForm() {
                 <span>{message}</span>
               </div>
             )}
-            {failedAttempts >= 3 && !message && (
-              <button
-                type="button"
-                className="btn-secondary w-full"
-                disabled={requestingReset || !username.trim()}
-                onClick={() => void requestPasswordReset()}
-              >
-                {requestingReset ? "Sending request…" : "Request password reset"}
-              </button>
-            )}
             <button
               type="submit"
-              className="btn-primary !mt-[70px] w-full text-base"
+              className="btn-primary w-full text-base"
               disabled={submitting}
             >
               {submitting ? (
@@ -268,7 +247,7 @@ function AuthForm() {
           </form>
 
           <p className="mt-7 text-center text-sm text-muted">
-            Need help signing in? Contact the admin for access.
+            Need help signing in? Contact support for access.
           </p>
         </div>
       </section>

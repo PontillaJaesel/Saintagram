@@ -488,7 +488,8 @@ export async function resetOneNonAdminUserData(
 
     role:
       existing.role === "tester" ||
-      existing.role === "user"
+      existing.role === "user" ||
+      existing.role === "app_admin"
         ? existing.role
         : issued.role,
 
@@ -525,6 +526,8 @@ export async function resetOneNonAdminUserData(
      * Restore default privacy behavior.
      */
     privacyPreferences: {
+      accountPrivate: false,
+
       requirePrivateCheck:
         true,
 

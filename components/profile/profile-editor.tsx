@@ -18,7 +18,7 @@ import {
   UserRound
 } from "lucide-react";
 import { ImageSymbolPicker } from "@/components/forms/image-symbol-picker";
-import { CoverPhotoPicker } from "@/components/forms/cover-photo-picker";
+import { CoverBackgroundPicker } from "@/components/forms/cover-background-picker";
 import { TagEditor } from "@/components/forms/tag-editor";
 import { useAuth } from "@/components/providers/auth-provider";
 import { useToast } from "@/components/providers/toast-provider";
@@ -104,8 +104,6 @@ export function ProfileEditor() {
   const errorRef = useRef<HTMLDivElement>(null);
   const committedImagePathRef = useRef("");
   const latestImagePathRef = useRef("");
-  const committedCoverImagePathRef = useRef("");
-  const latestCoverImagePathRef = useRef("");
   const initialProfileRef = useRef("");
 
   useEffect(() => {
@@ -117,8 +115,6 @@ export function ProfileEditor() {
         if (active) {
           committedImagePathRef.current = nextProfile?.imagePath ?? "";
           latestImagePathRef.current = nextProfile?.imagePath ?? "";
-          committedCoverImagePathRef.current = nextProfile?.coverImagePath ?? "";
-          latestCoverImagePathRef.current = nextProfile?.coverImagePath ?? "";
           initialProfileRef.current = nextProfile ? JSON.stringify(nextProfile) : "";
           setProfile(nextProfile);
         }
@@ -145,10 +141,6 @@ export function ProfileEditor() {
   }, [profile?.imagePath]);
 
   useEffect(() => {
-    latestCoverImagePathRef.current = profile?.coverImagePath ?? "";
-  }, [profile?.coverImagePath]);
-
-  useEffect(() => {
     return () => {
       const stagedImagePath = latestImagePathRef.current;
       if (
@@ -158,16 +150,6 @@ export function ProfileEditor() {
       ) {
         void appService
           .deleteProfileImage(user.id, stagedImagePath)
-          .catch(() => undefined);
-      }
-      const stagedCoverImagePath = latestCoverImagePathRef.current;
-      if (
-        user &&
-        stagedCoverImagePath &&
-        stagedCoverImagePath !== committedCoverImagePathRef.current
-      ) {
-        void appService
-          .deleteProfileCover(user.id, stagedCoverImagePath)
           .catch(() => undefined);
       }
     };
@@ -286,8 +268,6 @@ export function ProfileEditor() {
       const updated = await appService.updateProfile(user.id, profile);
       committedImagePathRef.current = updated.imagePath;
       latestImagePathRef.current = updated.imagePath;
-      committedCoverImagePathRef.current = updated.coverImagePath;
-      latestCoverImagePathRef.current = updated.coverImagePath;
       notify("Your profile changes were saved.");
       router.replace("/profile?saved=1");
     } catch (saveError) {
@@ -451,14 +431,17 @@ export function ProfileEditor() {
         </EditorSection>
 
         <EditorSection
-          title="Cover Photo"
-          description="Add a wide photo for the cover at the top of your profile."
+          title="Cover Background"
+          description="Choose a color or one of Saintagram's cover designs."
           icon={ImageIcon}
         >
-          <CoverPhotoPicker
-            imagePath={profile.coverImagePath}
-            committedImagePath={committedCoverImagePathRef.current}
-            onChange={(coverImagePath) => setField("coverImagePath", coverImagePath)}
+          <CoverBackgroundPicker
+            coverColor={profile.coverColor}
+            coverImageId={profile.coverImageId}
+            onChange={(value) => {
+              setProfile((current) => (current ? { ...current, ...value } : current));
+              setError("");
+            }}
           />
         </EditorSection>
 

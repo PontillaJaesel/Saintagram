@@ -8,6 +8,7 @@ export type SpiritualSymbol =
   | "";
 
 export interface PrivacyPreferences {
+  accountPrivate?: boolean;
   requirePrivateCheck: boolean;
   showReflectionDates: boolean;
 }
@@ -25,7 +26,7 @@ export interface AppUser {
   profileCompleted: boolean;
   mustChangePassword?: boolean;
   fullName?: string;
-  role?: "user" | "tester";
+  role?: "user" | "tester" | "app_admin";
   privacyPreferences?: PrivacyPreferences;
 }
 
@@ -34,6 +35,8 @@ export interface PublicSpiritualProfile {
   userId: string;
   profileName: string;
   coverColor?: string;
+  coverImageId?: string;
+  coverImagePath?: string;
   imagePath: string;
   selectedSymbol: SpiritualSymbol;
   spiritualBio: string;
@@ -56,6 +59,7 @@ export interface ReflectionPost {
   title?: string;
   content: string;
   isPrivate: boolean;
+  accountPrivate?: boolean;
   createdAt: string;
   updatedAt: string;
   editedAt?: string;
@@ -101,9 +105,13 @@ export interface SocialProfile {
   id: string;
   userId: string;
   profileName: string;
+  coverColor?: string;
+  coverImageId?: string;
+  coverImagePath?: string;
   imagePath: string;
   spiritualBio: string;
   heavenlyHashtag: string;
+  isPrivateAccount?: boolean;
   createdAt: string;
   updatedAt: string;
 }
@@ -112,6 +120,13 @@ export interface FollowRelationship {
   id: string;
   followerId: string;
   followingId: string;
+  createdAt: string;
+}
+
+export interface FollowRequest {
+  id: string;
+  requesterId: string;
+  targetUserId: string;
   createdAt: string;
 }
 
@@ -165,7 +180,7 @@ export interface SocialNotification {
 export type AdminProfileRequirementKey = "bio" | "guides" | "directions" | "reflection" | "likes" | "godsComment" | "hashtag";
 export interface AdminProfileRequirement { key: AdminProfileRequirementKey; label: string; complete: boolean; }
 export interface AdminProfileCompletion { completedCount: number; totalCount: 7; percentage: number; status: "Not Started" | "Incomplete" | "Complete"; requirements: AdminProfileRequirement[]; missingFields: string[]; }
-export interface LinkOpenEvent { visitId: string; id: string; source: "qr" | "common"; campaign: string | null; openedAt: string; userId: string | null; claimedAt: string | null; streetAddress: string | null; city: string | null; region: string | null; country: string | null; postalCode: string | null; formattedAddress: string | null; latitude: string | null; longitude: string | null; locationAccuracyMeters: number | null; locationLabel: string; locationSource: "device" | "cloudflare" | "localhost" | "unavailable"; destination: string; userName?: string; }
+export interface LinkOpenEvent { visitId: string; id: string; source: "qr" | "common"; campaign: string | null; openedAt: string; lastOpenedAt: string; openCount: number; trackingVersion: number; visitStatus: "logged_in" | "awaiting_login" | "did_not_login"; userId: string | null; claimedAt: string | null; streetAddress: string | null; city: string | null; region: string | null; country: string | null; postalCode: string | null; formattedAddress: string | null; latitude: string | null; longitude: string | null; locationAccuracyMeters: number | null; locationLabel: string; locationSource: "device" | "cloudflare" | "localhost" | "unavailable"; destination: string; userName?: string; userFullName?: string; userDisplayName?: string; username?: string; }
 export interface SystemNotification { id: string; userId: string; type: "profile_reminder" | "admin_reflection"; title: string; message: string; missingFields: string[]; reflectionId?: string; createdByAdminId: string; createdAt: string; readAt: string | null; }
 export interface AdminAuditLog {
   id: string;
@@ -188,7 +203,7 @@ export interface AdminAuditLog {
     string | number | boolean | null
   >;
 }
-export interface AdminUserSummary { id: string; email: string; name: string; authProvider: string; createdAt: string; profileCompleted: boolean; completion: AdminProfileCompletion; lastLinkOpen: string | null; }
+export interface AdminUserSummary { id: string; email: string; name: string; fullName?: string; displayName?: string; username?: string; accountRole?: "user" | "tester" | "app_admin"; authProvider: string; createdAt: string; profileCompleted: boolean; completion: AdminProfileCompletion; lastLinkOpen: string | null; }
 export interface AdminDashboardOverview { totalUsers: number; completeProfiles: number; incompleteProfiles: number; totalVisits: number; qrVisits: number; commonVisits: number; qrOpensToday: number; commonOpensToday: number; recentActivity: LinkOpenEvent[]; recentUsers: AdminUserSummary[]; recentReminders: SystemNotification[]; }
 export interface AdminUserData { user: Record<string, unknown>; profile: Record<string, unknown> | null; privateProfile: Record<string, unknown> | null; draft: Record<string, unknown> | null; collections: Record<string, Record<string, unknown>[]>; }
 export interface AdminExportOptions { userId?: string; from?: string; to?: string; include: string[]; }
@@ -249,6 +264,7 @@ export const EMPTY_DRAFT: ProfileDraftData = {
 };
 
 export const DEFAULT_PRIVACY_PREFERENCES: PrivacyPreferences = {
+  accountPrivate: false,
   requirePrivateCheck: true,
   showReflectionDates: true
 };

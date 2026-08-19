@@ -28,6 +28,10 @@ export async function POST(request: Request) {
     const profileRef = db.collection("profiles").doc(token.uid), userRef = db.collection("users").doc(token.uid);
     const [existing, userSnapshot] = await Promise.all([profileRef.get(), userRef.get()]);
     if (!userSnapshot.exists) return reply({ error: "Your account record could not be found." }, 404);
+    const accountPrivate =
+    userSnapshot.get(
+      "privacyPreferences"
+    )?.accountPrivate === true;
     const profile: SpiritualProfile = {
       id: token.uid, userId: token.uid, profileName: data.profileName,
       imagePath: data.imagePath, selectedSymbol: data.selectedSymbol,
@@ -41,12 +45,43 @@ export async function POST(request: Request) {
     const batch = db.batch();
     batch.set(profileRef, toPublicProfile(profile));
     batch.set(db.collection("privateProfiles").doc(token.uid), { userId: token.uid, hiddenStory: data.hiddenStory, updatedAt: now });
-    batch.set(db.collection("socialProfiles").doc(token.uid), { id: token.uid, userId: token.uid, profileName: data.profileName, imagePath: data.imagePath, spiritualBio: data.spiritualBio, heavenlyHashtag: data.heavenlyHashtag, createdAt: profile.createdAt, updatedAt: now });
+    batch.set(
+      db
+        .collection(
+          "socialProfiles"
+        )
+        .doc(token.uid),
+
+      {
+        id: token.uid,
+        userId: token.uid,
+
+        profileName:
+          data.profileName,
+
+        imagePath:
+          data.imagePath,
+
+        spiritualBio:
+          data.spiritualBio,
+
+        heavenlyHashtag:
+          data.heavenlyHashtag,
+
+        isPrivateAccount:
+          accountPrivate,
+
+        createdAt:
+          profile.createdAt,
+
+        updatedAt: now
+      }
+    );
     batch.update(userRef, { profileCompleted: true, updatedAt: now });
     batch.delete(db.collection("drafts").doc(token.uid));
     data.onboardingPosts.forEach((content, index) => {
       const ref = db.collection("reflectionPosts").doc();
-      batch.set(ref, { id: ref.id, userId: token.uid, title: data.onboardingPostTitles?.[index] || `Moment ${index + 1}`, content, isPrivate: false, createdAt: FieldValue.serverTimestamp(), updatedAt: FieldValue.serverTimestamp() });
+      batch.set(ref, { id: ref.id, userId: token.uid, title: data.onboardingPostTitles?.[index] || `Moment ${index + 1}`, content, isPrivate: false, accountPrivate, createdAt: FieldValue.serverTimestamp(), updatedAt: FieldValue.serverTimestamp() });
     });
     await batch.commit();
     return reply({ profile }, 200);

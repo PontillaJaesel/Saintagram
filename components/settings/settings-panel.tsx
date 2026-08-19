@@ -2,6 +2,7 @@
 
 import { FormEvent, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import {
   CalendarDays,
   Database,
@@ -15,6 +16,9 @@ import {
   ShieldCheck,
   UserRound
 } from "lucide-react";
+import {
+  setAccountPrivate
+} from "@/lib/private-account";
 import { useAuth } from "@/components/providers/auth-provider";
 import { useToast } from "@/components/providers/toast-provider";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
@@ -98,22 +102,57 @@ export function SettingsPanel() {
   const currentPasswordRef = useRef<HTMLInputElement>(null);
   const newPasswordRef = useRef<HTMLInputElement>(null);
   const confirmPasswordRef = useRef<HTMLInputElement>(null);
-  const [privateCheckEnabled, setPrivateCheckEnabled] = useState(
-    user?.privacyPreferences?.requirePrivateCheck ?? true
+  const [
+    accountPrivateEnabled,
+    setAccountPrivateEnabled
+  ] = useState(
+    user?.privacyPreferences
+      ?.accountPrivate ?? false
   );
-  const [privacyPreferenceBusy, setPrivacyPreferenceBusy] = useState<
-    "requirePrivateCheck" | null
+
+  const [
+    privateCheckEnabled,
+    setPrivateCheckEnabled
+  ] = useState(
+    user?.privacyPreferences
+      ?.requirePrivateCheck ?? true
+  );
+
+  const [
+    privacyPreferenceBusy,
+    setPrivacyPreferenceBusy
+  ] = useState<
+    | "accountPrivate"
+    | "requirePrivateCheck"
+    | null
   >(null);
 
   useEffect(() => {
-    if (privacyPreferenceBusy !== "requirePrivateCheck") {
+    if (
+      privacyPreferenceBusy !==
+      "accountPrivate"
+    ) {
+      setAccountPrivateEnabled(
+        user?.privacyPreferences
+          ?.accountPrivate ?? false
+      );
+    }
+
+    if (
+      privacyPreferenceBusy !==
+      "requirePrivateCheck"
+    ) {
       setPrivateCheckEnabled(
-        user?.privacyPreferences?.requirePrivateCheck ?? true
+        user?.privacyPreferences
+          ?.requirePrivateCheck ?? true
       );
     }
   }, [
     privacyPreferenceBusy,
-    user?.privacyPreferences?.requirePrivateCheck
+    user?.privacyPreferences
+      ?.accountPrivate,
+    user?.privacyPreferences
+      ?.requirePrivateCheck
   ]);
 
   if (!user) return null;
@@ -172,8 +211,16 @@ export function SettingsPanel() {
   ) => {
     if (privacyPreferenceBusy) return;
     const previous = {
-      requirePrivateCheck: privateCheckEnabled,
-      showReflectionDates: user.privacyPreferences?.showReflectionDates ?? true
+      accountPrivate:
+        accountPrivateEnabled,
+
+      requirePrivateCheck:
+        privateCheckEnabled,
+
+      showReflectionDates:
+        user.privacyPreferences
+          ?.showReflectionDates ??
+        true
     };
     const next = { ...previous, [preference]: value };
     setPrivateCheckEnabled(next.requirePrivateCheck);
@@ -196,6 +243,57 @@ export function SettingsPanel() {
     }
   };
 
+  const updateAccountPrivacy =
+  async (
+    value: boolean
+  ) => {
+    if (
+      privacyPreferenceBusy
+    ) {
+      return;
+    }
+
+    const previous =
+      accountPrivateEnabled;
+
+    setAccountPrivateEnabled(
+      value
+    );
+
+    setPrivacyPreferenceBusy(
+      "accountPrivate"
+    );
+
+    try {
+      await setAccountPrivate(
+        user.id,
+        value
+      );
+
+      await refreshUser();
+
+      notify(
+        value
+          ? "Your account is now private."
+          : "Your account is now public."
+      );
+    } catch (error) {
+      setAccountPrivateEnabled(
+        previous
+      );
+
+      notify(
+        error instanceof Error
+          ? error.message
+          : "Your account privacy could not be changed.",
+        "error"
+      );
+    } finally {
+      setPrivacyPreferenceBusy(
+        null
+      );
+    }
+  };
   const exportData = async () => {
     setExporting(true);
     try {
@@ -327,13 +425,63 @@ export function SettingsPanel() {
 
       <SettingsSection
         title="Privacy preferences"
-        description="Choose how your own reflective space appears on this device."
+        description="Control who can see your reflections and how private content opens."
         icon={ShieldCheck}
       >
         <div className="space-y-3">
           <label
             className={`flex cursor-pointer items-start justify-between gap-4 rounded-[var(--radius-base)] border border-sage-100 p-4 transition hover:border-sage-300 ${
-              privacyPreferenceBusy === "requirePrivateCheck"
+              privacyPreferenceBusy ===
+              "accountPrivate"
+                ? "cursor-wait opacity-70"
+                : ""
+            }`}
+          >
+            <span>
+              <span className="block text-sm font-bold text-ink">
+                Make account private
+              </span>
+
+              <span className="mt-1 block text-xs leading-5 text-muted">
+                Your profile can still be
+                searched, but your reflections
+                will not appear in Community.
+                People must send a follow
+                request before they can see
+                reflections on your profile.
+              </span>
+            </span>
+
+            <input
+              type="checkbox"
+              className="mt-1 size-5 shrink-0 accent-sage-700"
+              checked={
+                accountPrivateEnabled
+              }
+              disabled={Boolean(
+                privacyPreferenceBusy
+              )}
+              onChange={(event) =>
+                void updateAccountPrivacy(
+                  event.target.checked
+                )
+              }
+            />
+          </label>
+
+          {accountPrivateEnabled && (
+            <Link
+              href="/follow-requests"
+              className="btn-secondary w-full justify-center"
+            >
+              View Follow Requests
+            </Link>
+          )}
+
+          <label
+            className={`flex cursor-pointer items-start justify-between gap-4 rounded-[var(--radius-base)] border border-sage-100 p-4 transition hover:border-sage-300 ${
+              privacyPreferenceBusy ===
+              "requirePrivateCheck"
                 ? "cursor-wait opacity-70"
                 : ""
             }`}
@@ -342,15 +490,22 @@ export function SettingsPanel() {
               <span className="block text-sm font-bold text-ink">
                 Confirm before opening private content
               </span>
+
               <span className="mt-1 block text-xs leading-5 text-muted">
-                Ask before showing private content.
+                Ask before showing private
+                content.
               </span>
             </span>
+
             <input
               type="checkbox"
               className="mt-1 size-5 shrink-0 accent-sage-700"
-              checked={privateCheckEnabled}
-              disabled={Boolean(privacyPreferenceBusy)}
+              checked={
+                privateCheckEnabled
+              }
+              disabled={Boolean(
+                privacyPreferenceBusy
+              )}
               onChange={(event) =>
                 void updatePrivacyPreference(
                   "requirePrivateCheck",

@@ -8,7 +8,7 @@ export interface TemporaryAccountCredential {
   fullName: string;
   username: string;
   temporaryPassword: string;
-  role: "user" | "tester";
+  role: "user" | "tester" | "app_admin";
 }
 
 export const TEMPORARY_ACCOUNTS: readonly TemporaryAccountCredential[] = ACCOUNT_DATA;

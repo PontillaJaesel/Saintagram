@@ -1,11 +1,17 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import {
+  useEffect,
+  useState
+} from "react";
+
 import Link from "next/link";
+
 import {
   ArrowLeft,
   BookHeart,
   Hash,
+  LockKeyhole,
   UserRound
 } from "lucide-react";
 
@@ -15,18 +21,27 @@ import { SocialReflectionCard } from "@/components/social/social-reflection-card
 import { EmptyState } from "@/components/ui/empty-state";
 import { LoadingState } from "@/components/ui/loading-state";
 import { ProfileCover } from "@/components/ui/profile-cover";
-
-import { appService } from "@/lib/app-service";
 import { calculateFiatStats } from "@/lib/fiat";
+
 import {
   downloadFirebaseProfileImage,
   isLocalProfileImageSource
 } from "@/lib/profile-images";
 
+import {
+  getPublicProfileBundle,
+  type CommunityProfile
+} from "@/lib/social-community";
+
 import type {
-  ReflectionPost,
-  SocialProfile
+  ReflectionPost
 } from "@/types";
+
+/*
+ * ============================================================
+ * AVATAR
+ * ============================================================
+ */
 
 function SocialProfileAvatar({
   imagePath,
@@ -35,38 +50,72 @@ function SocialProfileAvatar({
   imagePath: string;
   profileName: string;
 }) {
-  const { loading, mode, user } = useAuth();
+  const {
+    loading,
+    mode,
+    user
+  } =
+    useAuth();
 
-  const [src, setSrc] = useState(
-    imagePath.startsWith("data:image/")
-      ? imagePath
-      : ""
-  );
+  const [
+    src,
+    setSrc
+  ] =
+    useState(
+      imagePath.startsWith(
+        "data:image/"
+      )
+        ? imagePath
+        : ""
+    );
 
   useEffect(() => {
     let active = true;
 
     if (!imagePath) {
       setSrc("");
-      return () => undefined;
+
+      return () =>
+        undefined;
     }
 
-    if (isLocalProfileImageSource(imagePath)) {
-      setSrc(mode === "local" ? imagePath : "");
-      return () => undefined;
+    if (
+      isLocalProfileImageSource(
+        imagePath
+      )
+    ) {
+      setSrc(
+        mode === "local"
+          ? imagePath
+          : ""
+      );
+
+      return () =>
+        undefined;
     }
 
-    if (loading || !user) {
+    if (
+      loading ||
+      !user
+    ) {
       setSrc("");
-      return () => undefined;
+
+      return () =>
+        undefined;
     }
 
-    void downloadFirebaseProfileImage(imagePath)
-      .then((downloadUrl) => {
-        if (active) {
-          setSrc(downloadUrl);
+    void downloadFirebaseProfileImage(
+      imagePath
+    )
+      .then(
+        (downloadUrl) => {
+          if (active) {
+            setSrc(
+              downloadUrl
+            );
+          }
         }
-      })
+      )
       .catch(() => {
         if (active) {
           setSrc("");
@@ -76,7 +125,12 @@ function SocialProfileAvatar({
     return () => {
       active = false;
     };
-  }, [imagePath, loading, mode, user?.id]);
+  }, [
+    imagePath,
+    loading,
+    mode,
+    user?.id
+  ]);
 
   if (src) {
     return (
@@ -92,7 +146,11 @@ function SocialProfileAvatar({
   }
 
   const initial =
-    profileName.trim().charAt(0).toUpperCase() || "?";
+    profileName
+      .trim()
+      .charAt(0)
+      .toUpperCase() ||
+    "?";
 
   return (
     <div
@@ -104,82 +162,182 @@ function SocialProfileAvatar({
   );
 }
 
+/*
+ * ============================================================
+ * PROFILE PAGE
+ * ============================================================
+ */
+
 export function SocialProfileView({
   userId
 }: {
   userId: string;
 }) {
-  const { user } = useAuth();
+  const { user } =
+    useAuth();
 
-  const [profile, setProfile] =
-    useState<SocialProfile | null>(null);
+  const [
+    profile,
+    setProfile
+  ] =
+    useState<
+      CommunityProfile | null
+    >(null);
 
-  const [posts, setPosts] =
-    useState<ReflectionPost[]>([]);
+  const [
+    posts,
+    setPosts
+  ] =
+    useState<
+      ReflectionPost[]
+    >([]);
 
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
-  const [notFound, setNotFound] = useState(false);
+  const [
+    canViewPosts,
+    setCanViewPosts
+  ] =
+    useState(false);
 
+  const [
+    initialFollowing,
+    setInitialFollowing
+  ] =
+    useState(false);
+
+  const [
+    loading,
+    setLoading
+  ] =
+    useState(true);
+
+  const [
+    error,
+    setError
+  ] =
+    useState("");
+
+  const [
+    notFound,
+    setNotFound
+  ] =
+    useState(false);
+
+  /*
+   * ==========================================================
+   * LOAD PROFILE
+   * ==========================================================
+   */
   useEffect(() => {
-    if (!user || !userId) {
+    if (
+      !user ||
+      !userId
+    ) {
       return;
     }
 
     let active = true;
 
-    const loadProfile = async () => {
-      setLoading(true);
-      setError("");
-      setNotFound(false);
+    const loadProfile =
+      async () => {
+        setLoading(true);
+        setError("");
+        setNotFound(false);
 
-      try {
-        const [nextProfile, nextPosts] =
-          await Promise.all([
-            appService.getSocialProfile(userId),
-            appService.getPublicReflectionsByUser(userId)
-          ]);
+        try {
+          const result =
+            await getPublicProfileBundle(
+              user.id,
+              userId
+            );
 
-        if (!active) {
-          return;
+          if (!active) {
+            return;
+          }
+
+          if (
+            !result.profile
+          ) {
+            setProfile(
+              null
+            );
+
+            setPosts([]);
+
+            setCanViewPosts(
+              false
+            );
+
+            setNotFound(
+              true
+            );
+
+            return;
+          }
+
+          setProfile(
+            result.profile
+          );
+
+          setPosts(
+            result.posts
+          );
+
+          setCanViewPosts(
+            result
+              .canViewPosts
+          );
+
+          setInitialFollowing(
+            result.following
+          );
+        } catch (
+          loadError
+        ) {
+          if (!active) {
+            return;
+          }
+
+          console.error(
+            "[SOCIAL PROFILE]",
+            loadError
+          );
+
+          setError(
+            loadError instanceof
+            Error
+              ? loadError.message
+              : "This profile could not be loaded."
+          );
+        } finally {
+          if (active) {
+            setLoading(
+              false
+            );
+          }
         }
-
-        if (!nextProfile) {
-          setProfile(null);
-          setPosts([]);
-          setNotFound(true);
-          return;
-        }
-
-        setProfile(nextProfile);
-        setPosts(nextPosts);
-      } catch (loadError) {
-        if (!active) {
-          return;
-        }
-
-        setError(
-          loadError instanceof Error
-            ? loadError.message
-            : "This profile could not be loaded."
-        );
-      } finally {
-        if (active) {
-          setLoading(false);
-        }
-      }
-    };
+      };
 
     void loadProfile();
 
     return () => {
       active = false;
     };
-  }, [user, userId]);
+  }, [
+    user?.id,
+    userId
+  ]);
+
+  /*
+   * ==========================================================
+   * STATES
+   * ==========================================================
+   */
 
   if (loading) {
     return (
-      <LoadingState label="Opening this profile…" />
+      <LoadingState
+        label="Opening this profile…"
+      />
     );
   }
 
@@ -196,7 +354,9 @@ export function SocialProfileView({
         <button
           type="button"
           className="btn-secondary mt-5"
-          onClick={() => window.location.reload()}
+          onClick={() =>
+            window.location.reload()
+          }
         >
           Try again
         </button>
@@ -204,7 +364,10 @@ export function SocialProfileView({
     );
   }
 
-  if (notFound || !profile) {
+  if (
+    notFound ||
+    !profile
+  ) {
     return (
       <EmptyState
         icon={UserRound}
@@ -219,6 +382,7 @@ export function SocialProfileView({
               className="size-4"
               aria-hidden="true"
             />
+
             Back to community
           </Link>
         }
@@ -226,8 +390,20 @@ export function SocialProfileView({
     );
   }
 
-  const isOwnProfile = user?.id === profile.userId;
-  const publicFiatStats = calculateFiatStats(posts);
+  const isOwnProfile =
+    user?.id ===
+    profile.userId;
+
+  const publicFiatStats =
+    calculateFiatStats(
+      posts
+    );
+
+  /*
+   * ==========================================================
+   * PAGE
+   * ==========================================================
+   */
 
   return (
     <div className="space-y-6">
@@ -239,24 +415,40 @@ export function SocialProfileView({
           className="size-4"
           aria-hidden="true"
         />
+
         Community
       </Link>
 
       <section className="surface overflow-hidden">
-        <ProfileCover imagePath={profile.coverImagePath} className="h-28 sm:h-36" />
+        <ProfileCover coverColor={profile.coverColor} coverImageId={profile.coverImageId} className="h-28 sm:h-36" />
 
         <div className="px-5 pb-6 sm:px-8 sm:pb-8">
           <div className="-mt-12 flex flex-col gap-5 sm:-mt-14 sm:flex-row sm:items-end sm:justify-between">
             <div className="flex min-w-0 flex-col gap-4 sm:flex-row sm:items-end">
               <SocialProfileAvatar
-                imagePath={profile.imagePath}
-                profileName={profile.profileName}
+                imagePath={
+                  profile.imagePath
+                }
+                profileName={
+                  profile.profileName
+                }
               />
 
               <div className="min-w-0 pb-1">
-                <h1 className="break-words font-serif text-3xl font-bold text-ink sm:text-4xl">
-                  {profile.profileName}
-                </h1>
+                <div className="flex flex-wrap items-center gap-2">
+                  <h1 className="break-words font-serif text-3xl font-bold text-ink sm:text-4xl">
+                    {
+                      profile.profileName
+                    }
+                  </h1>
+
+                  {profile.isPrivateAccount && (
+                    <LockKeyhole
+                      className="size-5 shrink-0 text-muted sm:size-6"
+                      aria-label="Private account"
+                    />
+                  )}
+                </div>
 
                 {profile.heavenlyHashtag && (
                   <p className="mt-1 flex items-center gap-1 text-sm font-bold text-sage-600">
@@ -272,7 +464,21 @@ export function SocialProfileView({
                   </p>
                 )}
               </div>
-              {publicFiatStats.currentStreak > 0 && <span className="fiat-streak-badge" aria-label={`Public FiAt streak: ${publicFiatStats.currentStreak} days`}><strong>Fi@ {publicFiatStats.currentStreak}</strong></span>}
+
+              {publicFiatStats.currentStreak >
+                0 && (
+                <span
+                  className="fiat-streak-badge"
+                  aria-label={`Public FiAt streak: ${publicFiatStats.currentStreak} days`}
+                >
+                  <strong>
+                    Fi@{" "}
+                    {
+                      publicFiatStats.currentStreak
+                    }
+                  </strong>
+                </span>
+              )}
             </div>
 
             <div className="shrink-0">
@@ -285,7 +491,12 @@ export function SocialProfileView({
                 </Link>
               ) : (
                 <FollowButton
-                  targetUserId={profile.userId}
+                  targetUserId={
+                    profile.userId
+                  }
+                  targetIsPrivate={
+                    profile.isPrivateAccount
+                  }
                 />
               )}
             </div>
@@ -298,7 +509,9 @@ export function SocialProfileView({
               </p>
 
               <p className="user-content mt-2 whitespace-pre-wrap text-sm leading-7 text-muted sm:text-base">
-                {profile.spiritualBio}
+                {
+                  profile.spiritualBio
+                }
               </p>
             </div>
           )}
@@ -308,22 +521,40 @@ export function SocialProfileView({
       <section>
         {posts.length ? (
           <div className="space-y-4">
-            {posts.map((post) => (
-              <SocialReflectionCard
-                key={post.id}
-                post={{
-                  ...post,
-                  author: profile
-                }}
-                initialFollowing={false}
-                compactTimestamp
-                hideViewProfile
-              />
-            ))}
+            {posts.map(
+              (post) => (
+                <SocialReflectionCard
+                  key={
+                    post.id
+                  }
+                  post={{
+                    ...post,
+                    author:
+                      profile
+                  }}
+                  initialFollowing={
+                    initialFollowing
+                  }
+                  compactTimestamp
+                  hideViewProfile
+                />
+              )
+            )}
           </div>
+        ) : profile.isPrivateAccount &&
+          !canViewPosts ? (
+          <EmptyState
+            icon={
+              LockKeyhole
+            }
+            title="This account is private"
+            description={`Send ${profile.profileName} a follow request and wait for approval to see their reflections.`}
+          />
         ) : (
           <EmptyState
-            icon={BookHeart}
+            icon={
+              BookHeart
+            }
             title="No public reflections yet"
             description={`${profile.profileName} has not shared any public reflections yet.`}
           />

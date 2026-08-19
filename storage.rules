@@ -2,57 +2,83 @@ rules_version = '2';
 
 service firebase.storage {
   match /b/{bucket}/o {
-    function isOwner(userId) {
+    function signedIn() {
       return request.auth != null
         && request.auth.token.get('email_verified', false) == true
-        && request.auth.token.firebase.sign_in_provider == 'password'
+        && request.auth.token.firebase.sign_in_provider == 'password';
+    }
+
+    function isOwner(userId) {
+      return signedIn()
         && request.auth.uid == userId;
     }
 
-    match /users/{userId}/profile/{imageName} {
-      // Any signed-in Saintagram user may VIEW profile images.
-      allow read: if request.auth != null
-        && request.auth.token.get('email_verified', false) == true
-        && request.auth.token.firebase.sign_in_provider == 'password';
+    function isAdmin() {
+      return signedIn()
+        && request.auth.token.admin == true;
+    }
 
-      // Only the owner may UPLOAD.
+    function profileIsPrivate(userId) {
+      let profilePath =
+        /databases/(default)/documents/socialProfiles/$(userId);
+
+      return firestore.exists(profilePath)
+        && firestore.get(profilePath).data.isPrivateAccount == true;
+    }
+
+    function followsUser(userId) {
+      let followId =
+        request.auth.uid + '_' + userId;
+
+      let followPath =
+        /databases/(default)/documents/follows/$(followId);
+
+      return signedIn()
+        && request.auth.uid != userId
+        && firestore.exists(followPath)
+        && firestore.get(followPath).data.followerId == request.auth.uid
+        && firestore.get(followPath).data.followingId == userId;
+    }
+
+    function reflectionIsPublic(userId, reflectionId) {
+      let reflectionPath =
+        /databases/(default)/documents/reflectionPosts/$(reflectionId);
+
+      return firestore.exists(reflectionPath)
+        && firestore.get(reflectionPath).data.userId == userId
+        && firestore.get(reflectionPath).data.isPrivate == false;
+    }
+
+    function canReadReflectionMedia(userId, reflectionId) {
+      return isOwner(userId)
+        || isAdmin()
+        || (
+          signedIn()
+          && reflectionIsPublic(userId, reflectionId)
+          && (
+            !profileIsPrivate(userId)
+            || followsUser(userId)
+          )
+        );
+    }
+
+    match /users/{userId}/profile/{imageName} {
+      // Private accounts are still searchable, so their profile image stays visible.
+      allow read: if signedIn();
+
       allow create: if isOwner(userId)
         && imageName.matches('^[A-Za-z0-9_-]+\\.(jpg|png|webp)$')
         && request.resource.size < 2097152
         && request.resource.contentType.matches('image/(jpeg|png|webp)');
 
-      // Only the owner may DELETE.
-      allow delete: if isOwner(userId);
-
-      // Existing image objects cannot be overwritten.
-      allow update: if false;
-    }
-
-    match /users/{userId}/cover/{imageName} {
-      allow read: if request.auth != null
-        && request.auth.token.get('email_verified', false) == true
-        && request.auth.token.firebase.sign_in_provider == 'password';
-
-      allow create: if isOwner(userId)
-        && imageName.matches('^[A-Za-z0-9_-]+\\.(jpg|png|webp)$')
-        && request.resource.size < 5242880
-        && request.resource.contentType.matches('image/(jpeg|png|webp)');
-
       allow delete: if isOwner(userId);
       allow update: if false;
-    }
-
-    function isAdmin() {
-      return request.auth != null && request.auth.token.admin == true;
     }
 
     match /users/{userId}/reflections/{reflectionId}/{mediaName} {
-      allow read: if request.auth != null
-        && (
-          request.auth.uid == userId
-          || isAdmin()
-          || resource.metadata.visibility == 'public'
-        );
+      // Owner/admin can read immediately. Other users must be allowed to see
+      // the reflection and, for private accounts, be an accepted follower.
+      allow read: if canReadReflectionMedia(userId, reflectionId);
 
       allow create: if isOwner(userId)
         && request.resource.metadata.visibility in ['public', 'private']

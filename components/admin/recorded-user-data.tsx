@@ -85,7 +85,85 @@ export function RecordedUserData({ userId }: { userId: string }) {
     if ((key === "id" || key.endsWith("Id")) && typeof value === "string") return references.get(value) || `Record ${rowIndex + 1}`;
     return plainValue(value, row);
   };
-  const exportUser = async () => { setExporting(true); try { const blob = await adminDownload("/api/admin/export", { userId, include: [] }); const link = document.createElement("a"); link.href = URL.createObjectURL(blob); link.download = `saintagram-user-data-${userId}.xlsx`; link.click(); URL.revokeObjectURL(link.href); notify("User data exported."); } catch (exportError) { notify(exportError instanceof Error ? exportError.message : "The export could not be generated.", "error"); } finally { setExporting(false); } };
+  const exportUser = async () => {
+    setExporting(true);
+
+    try {
+      const blob = await adminDownload(
+        "/api/admin/export",
+        {
+          userId,
+          include: []
+        }
+      );
+
+      /*
+      * Get the user's default/full name.
+      *
+      * Priority:
+      * 1. AdminUserSummary.fullName
+      * 2. users/{uid}.fullName
+      * 3. Display/profile name
+      * 4. UID as final fallback
+      */
+      const selectedUser =
+        users.find(
+          (user) => user.id === userId
+        );
+
+      const fullName = String(
+        selectedUser?.fullName ||
+          data?.user?.fullName ||
+          selectedUser?.name ||
+          profileName ||
+          userId
+      ).trim();
+
+      /*
+      * Remove characters that Windows/macOS
+      * do not allow or that can cause
+      * problems in downloaded filenames.
+      *
+      * Example:
+      * Jaesel Pontilla
+      * ->
+      * Jaesel Pontilla
+      */
+      const safeFullName =
+        fullName
+          .replace(/[<>:"/\\|?*\u0000-\u001F]/g, "")
+          .replace(/\s+/g, " ")
+          .trim() || userId;
+
+      const link =
+        document.createElement("a");
+
+      link.href =
+        URL.createObjectURL(blob);
+
+      link.download =
+        `saintagram-user-data-${safeFullName}.xlsx`;
+
+      link.click();
+
+      URL.revokeObjectURL(
+        link.href
+      );
+
+      notify(
+        "User data exported."
+      );
+    } catch (exportError) {
+      notify(
+        exportError instanceof Error
+          ? exportError.message
+          : "The export could not be generated.",
+        "error"
+      );
+    } finally {
+      setExporting(false);
+    }
+  };
   if (error) return <><Link className="btn-secondary mb-5" href="/admin/data"><ArrowLeft className="size-4" />Back to User Data</Link><p className="rounded-xl bg-clay-50 p-4 text-clay-700" role="alert">{error}</p></>;
   if (!data) return <div className="surface p-8 text-center text-muted">Loading recorded data…</div>;
   return <><div className="mb-6 flex flex-wrap items-end justify-between gap-4"><div><Link className="mb-4 inline-flex items-center gap-2 text-sm font-bold text-sage-700" href="/admin/data"><ArrowLeft className="size-4" />All users</Link><h1 className="font-serif text-3xl font-bold">{profileName}</h1><p className="mt-1 text-sm text-muted">{String(data.user.email || "Guest account")}</p></div><button className="btn-primary" type="button" disabled={exporting} onClick={() => void exportUser()}>{exporting ? <LoaderCircle className="size-4 animate-spin" /> : <Download className="size-4" />}{exporting ? "Exporting…" : "Export This User"}</button></div>

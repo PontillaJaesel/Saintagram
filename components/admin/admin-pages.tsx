@@ -25,6 +25,49 @@ const fmt = (value: string | null) =>
       }).format(new Date(value))
     : "—";
 
+type LinkActivityTimeZone =
+  | "Asia/Manila"
+  | "America/New_York"
+  | "America/Denver";
+
+const LINK_ACTIVITY_TIME_ZONES: Array<{
+  value: LinkActivityTimeZone;
+  label: string;
+  shortLabel: string;
+}> = [
+  {
+    value: "Asia/Manila",
+    label: "Philippine Time (PHT)",
+    shortLabel: "PHT"
+  },
+  {
+    value: "America/New_York",
+    label: "US Eastern Time (ET) · Ashburn / New York",
+    shortLabel: "ET"
+  },
+  {
+    value: "America/Denver",
+    label: "US Mountain Time (MT) · Denver",
+    shortLabel: "MT"
+  }
+];
+
+const formatActivityTime = (
+  value: string | null,
+  timeZone: LinkActivityTimeZone
+) =>
+  value
+    ? new Intl.DateTimeFormat("en-US", {
+        timeZone,
+        month: "short",
+        day: "numeric",
+        year: "numeric",
+        hour: "numeric",
+        minute: "2-digit",
+        timeZoneName: "short"
+      }).format(new Date(value))
+    : "—";
+
 const Header = ({
   title,
   description,
@@ -204,105 +247,229 @@ export function Dashboard() {
    ============================================================ */
 
 function SimpleActivity({
-  events
+  events,
+  timeZone = "Asia/Manila"
 }: {
   events: LinkOpenEvent[];
+  timeZone?: LinkActivityTimeZone;
 }) {
+  const rowsPerPage = 20;
+  const [page, setPage] = useState(1);
+
+  const totalPages = Math.max(1, Math.ceil(events.length / rowsPerPage));
+  const safePage = Math.min(page, totalPages);
+  const startIndex = (safePage - 1) * rowsPerPage;
+  const pageEvents = events.slice(startIndex, startIndex + rowsPerPage);
+  const firstRow = events.length ? startIndex + 1 : 0;
+  const lastRow = Math.min(startIndex + rowsPerPage, events.length);
+  const selectedTimeZone =
+    LINK_ACTIVITY_TIME_ZONES.find((option) => option.value === timeZone) ??
+    LINK_ACTIVITY_TIME_ZONES[0];
+
+  useEffect(() => {
+    setPage(1);
+  }, [events]);
+
   return (
     <section className="surface overflow-hidden p-5">
-      <h2 className="font-serif text-xl font-bold">
-        Recent Link Activity
-      </h2>
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+        <div>
+          <h2 className="font-serif text-xl font-bold">Link History</h2>
+          <p className="mt-1 text-sm text-muted">
+            All QR and common-link visits, including visitors who did not log in.
+            Repeated anonymous opens from the same browser session are kept as
+            one visit with an open count.
+          </p>
+        </div>
 
-      <div className="mt-4 overflow-x-auto">
-        <table className="w-full text-left text-sm">
+        {events.length > 0 && (
+          <p className="text-sm text-muted">
+            Showing {firstRow}-{lastRow} of {events.length}
+          </p>
+        )}
+      </div>
+
+      <div className="mt-5 overflow-x-auto">
+        <table className="w-full min-w-[1320px] table-fixed text-left text-sm">
           <thead>
-            <tr className="text-muted">
-              <th>User</th>
-              <th>Source</th>
-              <th>Time</th>
-              <th>Place</th>
+            <tr className="border-b border-sage-100 text-muted">
+              <th className="w-[185px] px-3 py-3 font-semibold">Name</th>
+              <th className="w-[210px] px-3 py-3 font-semibold">
+                Display name / User
+              </th>
+              <th className="w-[125px] px-3 py-3 font-semibold">Source</th>
+              <th className="w-[220px] px-3 py-3 font-semibold">
+                Time ({selectedTimeZone.shortLabel})
+              </th>
+              <th className="w-[190px] px-3 py-3 font-semibold">Visit status</th>
+              <th className="px-3 py-3 font-semibold">Place</th>
             </tr>
           </thead>
 
           <tbody>
-            {events.map((event) => (
-              <tr
-                className="border-t border-sage-100"
-                key={event.id}
-              >
-                <td className="py-3">
-                  {event.userId ? (
-                    <Link
-                      href={`/admin/users/${event.userId}`}
-                    >
-                      {event.userName ??
-                        event.userId}
-                    </Link>
-                  ) : (
-                    "Anonymous"
-                  )}
-                </td>
+            {pageEvents.map((event) => {
+              const identified = Boolean(event.userId);
+              const repeated = event.openCount > 1;
+              const awaitingLogin = event.visitStatus === "awaiting_login";
 
-                <td>
-                  {event.source === "qr"
-                    ? "QR Code"
-                    : "Common Link"}
-                </td>
-
-                <td>
-                  {fmt(event.openedAt)}
-                </td>
-
-                <td className="min-w-64 py-3">
-                  {event.locationSource ===
-                    "device" &&
-                  event.latitude &&
-                  event.longitude ? (
-                    <div>
-                      <a
-                        className="font-bold text-sage-700 underline underline-offset-4"
-                        href={`https://www.google.com/maps?q=${encodeURIComponent(
-                          `${event.latitude},${event.longitude}`
-                        )}`}
-                        target="_blank"
-                        rel="noreferrer"
+              return (
+                <tr
+                  className="border-b border-sage-100 last:border-b-0"
+                  key={event.id}
+                >
+                  <td className="px-3 py-4 align-top">
+                    {identified ? (
+                      <Link
+                        className="font-semibold hover:underline"
+                        href={`/admin/users/${event.userId}`}
                       >
-                        {event.formattedAddress ||
-                          event.locationLabel}
-                      </a>
+                        {event.userFullName || "Unnamed issued account"}
+                      </Link>
+                    ) : (
+                      <div className="font-semibold">Anonymous visitor</div>
+                    )}
+                  </td>
 
-                      <p className="mt-1 text-xs text-muted">
-                        {[
-                          event.streetAddress,
-                          event.city,
-                          event.region,
-                          event.country
-                        ]
-                          .filter(Boolean)
-                          .join(" · ")}
+                  <td className="px-3 py-4 align-top">
+                    {identified ? (
+                      <>
+                        <div className="font-semibold leading-5">
+                          {event.userDisplayName || "No display name yet"}
+                        </div>
+                        <div className="mt-1 text-xs uppercase tracking-[0.12em] text-muted">
+                          {event.username || "No username"}
+                        </div>
+                      </>
+                    ) : (
+                      <>
+                        <div className="font-semibold leading-5">
+                          No account identified
+                        </div>
+                        <div className="mt-1 text-xs text-muted">
+                          {awaitingLogin
+                            ? "Login window still open"
+                            : "Did not proceed to login"}
+                        </div>
+                      </>
+                    )}
+                  </td>
 
-                        {event.locationAccuracyMeters !==
-                        null
-                          ? ` · GPS ±${event.locationAccuracyMeters} m`
-                          : ""}
-                      </p>
+                  <td className="px-3 py-4 align-top">
+                    <span className="whitespace-nowrap">
+                      {event.source === "qr" ? "QR Code" : "Common Link"}
+                    </span>
+                    {event.campaign ? (
+                      <div
+                        className="mt-1 max-w-[120px] truncate text-xs text-muted"
+                        title={event.campaign}
+                      >
+                        {event.campaign}
+                      </div>
+                    ) : null}
+                  </td>
+
+                  <td className="px-3 py-4 align-top">
+                    <div className="whitespace-nowrap font-medium">
+                      {formatActivityTime(event.openedAt, timeZone)}
                     </div>
-                  ) : (
-                    event.locationLabel
-                  )}
-                </td>
-              </tr>
-            ))}
+                    {repeated ? (
+                      <div className="mt-1 text-xs text-muted">
+                        Last open: {formatActivityTime(event.lastOpenedAt, timeZone)}
+                      </div>
+                    ) : null}
+                  </td>
+
+                  <td className="px-3 py-4 align-top">
+                    <div className="font-semibold">
+                      {identified
+                        ? "Logged in"
+                        : awaitingLogin
+                          ? "Awaiting login"
+                          : "Did not log in"}
+                    </div>
+                    <div className="mt-1 text-xs text-muted">
+                      {repeated
+                        ? `${event.openCount} link opens · same browser visit`
+                        : "1 link open"}
+                    </div>
+                  </td>
+
+                  <td className="px-3 py-4 align-top">
+                    {event.locationSource === "device" &&
+                    event.latitude &&
+                    event.longitude ? (
+                      <div>
+                        <a
+                          className="font-semibold text-sage-700 underline underline-offset-4"
+                          href={`https://www.google.com/maps?q=${encodeURIComponent(
+                            `${event.latitude},${event.longitude}`
+                          )}`}
+                          target="_blank"
+                          rel="noreferrer"
+                        >
+                          {event.formattedAddress || event.locationLabel}
+                        </a>
+
+                        <p className="mt-1 text-xs text-muted">
+                          Device location
+                          {event.locationAccuracyMeters !== null
+                            ? ` · GPS ±${event.locationAccuracyMeters} m`
+                            : ""}
+                        </p>
+                      </div>
+                    ) : (
+                      <div>
+                        <div className="font-medium">{event.locationLabel}</div>
+                        <p className="mt-1 text-xs text-muted">
+                          {event.locationSource === "localhost"
+                            ? "Local development"
+                            : event.locationSource === "cloudflare"
+                              ? "Approximate network location"
+                              : "Precise location unavailable"}
+                        </p>
+                      </div>
+                    )}
+                  </td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       </div>
 
-      {!events.length && (
-        <p className="mt-4 text-muted">
-          No tracked opens yet.
+      {!events.length ? (
+        <p className="mt-5 rounded-xl border border-sage-100 p-5 text-sm text-muted">
+          No link visits match these filters yet.
         </p>
-      )}
+      ) : totalPages > 1 ? (
+        <div className="mt-5 flex flex-col gap-3 border-t border-sage-100 pt-4 sm:flex-row sm:items-center sm:justify-between">
+          <p className="text-sm text-muted">
+            Page {safePage} of {totalPages}
+          </p>
+
+          <div className="flex items-center gap-2">
+            <button
+              className="btn-secondary disabled:cursor-not-allowed disabled:opacity-50"
+              type="button"
+              disabled={safePage <= 1}
+              onClick={() => setPage((current) => Math.max(1, current - 1))}
+            >
+              Previous
+            </button>
+
+            <button
+              className="btn-secondary disabled:cursor-not-allowed disabled:opacity-50"
+              type="button"
+              disabled={safePage >= totalPages}
+              onClick={() =>
+                setPage((current) => Math.min(totalPages, current + 1))
+              }
+            >
+              Next
+            </button>
+          </div>
+        </div>
+      ) : null}
     </section>
   );
 }
@@ -326,13 +493,26 @@ export function Activity() {
   const [search, setSearch] =
     useState("");
 
+  const [timeZone, setTimeZone] =
+    useState<LinkActivityTimeZone>("Asia/Manila");
+
   const events = (
     data?.events ?? []
   ).filter(
     (event) =>
       (source === "all" ||
         event.source === source) &&
-      `${event.userName} ${event.campaign}`
+      [
+        event.userFullName,
+        event.userDisplayName,
+        event.username,
+        event.campaign,
+        event.visitStatus.replaceAll("_", " "),
+        event.userId ? "logged in" : "anonymous",
+        event.locationLabel
+      ]
+        .filter(Boolean)
+        .join(" ")
         .toLowerCase()
         .includes(search.toLowerCase())
   );
@@ -341,14 +521,14 @@ export function Activity() {
     <>
       <Header
         title="Link Activity"
-        description="Approximate tracked QR and common-link opens"
+        description="Complete QR and common-link history, including anonymous visitors and precise device locations when permission is granted"
         refresh={load}
       />
 
       <div className="mb-4 flex gap-3">
         <input
           className="field"
-          placeholder="Filter user or campaign"
+          placeholder="Filter name, user, status, place, or campaign"
           value={search}
           onChange={(event) =>
             setSearch(event.target.value)
@@ -374,6 +554,21 @@ export function Activity() {
             Common
           </option>
         </select>
+
+        <select
+          className="field"
+          value={timeZone}
+          aria-label="Link history timezone"
+          onChange={(event) =>
+            setTimeZone(event.target.value as LinkActivityTimeZone)
+          }
+        >
+          {LINK_ACTIVITY_TIME_ZONES.map((option) => (
+            <option key={option.value} value={option.value}>
+              {option.label}
+            </option>
+          ))}
+        </select>
       </div>
 
       {!data ? (
@@ -381,6 +576,7 @@ export function Activity() {
       ) : (
         <SimpleActivity
           events={events}
+          timeZone={timeZone}
         />
       )}
     </>
@@ -408,15 +604,22 @@ export function Users() {
 
   const users = (
     data?.users ?? []
-  ).filter(
-    (user) =>
-      (status === "all" ||
-        user.completion.status ===
-          status) &&
-      `${user.name} ${user.email}`
-        .toLowerCase()
-        .includes(search.toLowerCase())
-  );
+  ).filter((user) => {
+    const searchable = [
+      user.fullName,
+      user.displayName,
+      user.username,
+      user.email,
+      user.accountRole
+    ]
+      .join(" ")
+      .toLowerCase();
+
+    return (
+      (status === "all" || user.completion.status === status) &&
+      searchable.includes(search.toLowerCase())
+    );
+  });
 
   return (
     <>
@@ -426,9 +629,9 @@ export function Users() {
         refresh={load}
       />
 
-      <div className="mb-4 flex gap-3">
+      <div className="mb-4 flex flex-col gap-3 lg:flex-row">
         <input
-          className="field"
+          className="field lg:max-w-xl"
           placeholder="Search users"
           value={search}
           onChange={(event) =>
@@ -437,7 +640,7 @@ export function Users() {
         />
 
         <select
-          className="field"
+          className="field lg:max-w-sm"
           value={status}
           onChange={(event) =>
             setStatus(event.target.value)
@@ -464,80 +667,106 @@ export function Users() {
       {!data ? (
         <State error={error} />
       ) : (
-        <div className="surface overflow-x-auto p-5">
-          <table className="w-full text-left text-sm">
-            <thead>
-              <tr>
-                <th>User</th>
-                <th>Email</th>
-                <th>Account</th>
-                <th>Joined</th>
-                <th>
-                  Admin Progress
-                </th>
-                <th>Onboarding</th>
-                <th />
-              </tr>
-            </thead>
-
-            <tbody>
-              {users.map((user) => (
-                <tr
-                  className="border-t border-sage-100"
-                  key={user.id}
-                >
-                  <td className="py-4 font-semibold">
-                    {user.name}
-                  </td>
-
-                  <td>
-                    {user.email || "—"}
-                  </td>
-
-                  <td>
-                    {user.authProvider}
-                  </td>
-
-                  <td>
-                    {fmt(user.createdAt)}
-                  </td>
-
-                  <td>
-                    {
-                      user.completion
-                        .completedCount
-                    }
-                    /7 ·{" "}
-                    {
-                      user.completion
-                        .percentage
-                    }
-                    %
-                  </td>
-
-                  <td>
-                    {user.profileCompleted
-                      ? "Completed"
-                      : "Not completed"}
-                  </td>
-
-                  <td>
-                    <Link
-                      className="font-bold text-sage-700"
-                      href={`/admin/users/${user.id}`}
-                    >
-                      View
-                    </Link>
-                  </td>
+        <div className="surface overflow-hidden p-0">
+          <div className="overflow-x-auto">
+            <table className="min-w-[1100px] w-full border-separate border-spacing-0 text-left text-sm">
+              <thead>
+                <tr className="text-muted">
+                  <th className="px-5 py-4 font-semibold whitespace-nowrap">
+                    Name
+                  </th>
+                  <th className="px-5 py-4 font-semibold whitespace-nowrap">
+                    Display name / User
+                  </th>
+                  <th className="px-5 py-4 font-semibold whitespace-nowrap">
+                    Email
+                  </th>
+                  <th className="px-5 py-4 font-semibold whitespace-nowrap">
+                    Account
+                  </th>
+                  <th className="px-5 py-4 font-semibold whitespace-nowrap">
+                    Joined
+                  </th>
+                  <th className="px-5 py-4 font-semibold whitespace-nowrap">
+                    Profile Progress
+                  </th>
+                  <th
+                    className="px-5 py-4 font-semibold whitespace-nowrap"
+                    title="Whether the user finished Saintagram's initial profile setup. This is separate from the seven-part Profile Progress score."
+                  >
+                    Onboarding
+                  </th>
+                  <th className="px-5 py-4 text-right font-semibold whitespace-nowrap">
+                    Action
+                  </th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+
+              <tbody>
+                {users.map((user) => (
+                  <tr
+                    className="border-t border-sage-100"
+                    key={user.id}
+                  >
+                    <td className="px-5 py-4 align-top">
+                      <div className="font-semibold whitespace-nowrap">
+                        {user.fullName || "—"}
+                      </div>
+                    </td>
+
+                    <td className="px-5 py-4 align-top min-w-[12rem]">
+                      <div className="font-semibold leading-snug">
+                        {user.displayName || "No display name yet"}
+                      </div>
+                      <div className="mt-1 text-xs text-muted uppercase tracking-[0.12em]">
+                        {user.username || "No username"}
+                      </div>
+                    </td>
+
+                    <td className="px-5 py-4 align-top whitespace-nowrap">
+                      {user.email || "—"}
+                    </td>
+
+                    <td className="px-5 py-4 align-top whitespace-nowrap">
+                      {user.accountRole === "app_admin"
+                        ? "Admin user"
+                        : user.accountRole === "tester"
+                          ? "Tester"
+                          : "User"}
+                    </td>
+
+                    <td className="px-5 py-4 align-top whitespace-nowrap">
+                      {fmt(user.createdAt)}
+                    </td>
+
+                    <td className="px-5 py-4 align-top whitespace-nowrap">
+                      {user.completion.completedCount}/7 ·{" "}
+                      {user.completion.percentage}%
+                    </td>
+
+                    <td className="px-5 py-4 align-top whitespace-nowrap">
+                      {user.profileCompleted
+                        ? "Completed"
+                        : "Not completed"}
+                    </td>
+
+                    <td className="px-5 py-4 align-top text-right whitespace-nowrap">
+                      <Link
+                        className="font-bold text-sage-700"
+                        href={`/admin/users/${user.id}`}
+                      >
+                        View
+                      </Link>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
 
           {!users.length && (
-            <p className="py-8 text-center text-muted">
-              No users match these
-              filters.
+            <p className="px-5 py-8 text-center text-muted">
+              No users match these filters.
             </p>
           )}
         </div>
@@ -1359,112 +1588,133 @@ export function DataPage() {
       {!usersData ? (
         <State error={usersError} />
       ) : (
-        <section className="surface overflow-x-auto p-5">
-          <div className="mb-4">
-            <h2 className="font-serif text-xl font-bold">
-              All Users
-            </h2>
+        <section className="surface overflow-hidden p-0">
+          <div className="flex flex-col gap-1 border-b border-sage-100 px-5 py-5 sm:flex-row sm:items-end sm:justify-between">
+            <div>
+              <h2 className="font-serif text-xl font-bold">
+                All Users
+              </h2>
 
-            <p className="mt-1 text-sm text-muted">
-              {usersData.users.length}{" "}
-              user
-              {usersData.users
-                .length === 1
-                ? ""
-                : "s"}{" "}
-              recorded
-            </p>
+              <p className="mt-1 text-sm text-muted">
+                {usersData.users.length}{" "}
+                user
+                {usersData.users.length === 1 ? "" : "s"}{" "}
+                recorded
+              </p>
+            </div>
           </div>
 
-          <table className="w-full min-w-[48rem] text-left text-sm">
-            <thead>
-              <tr className="text-muted">
-                <th>
-                  Display name
-                </th>
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[1280px] table-fixed border-separate border-spacing-0 text-left text-sm">
+              <thead>
+                <tr className="text-muted">
+                  <th className="w-[190px] px-5 py-4 font-semibold whitespace-nowrap">
+                    Default Name
+                  </th>
 
-                <th>Username</th>
+                  <th className="w-[200px] px-5 py-4 font-semibold whitespace-nowrap">
+                    Display Name / User
+                  </th>
 
-                <th>Account</th>
+                  <th className="w-[245px] px-5 py-4 font-semibold whitespace-nowrap">
+                    Email
+                  </th>
 
-                <th>Joined</th>
+                  <th className="w-[125px] px-5 py-4 font-semibold whitespace-nowrap">
+                    Account Type
+                  </th>
 
-                <th>Profile</th>
+                  <th className="w-[175px] px-5 py-4 font-semibold whitespace-nowrap">
+                    Joined
+                  </th>
 
-                <th />
-              </tr>
-            </thead>
+                  <th className="w-[135px] px-5 py-4 font-semibold whitespace-nowrap">
+                    Profile
+                  </th>
 
-            <tbody>
-              {usersData.users.map(
-                (user) => (
+                  <th className="w-[210px] px-5 py-4 text-right font-semibold whitespace-nowrap">
+                    Action
+                  </th>
+                </tr>
+              </thead>
+
+              <tbody>
+                {usersData.users.map((user) => (
                   <tr
-                    className={`border-t border-sage-100 ${
-                      selectedId ===
-                      user.id
+                    className={`border-t border-sage-100 transition-colors ${
+                      selectedId === user.id
                         ? "bg-sage-50/70"
-                        : ""
+                        : "hover:bg-sage-50/30"
                     }`}
                     key={user.id}
                   >
-                    <td className="py-4 font-semibold">
-                      {user.name}
+                    <td className="px-5 py-4 align-middle">
+                      <div className="break-words font-semibold leading-5">
+                        {user.fullName || "—"}
+                      </div>
                     </td>
 
-                    <td>
-                      {user.email ||
-                        "Guest account"}
+                    <td className="px-5 py-4 align-middle">
+                      <div className="break-words font-semibold leading-5">
+                        {user.displayName || "No display name yet"}
+                      </div>
+
+                      <div className="mt-1 text-xs uppercase tracking-[0.12em] text-muted">
+                        {user.username || "No username"}
+                      </div>
                     </td>
 
-                    <td className="capitalize">
-                      {
-                        user.authProvider
-                      }
+                    <td className="px-5 py-4 align-middle">
+                      <span className="whitespace-nowrap">
+                        {user.email || "—"}
+                      </span>
                     </td>
 
-                    <td>
-                      {fmt(
-                        user.createdAt
-                      )}
+                    <td className="px-5 py-4 align-middle">
+                      <span className="inline-flex whitespace-nowrap rounded-full border border-sage-100 px-2.5 py-1 text-xs font-semibold">
+                        {user.accountRole === "app_admin"
+                          ? "Admin User"
+                          : user.accountRole === "tester"
+                            ? "Tester"
+                            : "User"}
+                      </span>
                     </td>
 
-                    <td>
-                      {user.profileCompleted
-                        ? "Completed"
-                        : "Not completed"}
+                    <td className="px-5 py-4 align-middle whitespace-nowrap">
+                      {fmt(user.createdAt)}
                     </td>
 
-                    <td className="py-3 text-right">
+                    <td className="px-5 py-4 align-middle">
+                      <span className="whitespace-nowrap font-medium">
+                        {user.profileCompleted
+                          ? "Completed"
+                          : "Not completed"}
+                      </span>
+                    </td>
+
+                    <td className="px-5 py-4 text-right align-middle">
                       <button
                         className="btn-secondary whitespace-nowrap"
                         type="button"
                         disabled={
-                          loading &&
-                          selectedId ===
-                            user.id
+                          loading && selectedId === user.id
                         }
-                        onClick={() =>
-                          load(user.id)
-                        }
+                        onClick={() => load(user.id)}
                       >
-                        {loading &&
-                        selectedId ===
-                          user.id
+                        {loading && selectedId === user.id
                           ? "Loading…"
                           : "View All Recorded Data"}
                       </button>
                     </td>
                   </tr>
-                )
-              )}
-            </tbody>
-          </table>
+                ))}
+              </tbody>
+            </table>
+          </div>
 
-          {!usersData.users
-            .length && (
-            <p className="py-8 text-center text-muted">
-              No users have been
-              recorded yet.
+          {!usersData.users.length && (
+            <p className="px-5 py-10 text-center text-muted">
+              No users have been recorded yet.
             </p>
           )}
         </section>

@@ -23,6 +23,10 @@ import { useToast } from "@/components/providers/toast-provider";
 
 import { appService } from "@/lib/app-service";
 import { fiatCategoryLabel } from "@/lib/fiat";
+import {
+  MODERATION_TEXT_ERROR,
+  moderateTextContent
+} from "@/lib/moderation";
 
 import {
   downloadFirebaseProfileImage,

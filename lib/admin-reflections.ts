@@ -45,6 +45,7 @@ function storedAdminReflection(id: string, data: FirebaseFirestore.DocumentData)
     title: String(data.title ?? ""),
     content: String(data.content ?? ""),
     isPrivate: false,
+    accountPrivate: false,
     createdAt: timestampIso(data.createdAt),
     updatedAt: timestampIso(data.updatedAt),
     ...(data.editedAt ? { editedAt: timestampIso(data.editedAt) } : {}),
@@ -104,6 +105,10 @@ export async function publishAdminReflection(
       imagePath: "",
       spiritualBio: "Official reflections from Saintagram.",
       heavenlyHashtag: "#Saintagram",
+
+      // Admin profile is always public.
+      isPrivateAccount: false,
+
       createdAt: FieldValue.serverTimestamp(),
       updatedAt: FieldValue.serverTimestamp()
     });
@@ -113,10 +118,17 @@ export async function publishAdminReflection(
     userId: adminId,
     title,
     content,
+
+    // The reflection itself is public.
     isPrivate: false,
+
+    // The Saintagram Admin account is also public.
+    accountPrivate: false,
+
     createdAt: FieldValue.serverTimestamp(),
-    updatedAt: FieldValue.serverTimestamp()
-    ,...(media.length ? { media } : {})
+    updatedAt: FieldValue.serverTimestamp(),
+
+    ...(media.length ? { media } : {})
   });
   await setupBatch.commit();
 
