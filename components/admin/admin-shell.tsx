@@ -18,7 +18,8 @@ import {
   X,
   LogOut,
   BookOpenText,
-  SunMoon
+  SunMoon,
+  Megaphone
 } from "lucide-react";
 import { signOut } from "firebase/auth";
 
@@ -41,6 +42,11 @@ const nav = [
     "/admin/reflections",
     "Reflections",
     BookOpenText
+  ],
+  [
+    "/admin/bulletins",
+    "Bulletin",
+    Megaphone
   ],
   [
     "/admin/activity",

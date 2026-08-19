@@ -1620,6 +1620,11 @@ service cloud.firestore {
         && isIsoDate(request.resource.data.readAt);
     }
 
+    match /bulletins/{bulletinId} {
+      allow get, list: if signedIn();
+      allow create, update, delete: if false;
+    }
+
     /*
     * This is NOT inside notifications.
     * This denies access to any collection
