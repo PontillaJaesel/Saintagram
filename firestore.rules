@@ -1144,6 +1144,13 @@ service cloud.firestore {
       allow delete: if isCurrentUser(draftId);
     }
 
+    // Bulletin documents are published by the server-side admin service.
+    // Authenticated users may read them; client-side writes remain denied.
+    match /bulletins/{bulletinId} {
+      allow get, list: if signedIn();
+      allow create, update, delete: if false;
+    }
+
     match /reflectionPosts/{reflectionId} {
       allow get, list: if canViewReflection(resource.data);
 

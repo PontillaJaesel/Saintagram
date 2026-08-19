@@ -23,7 +23,7 @@ service firebase.storage {
         /databases/(default)/documents/socialProfiles/$(userId);
 
       return firestore.exists(profilePath)
-        && firestore.get(profilePath).data.isPrivateAccount == true;
+        && firestore.get(profilePath).data.get('isPrivateAccount', false) == true;
     }
 
     function followsUser(userId) {
@@ -45,8 +45,8 @@ service firebase.storage {
         /databases/(default)/documents/reflectionPosts/$(reflectionId);
 
       return firestore.exists(reflectionPath)
-        && firestore.get(reflectionPath).data.userId == userId
-        && firestore.get(reflectionPath).data.isPrivate == false;
+        && firestore.get(reflectionPath).data.get('userId', '') == userId
+        && firestore.get(reflectionPath).data.get('isPrivate', true) == false;
     }
 
     function canReadReflectionMedia(userId, reflectionId) {
@@ -69,6 +69,18 @@ service firebase.storage {
       allow create: if isOwner(userId)
         && imageName.matches('^[A-Za-z0-9_-]+\\.(jpg|png|webp)$')
         && request.resource.size < 2097152
+        && request.resource.contentType.matches('image/(jpeg|png|webp)');
+
+      allow delete: if isOwner(userId);
+      allow update: if false;
+    }
+
+    match /users/{userId}/cover/{imageName} {
+      allow read: if signedIn();
+
+      allow create: if isOwner(userId)
+        && imageName.matches('^[A-Za-z0-9_-]+\\.(jpg|png|webp)$')
+        && request.resource.size < 5242880
         && request.resource.contentType.matches('image/(jpeg|png|webp)');
 
       allow delete: if isOwner(userId);

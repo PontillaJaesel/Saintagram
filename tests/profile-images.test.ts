@@ -15,6 +15,8 @@ const mocks = vi.hoisted(() => {
   const getDownloadURL = vi.fn();
   const deleteObject = vi.fn();
   const listAll = vi.fn();
+  const moderateWithServerRoute = vi.fn();
+  const validateModerationImageFile = vi.fn();
   const ref = vi.fn((storage, fullPath) => ({ storage, fullPath }));
   const getIdToken = vi.fn();
   return {
@@ -22,6 +24,8 @@ const mocks = vi.hoisted(() => {
     getDownloadURL,
     deleteObject,
     listAll,
+    moderateWithServerRoute,
+    validateModerationImageFile,
     ref,
     getIdToken,
     storage: {},
@@ -37,6 +41,13 @@ vi.mock("@/lib/firebase", () => ({
     auth: { currentUser: mocks.currentUser },
     storage: mocks.storage
   })
+}));
+
+vi.mock("@/lib/moderation", () => ({
+  MODERATION_IMAGE_ERROR:
+    "This image cannot be uploaded because it violates our community guidelines.",
+  moderateWithServerRoute: mocks.moderateWithServerRoute,
+  validateModerationImageFile: mocks.validateModerationImageFile
 }));
 
 vi.mock("firebase/storage", () => ({
@@ -67,9 +78,12 @@ describe("Firebase profile-image storage", () => {
     );
     mocks.deleteObject.mockResolvedValue(undefined);
     mocks.listAll.mockResolvedValue({ items: [], prefixes: [] });
+    mocks.validateModerationImageFile.mockReturnValue(null);
+    mocks.moderateWithServerRoute.mockResolvedValue(undefined);
   });
 
   afterEach(() => {
+    vi.clearAllMocks();
     vi.restoreAllMocks();
   });
 
@@ -153,6 +167,18 @@ describe("Firebase profile-image storage", () => {
     await expect(uploadFirebaseProfileImage("alice", file)).rejects.toThrow(
       /Check Firebase Storage rules/i
     );
+  });
+
+  it("rejects an image when moderation blocks it", async () => {
+    mocks.moderateWithServerRoute.mockRejectedValueOnce(
+      new Error("blocked by moderation")
+    );
+    const file = new File(["image"], "avatar.png", { type: "image/png" });
+
+    await expect(uploadFirebaseProfileImage("alice", file)).rejects.toThrow(
+      "This image cannot be uploaded because it violates our community guidelines."
+    );
+    expect(mocks.uploadBytes).not.toHaveBeenCalled();
   });
 
   it("removes every listed object during account deletion", async () => {
