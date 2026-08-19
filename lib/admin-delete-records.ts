@@ -488,7 +488,8 @@ export async function resetOneNonAdminUserData(
 
     role:
       existing.role === "tester" ||
-      existing.role === "user"
+      existing.role === "user" ||
+      existing.role === "app_admin"
         ? existing.role
         : issued.role,
 

@@ -165,6 +165,76 @@ export async function getFirebaseAuthUser(
   };
 }
 
+function browserApiKey(): string {
+  const value =
+    process.env.NEXT_PUBLIC_FIREBASE_API_KEY?.trim();
+
+  if (!value) {
+    throw new Error(
+      "The Firebase browser API key is not configured."
+    );
+  }
+
+  return value;
+}
+
+/**
+ * Resolve a signed-in Firebase user from a client ID token without using the
+ * Firebase Admin SDK. This is safe for Cloudflare Workers because the token is
+ * validated by Identity Toolkit itself.
+ */
+export async function getFirebaseAuthUserFromIdToken(
+  idToken: string
+): Promise<FirebaseAuthRestUser | null> {
+  const token = idToken.trim();
+
+  if (!token) {
+    return null;
+  }
+
+  const response = await fetch(
+    `https://identitytoolkit.googleapis.com/v1/accounts:lookup?key=${encodeURIComponent(
+      browserApiKey()
+    )}`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({ idToken: token })
+    }
+  );
+
+  const text = await response.text();
+  let result: unknown = {};
+
+  if (text) {
+    try {
+      result = JSON.parse(text);
+    } catch {
+      result = {};
+    }
+  }
+
+  if (!response.ok) {
+    return null;
+  }
+
+  const user = (result as { users?: IdentityUser[] }).users?.[0];
+
+  if (!user?.localId) {
+    return null;
+  }
+
+  return {
+    uid: user.localId,
+    email: user.email ?? null,
+    displayName: user.displayName ?? null,
+    disabled: user.disabled === true,
+    customClaims: parseCustomClaims(user.customAttributes)
+  };
+}
+
 export async function setFirebaseAuthPassword(
   userId: string,
   password: string
@@ -178,6 +248,24 @@ export async function setFirebaseAuthPassword(
     {
       localId: userId,
       password
+    }
+  );
+}
+
+export async function revokeFirebaseAuthRefreshTokens(
+  userId: string
+): Promise<void> {
+  const project = projectId();
+
+  await identityRequest(
+    `projects/${encodeURIComponent(
+      project
+    )}/accounts:update`,
+    {
+      localId: userId,
+      validSince: String(
+        Math.floor(Date.now() / 1000)
+      )
     }
   );
 }

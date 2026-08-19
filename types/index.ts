@@ -26,7 +26,7 @@ export interface AppUser {
   profileCompleted: boolean;
   mustChangePassword?: boolean;
   fullName?: string;
-  role?: "user" | "tester";
+  role?: "user" | "tester" | "app_admin";
   privacyPreferences?: PrivacyPreferences;
 }
 
@@ -175,7 +175,43 @@ export interface SocialNotification {
 export type AdminProfileRequirementKey = "bio" | "guides" | "directions" | "reflection" | "likes" | "godsComment" | "hashtag";
 export interface AdminProfileRequirement { key: AdminProfileRequirementKey; label: string; complete: boolean; }
 export interface AdminProfileCompletion { completedCount: number; totalCount: 7; percentage: number; status: "Not Started" | "Incomplete" | "Complete"; requirements: AdminProfileRequirement[]; missingFields: string[]; }
-export interface LinkOpenEvent { visitId: string; id: string; source: "qr" | "common"; campaign: string | null; openedAt: string; userId: string | null; claimedAt: string | null; streetAddress: string | null; city: string | null; region: string | null; country: string | null; postalCode: string | null; formattedAddress: string | null; latitude: string | null; longitude: string | null; locationAccuracyMeters: number | null; locationLabel: string; locationSource: "device" | "cloudflare" | "localhost" | "unavailable"; destination: string; userName?: string; }
+export interface LinkOpenEvent {
+  visitId: string;
+  id: string;
+  /** Tracking schema version. Version 2 uses one document per browser visit. */
+  trackingVersion: number;
+  source: "qr" | "common";
+  campaign: string | null;
+  openedAt: string;
+  /** Most recent open time when the same unclaimed browser reopened the link. */
+  lastOpenedAt: string;
+  /** Number of opens represented by this one visit row. */
+  openCount: number;
+  userId: string | null;
+  /** Admin-facing state derived from whether/when the visit was claimed. */
+  visitStatus: "logged_in" | "awaiting_login" | "did_not_login";
+  claimedAt: string | null;
+  streetAddress: string | null;
+  city: string | null;
+  region: string | null;
+  country: string | null;
+  postalCode: string | null;
+  formattedAddress: string | null;
+  latitude: string | null;
+  longitude: string | null;
+  locationAccuracyMeters: number | null;
+  locationLabel: string;
+  locationSource: "device" | "cloudflare" | "localhost" | "unavailable";
+  destination: string;
+  /** Legacy display label kept for older admin components. */
+  userName?: string;
+  /** The name originally assigned to the issued Saintagram account. */
+  userFullName?: string;
+  /** The profile/display name chosen by the user. */
+  userDisplayName?: string;
+  /** Issued username such as USR047. */
+  username?: string;
+}
 export interface SystemNotification { id: string; userId: string; type: "profile_reminder" | "admin_reflection"; title: string; message: string; missingFields: string[]; reflectionId?: string; createdByAdminId: string; createdAt: string; readAt: string | null; }
 export interface AdminAuditLog {
   id: string;
@@ -198,7 +234,7 @@ export interface AdminAuditLog {
     string | number | boolean | null
   >;
 }
-export interface AdminUserSummary { id: string; email: string; name: string; authProvider: string; createdAt: string; profileCompleted: boolean; completion: AdminProfileCompletion; lastLinkOpen: string | null; }
+export interface AdminUserSummary { id: string; email: string; name: string; fullName: string; displayName: string; username: string; accountRole: "user" | "tester" | "app_admin"; authProvider: string; createdAt: string; profileCompleted: boolean; completion: AdminProfileCompletion; lastLinkOpen: string | null; }
 export interface AdminDashboardOverview { totalUsers: number; completeProfiles: number; incompleteProfiles: number; totalVisits: number; qrVisits: number; commonVisits: number; qrOpensToday: number; commonOpensToday: number; recentActivity: LinkOpenEvent[]; recentUsers: AdminUserSummary[]; recentReminders: SystemNotification[]; }
 export interface AdminUserData { user: Record<string, unknown>; profile: Record<string, unknown> | null; privateProfile: Record<string, unknown> | null; draft: Record<string, unknown> | null; collections: Record<string, Record<string, unknown>[]>; }
 export interface AdminExportOptions { userId?: string; from?: string; to?: string; include: string[]; }

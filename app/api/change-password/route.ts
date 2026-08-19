@@ -32,7 +32,7 @@ export async function POST(request: Request) {
     const updatedAt = new Date().toISOString();
     await userRef.update({ mustChangePassword: false, updatedAt });
     try {
-      await auth.updateUser(token.uid, { password: newPassword });
+      await setFirebaseAuthPassword(token.uid, newPassword);
     } catch (passwordUpdateError) {
       await userRef.update({ mustChangePassword: true, updatedAt: new Date().toISOString() });
       throw passwordUpdateError;
