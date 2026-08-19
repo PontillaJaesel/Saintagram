@@ -1061,6 +1061,85 @@ body {
   }
 }
 
+/* =========================================================
+   SAINTAGRAM BULLETIN — TRUE SEAMLESS LOOP
+   ========================================================= */
+
+@keyframes bulletin-ticker-scroll {
+  from {
+    transform:
+      translate3d(
+        0,
+        0,
+        0
+      );
+  }
+
+  to {
+    transform:
+      translate3d(
+        calc(
+          var(--bulletin-loop-width) * -1
+        ),
+        0,
+        0
+      );
+  }
+}
+
+.bulletin-ticker-track {
+  display: flex;
+  width: max-content;
+  min-width: max-content;
+  flex-shrink: 0;
+
+  animation-name:
+    bulletin-ticker-scroll;
+
+  animation-duration:
+    var(
+      --bulletin-loop-duration,
+      20s
+    );
+
+  animation-timing-function:
+    linear;
+
+  animation-iteration-count:
+    infinite;
+
+  will-change:
+    transform;
+}
+
+.bulletin-ticker-group {
+  display: flex;
+  flex: none;
+}
+
+/*
+ * Optional: pause so desktop users
+ * can read or click the ticker.
+ */
+.bulletin-ticker:hover
+.bulletin-ticker-track {
+  animation-play-state:
+    paused;
+}
+
+/*
+ * Accessibility.
+ */
+@media (
+  prefers-reduced-motion:
+  reduce
+) {
+  .bulletin-ticker-track {
+    animation: none;
+    transform: none;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,

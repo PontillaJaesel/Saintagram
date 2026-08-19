@@ -9,6 +9,9 @@ import {
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
+import {
+  BulletinTicker
+} from "@/components/layout/bulletin-ticker";
 
 import {
   Footprints,
@@ -103,6 +106,11 @@ export function AppShell({
   const [profileHeaderActive, setProfileHeaderActive] = useState(false);
   const [mobileNavHidden, setMobileNavHidden] = useState(false);
   const scrollPositions = useRef(new WeakMap<object, number>());
+
+  const [
+    bulletinTickerVisible,
+    setBulletinTickerVisible
+  ] = useState(false);
 
   useEffect(() => {
     if (!isProfile) {
@@ -320,7 +328,15 @@ export function AppShell({
       </div>
 
       <nav
-        className={`mobile-primary-nav fixed inset-x-3 bottom-3 z-50 overflow-visible rounded-[1.6rem] border border-sage-100/80 bg-paper/90 px-2 pb-[max(.5rem,env(safe-area-inset-bottom))] pt-2 shadow-lift backdrop-blur-2xl transition-all duration-200 lg:hidden ${mobileNavHidden ? "pointer-events-none translate-y-[calc(100%+2rem)] opacity-0" : "translate-y-0 opacity-100"}`}
+        className={`mobile-primary-nav fixed inset-x-3 z-50 overflow-visible rounded-[1.6rem] border border-sage-100/80 bg-paper/90 px-2 pb-[max(.5rem,env(safe-area-inset-bottom))] pt-2 shadow-lift backdrop-blur-2xl transition-all duration-200 lg:hidden ${
+          bulletinTickerVisible
+            ? "bottom-[calc(3.75rem+env(safe-area-inset-bottom))]"
+            : "bottom-3"
+        } ${
+          mobileNavHidden
+            ? "pointer-events-none translate-y-[calc(100%+2rem)] opacity-0"
+            : "translate-y-0 opacity-100"
+        }`}
         aria-label="Mobile navigation"
       >
         <div
@@ -415,6 +431,11 @@ export function AppShell({
           )}
         </div>
       </nav>
+      <BulletinTicker
+        onVisibilityChange={
+          setBulletinTickerVisible
+        }
+      />
     </div>
   );
 }

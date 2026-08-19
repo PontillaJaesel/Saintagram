@@ -97,6 +97,7 @@ export async function publishAdminReflection(
   ]);
 
   const setupBatch = db.batch();
+
   if (!profile.exists) {
     setupBatch.set(profileRef, {
       id: adminId,
@@ -106,10 +107,22 @@ export async function publishAdminReflection(
       spiritualBio: "Official reflections from Saintagram.",
       heavenlyHashtag: "#Saintagram",
 
-      // Admin profile is always public.
+      // Saintagram Admin is always public.
       isPrivateAccount: false,
 
       createdAt: FieldValue.serverTimestamp(),
+      updatedAt: FieldValue.serverTimestamp()
+    });
+  } else {
+    /*
+    * Repair legacy Admin profiles.
+    *
+    * Older Admin profiles may have been created before
+    * isPrivateAccount existed. Always force the official
+    * Saintagram Admin account to remain public.
+    */
+    setupBatch.update(profileRef, {
+      isPrivateAccount: false,
       updatedAt: FieldValue.serverTimestamp()
     });
   }
@@ -181,9 +194,17 @@ export async function updateAdminReflection(
   await postRef.update({
     title,
     content,
+
+    // Admin reflections are always public.
+    // These fields also repair legacy Admin posts
+    // that were created before accountPrivate existed.
+    isPrivate: false,
+    accountPrivate: false,
+
     updatedAt: FieldValue.serverTimestamp(),
-    editedAt: FieldValue.serverTimestamp()
-    ,...(media ? { media } : {})
+    editedAt: FieldValue.serverTimestamp(),
+
+    ...(media ? { media } : {})
   });
 
   const notificationSnapshot = await db

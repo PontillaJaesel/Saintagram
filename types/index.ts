@@ -268,3 +268,19 @@ export const DEFAULT_PRIVACY_PREFERENCES: PrivacyPreferences = {
   requirePrivateCheck: true,
   showReflectionDates: true
 };
+
+export type BulletinItemType = "announcement" | "event";
+
+export interface BulletinItem {
+  id: string;
+  type: BulletinItemType;
+  title: string;
+  description: string;
+  eventAt: string | null;
+  location: string;
+  linkUrl: string;
+  expiresAt: string | null;
+  pinned: boolean;
+  createdAt: string;
+  updatedAt: string;
+}

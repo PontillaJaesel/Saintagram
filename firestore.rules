@@ -1684,10 +1684,6 @@ service cloud.firestore {
         && request.resource.data.readAt is timestamp;
     }
 
-    // Tracking and administrator audit data are server-managed only.
-    match /linkOpenEvents/{eventId} { allow read, write: if false; }
-    match /adminAuditLogs/{logId} { allow read, write: if false; }
-
     /*
     * This is NOT inside notifications.
     * This denies access to any collection
