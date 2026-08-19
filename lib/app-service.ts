@@ -36,8 +36,11 @@ import { isFiatCategory, localDateKey } from "@/lib/fiat";
 import { usernameAccountEmail } from "@/lib/account-identity";
 import {
   deleteAllFirebaseProfileImages,
+  deleteFirebaseProfileCover,
   deleteFirebaseProfileImage,
+  isOwnedProfileCoverPath,
   isOwnedProfileImagePath,
+  uploadFirebaseProfileCover,
   uploadFirebaseProfileImage
 } from "@/lib/profile-images";
 import { deleteAllReflectionMedia } from "@/lib/reflection-media";
@@ -51,7 +54,8 @@ import {
   normalizeCoverColor,
   normalizeHashtag,
   normalizeList,
-  registrationEmailError
+  registrationEmailError,
+  validateCoverImage
 } from "@/lib/validation";
 import { MODERATION_TEXT_ERROR, moderateTextContent } from "@/lib/moderation";
 import {
@@ -270,6 +274,7 @@ function storedPublicProfile(
       ? (value as Record<string, unknown>)
       : {};
   const storedImagePath = stringValue(data.imagePath);
+  const storedCoverImagePath = stringValue(data.coverImagePath);
   return {
     id: stringValue(data.id),
     userId: stringValue(data.userId),
@@ -279,6 +284,12 @@ function storedPublicProfile(
           readJson<JsonMap<string>>(LOCAL_KEYS.coverColors, {})[expectedUserId]
         )
       : "#DDD2F6",
+    coverImagePath:
+      expectedUserId &&
+      storedCoverImagePath &&
+      !isOwnedProfileCoverPath(storedCoverImagePath, expectedUserId)
+        ? ""
+        : storedCoverImagePath,
     imagePath:
       expectedUserId &&
       storedImagePath &&
@@ -424,6 +435,10 @@ function storedSocialProfile(
     id,
     userId,
     profileName,
+    coverImagePath:
+      isOwnedProfileCoverPath(stringValue(data.coverImagePath), userId)
+        ? stringValue(data.coverImagePath)
+        : "",
     imagePath: stringValue(data.imagePath),
     spiritualBio: stringValue(data.spiritualBio),
     heavenlyHashtag: stringValue(data.heavenlyHashtag),
@@ -819,6 +834,7 @@ async function ensureLocalSeed(): Promise<void> {
     userId,
     profileName: "Still Growing",
     coverColor: "#DDD2F6",
+    coverImagePath: "",
     imagePath: "",
     selectedSymbol: "seed",
     spiritualBio:
@@ -1457,6 +1473,14 @@ function profileJourneyChanges(
     );
   }
 
+  if (before.coverImagePath !== after.coverImagePath) {
+    changes.push(
+      after.coverImagePath
+        ? "Profile cover photo was changed."
+        : "Profile cover photo was removed."
+    );
+  }
+
   return changes;
 }
 
@@ -1500,6 +1524,9 @@ export const appService = {
       profileName:
         profile.profileName,
 
+      coverImagePath:
+        profile.coverImagePath,
+
       imagePath:
         profile.imagePath,
 
@@ -1529,6 +1556,9 @@ export const appService = {
         {
           profileName:
             socialProfile.profileName,
+
+          coverImagePath:
+            socialProfile.coverImagePath,
 
           imagePath:
             socialProfile.imagePath,
@@ -3509,6 +3539,7 @@ export const appService = {
         userId,
         profileName: data.profileName,
         coverColor: "#DDD2F6",
+        coverImagePath: existing?.coverImagePath ?? "",
         imagePath: data.imagePath,
         selectedSymbol: data.selectedSymbol,
         spiritualBio: data.spiritualBio,
@@ -3571,6 +3602,7 @@ export const appService = {
       userId,
       profileName: data.profileName,
       coverColor: "#DDD2F6",
+      coverImagePath: existing?.coverImagePath ?? "",
       imagePath: data.imagePath,
       selectedSymbol: data.selectedSymbol,
       spiritualBio: data.spiritualBio,
@@ -3645,6 +3677,11 @@ export const appService = {
         normalizeCoverColor(
           profile.coverColor ??
             ""
+        ),
+
+      coverImagePath:
+        normalizeProfileImageReference(
+          profile.coverImagePath
         ),
 
       imagePath:
@@ -3733,6 +3770,13 @@ export const appService = {
         userId,
         updated.imagePath
       );
+
+      if (
+        updated.coverImagePath &&
+        !isOwnedProfileCoverPath(updated.coverImagePath, userId)
+      ) {
+        throw new Error("The selected cover photo is not valid for this account.");
+      }
 
       const services =
         getFirebaseServices();
@@ -3838,6 +3882,9 @@ export const appService = {
           profileName:
             updated.profileName,
 
+          coverImagePath:
+            updated.coverImagePath,
+
           imagePath:
             updated.imagePath,
 
@@ -3927,6 +3974,9 @@ export const appService = {
             imagePath:
               updated.imagePath,
 
+            coverImagePath:
+              updated.coverImagePath,
+
             spiritualBio:
               updated.spiritualBio,
 
@@ -3948,6 +3998,9 @@ export const appService = {
 
           profileName:
             updated.profileName,
+
+          coverImagePath:
+            updated.coverImagePath,
 
           imagePath:
             updated.imagePath,
@@ -4019,6 +4072,15 @@ export const appService = {
           "",
         updated.imagePath
       );
+
+      if (
+        existing.coverImagePath &&
+        existing.coverImagePath !== updated.coverImagePath
+      ) {
+        await deleteFirebaseProfileCover(userId, existing.coverImagePath).catch(
+          () => undefined
+        );
+      }
 
       return updated;
     }
@@ -4110,12 +4172,37 @@ export const appService = {
     return imagePath;
   },
 
+  async uploadProfileCover(userId: string, file: File): Promise<string> {
+    if (isFirebaseConfigured) {
+      assertFirebaseOwner(userId);
+      return uploadFirebaseProfileCover(userId, file);
+    }
+
+    assertLocalOwner(userId);
+    const validationError = validateCoverImage(file);
+    if (validationError) throw new Error(validationError);
+    return new Promise<string>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(String(reader.result ?? ""));
+      reader.onerror = () => reject(new Error("The cover photo could not be read."));
+      reader.readAsDataURL(file);
+    });
+  },
+
   async deleteProfileImage(userId: string, imagePath: string): Promise<void> {
     if (!imagePath) return;
     if (isFirebaseConfigured) {
       assertFirebaseOwner(userId);
       if (await hasFirebaseProfileImageReference(userId, imagePath)) return;
       await deleteFirebaseProfileImage(userId, imagePath);
+    }
+  },
+
+  async deleteProfileCover(userId: string, imagePath: string): Promise<void> {
+    if (!imagePath) return;
+    if (isFirebaseConfigured) {
+      assertFirebaseOwner(userId);
+      await deleteFirebaseProfileCover(userId, imagePath);
     }
   },
 

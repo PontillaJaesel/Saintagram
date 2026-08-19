@@ -37,6 +37,7 @@ standard profile interface, this collection remains owner-only.
 | `userId` | string | Firebase UID; immutable and used for ownership checks. |
 | `profileName` | string | Display name or faith-centered identity. |
 | `imagePath` | string | Empty or the private Firebase Storage path `users/{uid}/profile/{uuid}.{jpg|png|webp}`. |
+| `coverImagePath` | string | Empty or the private Firebase Storage path `users/{uid}/cover/{uuid}.{jpg|png|webp}`. Optional on legacy documents. |
 | `selectedSymbol` | string | Predefined symbol key, or an empty string when skipped. |
 | `spiritualBio` | string | Up to 320 characters. |
 | `followers` | string[] | Faith guides; no count is stored or displayed. |

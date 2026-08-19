@@ -28,6 +28,20 @@ service firebase.storage {
       allow update: if false;
     }
 
+    match /users/{userId}/cover/{imageName} {
+      allow read: if request.auth != null
+        && request.auth.token.get('email_verified', false) == true
+        && request.auth.token.firebase.sign_in_provider == 'password';
+
+      allow create: if isOwner(userId)
+        && imageName.matches('^[A-Za-z0-9_-]+\\.(jpg|png|webp)$')
+        && request.resource.size < 5242880
+        && request.resource.contentType.matches('image/(jpeg|png|webp)');
+
+      allow delete: if isOwner(userId);
+      allow update: if false;
+    }
+
     function isAdmin() {
       return request.auth != null && request.auth.token.admin == true;
     }

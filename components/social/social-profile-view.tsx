@@ -14,6 +14,7 @@ import { FollowButton } from "@/components/social/follow-button";
 import { SocialReflectionCard } from "@/components/social/social-reflection-card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { LoadingState } from "@/components/ui/loading-state";
+import { ProfileCover } from "@/components/ui/profile-cover";
 
 import { appService } from "@/lib/app-service";
 import { calculateFiatStats } from "@/lib/fiat";
@@ -242,7 +243,7 @@ export function SocialProfileView({
       </Link>
 
       <section className="surface overflow-hidden">
-        <div className="h-28 bg-gradient-to-r from-sage-100 via-gold-50 to-sage-50 sm:h-36" />
+        <ProfileCover imagePath={profile.coverImagePath} className="h-28 sm:h-36" />
 
         <div className="px-5 pb-6 sm:px-8 sm:pb-8">
           <div className="-mt-12 flex flex-col gap-5 sm:-mt-14 sm:flex-row sm:items-end sm:justify-between">

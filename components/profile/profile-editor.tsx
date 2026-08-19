@@ -13,12 +13,12 @@ import {
   Image as ImageIcon,
   LoaderCircle,
   MessageCircleHeart,
-  Palette,
   Save,
   ShieldCheck,
   UserRound
 } from "lucide-react";
 import { ImageSymbolPicker } from "@/components/forms/image-symbol-picker";
+import { CoverPhotoPicker } from "@/components/forms/cover-photo-picker";
 import { TagEditor } from "@/components/forms/tag-editor";
 import { useAuth } from "@/components/providers/auth-provider";
 import { useToast } from "@/components/providers/toast-provider";
@@ -104,6 +104,8 @@ export function ProfileEditor() {
   const errorRef = useRef<HTMLDivElement>(null);
   const committedImagePathRef = useRef("");
   const latestImagePathRef = useRef("");
+  const committedCoverImagePathRef = useRef("");
+  const latestCoverImagePathRef = useRef("");
   const initialProfileRef = useRef("");
 
   useEffect(() => {
@@ -115,6 +117,8 @@ export function ProfileEditor() {
         if (active) {
           committedImagePathRef.current = nextProfile?.imagePath ?? "";
           latestImagePathRef.current = nextProfile?.imagePath ?? "";
+          committedCoverImagePathRef.current = nextProfile?.coverImagePath ?? "";
+          latestCoverImagePathRef.current = nextProfile?.coverImagePath ?? "";
           initialProfileRef.current = nextProfile ? JSON.stringify(nextProfile) : "";
           setProfile(nextProfile);
         }
@@ -141,6 +145,10 @@ export function ProfileEditor() {
   }, [profile?.imagePath]);
 
   useEffect(() => {
+    latestCoverImagePathRef.current = profile?.coverImagePath ?? "";
+  }, [profile?.coverImagePath]);
+
+  useEffect(() => {
     return () => {
       const stagedImagePath = latestImagePathRef.current;
       if (
@@ -150,6 +158,16 @@ export function ProfileEditor() {
       ) {
         void appService
           .deleteProfileImage(user.id, stagedImagePath)
+          .catch(() => undefined);
+      }
+      const stagedCoverImagePath = latestCoverImagePathRef.current;
+      if (
+        user &&
+        stagedCoverImagePath &&
+        stagedCoverImagePath !== committedCoverImagePathRef.current
+      ) {
+        void appService
+          .deleteProfileCover(user.id, stagedCoverImagePath)
           .catch(() => undefined);
       }
     };
@@ -268,6 +286,8 @@ export function ProfileEditor() {
       const updated = await appService.updateProfile(user.id, profile);
       committedImagePathRef.current = updated.imagePath;
       latestImagePathRef.current = updated.imagePath;
+      committedCoverImagePathRef.current = updated.coverImagePath;
+      latestCoverImagePathRef.current = updated.coverImagePath;
       notify("Your profile changes were saved.");
       router.replace("/profile?saved=1");
     } catch (saveError) {
@@ -431,33 +451,15 @@ export function ProfileEditor() {
         </EditorSection>
 
         <EditorSection
-          title="Cover background"
-          description="Choose any color for the cover at the top of your profile."
-          icon={Palette}
+          title="Cover Photo"
+          description="Add a wide photo for the cover at the top of your profile."
+          icon={ImageIcon}
         >
-          <div
-            className="mb-5 h-28 rounded-[var(--radius-base)] border border-gray-100"
-            style={{ backgroundColor: profile.coverColor ?? "#D4AF37" }}
-            aria-hidden="true"
+          <CoverPhotoPicker
+            imagePath={profile.coverImagePath}
+            committedImagePath={committedCoverImagePathRef.current}
+            onChange={(coverImagePath) => setField("coverImagePath", coverImagePath)}
           />
-          <label htmlFor="edit-cover-color" className="label">
-            Cover color
-          </label>
-          <div className="flex items-center gap-4">
-            <input
-              id="edit-cover-color"
-              type="color"
-              value={profile.coverColor ?? "#D4AF37"}
-              onChange={(event) => setField("coverColor", event.target.value)}
-              className="h-12 w-16 cursor-pointer rounded-xl border border-gray-200 bg-paper p-1"
-            />
-            <output
-              htmlFor="edit-cover-color"
-              className="font-secondary text-sm font-medium text-muted"
-            >
-              {(profile.coverColor ?? "#D4AF37").toUpperCase()}
-            </output>
-          </div>
         </EditorSection>
 
         <EditorSection

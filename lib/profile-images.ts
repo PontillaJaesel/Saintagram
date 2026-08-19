@@ -1,6 +1,6 @@
 import { getFirebaseServices, type FirebaseServices } from "@/lib/firebase";
 import { MODERATION_IMAGE_ERROR, moderateWithServerRoute, validateModerationImageFile } from "@/lib/moderation";
-import { validateImage } from "@/lib/validation";
+import { validateCoverImage, validateImage } from "@/lib/validation";
 import {
   deleteObject,
   getDownloadURL,
@@ -118,12 +118,29 @@ export function profileImageFolder(userId: string): string {
   return `users/${userId}/profile`;
 }
 
+export function profileCoverFolder(userId: string): string {
+  assertSafeFirebaseUid(userId);
+  return `users/${userId}/cover`;
+}
+
 export function isOwnedProfileImagePath(
   imagePath: string,
   userId: string
 ): boolean {
   if (!FIREBASE_UID.test(userId)) return false;
   const prefix = `${profileImageFolder(userId)}/`;
+  return (
+    imagePath.startsWith(prefix) &&
+    PROFILE_IMAGE_FILE.test(imagePath.slice(prefix.length))
+  );
+}
+
+export function isOwnedProfileCoverPath(
+  imagePath: string,
+  userId: string
+): boolean {
+  if (!FIREBASE_UID.test(userId)) return false;
+  const prefix = `${profileCoverFolder(userId)}/`;
   return (
     imagePath.startsWith(prefix) &&
     PROFILE_IMAGE_FILE.test(imagePath.slice(prefix.length))
@@ -144,6 +161,18 @@ export function isFirebaseProfileImagePath(
   return (
     usersFolder === "users" &&
     profileFolder === "profile" &&
+    FIREBASE_UID.test(userId) &&
+    PROFILE_IMAGE_FILE.test(imageName)
+  );
+}
+
+export function isFirebaseProfileCoverPath(imagePath: string): boolean {
+  const parts = imagePath.split("/");
+  if (parts.length !== 4) return false;
+  const [usersFolder, userId, coverFolder, imageName] = parts;
+  return (
+    usersFolder === "users" &&
+    coverFolder === "cover" &&
     FIREBASE_UID.test(userId) &&
     PROFILE_IMAGE_FILE.test(imageName)
   );
@@ -197,10 +226,52 @@ export async function uploadFirebaseProfileImage(
   return imagePath;
 }
 
+export async function uploadFirebaseProfileCover(
+  userId: string,
+  file: File
+): Promise<string> {
+  const validationError = validateCoverImage(file);
+  if (validationError) throw new Error(validationError);
+  const moderationError = validateModerationImageFile(file);
+  if (moderationError) throw new Error(moderationError);
+
+  const imageDataUrl = await new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result ?? ""));
+    reader.onerror = () => reject(new Error("This image could not be checked."));
+    reader.readAsDataURL(file);
+  });
+  await moderateWithServerRoute("", "image", {
+    imageDataUrl,
+    fileName: file.name,
+    mimeType: file.type,
+    size: file.size
+  }).catch(() => {
+    throw new Error(MODERATION_IMAGE_ERROR);
+  });
+
+  const extension = PROFILE_IMAGE_MIME_EXTENSIONS[
+    file.type as keyof typeof PROFILE_IMAGE_MIME_EXTENSIONS
+  ];
+  if (!extension) throw new Error("Choose a JPG, PNG, or WebP cover photo.");
+
+  const storage = await authorizedStorage(userId);
+  const imagePath = `${profileCoverFolder(userId)}/${crypto.randomUUID()}.${extension}`;
+  try {
+    await uploadBytes(ref(storage.storage, imagePath), file, {
+      cacheControl: "300",
+      contentType: file.type
+    });
+  } catch (error) {
+    throw profileImageError("uploaded", error);
+  }
+  return imagePath;
+}
+
 export async function downloadFirebaseProfileImage(
   imagePath: string
 ): Promise<string> {
-  if (!isFirebaseProfileImagePath(imagePath)) {
+  if (!isFirebaseProfileImagePath(imagePath) && !isFirebaseProfileCoverPath(imagePath)) {
     throw new Error(
       "That profile image path is not valid."
     );
@@ -270,6 +341,22 @@ export async function deleteFirebaseProfileImage(
   if (!imagePath || isLocalProfileImageSource(imagePath)) return;
   if (!isOwnedProfileImagePath(imagePath, userId)) {
     throw new Error("That profile image does not belong to this account.");
+  }
+  const storage = await authorizedStorage(userId);
+  try {
+    await deleteObject(ref(storage.storage, imagePath));
+  } catch (error) {
+    throw profileImageError("removed", error);
+  }
+}
+
+export async function deleteFirebaseProfileCover(
+  userId: string,
+  imagePath: string
+): Promise<void> {
+  if (!imagePath || isLocalProfileImageSource(imagePath)) return;
+  if (!isOwnedProfileCoverPath(imagePath, userId)) {
+    throw new Error("That profile cover does not belong to this account.");
   }
   const storage = await authorizedStorage(userId);
   try {

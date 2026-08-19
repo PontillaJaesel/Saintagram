@@ -74,6 +74,7 @@ export const LIMITS = {
   godsComment: 280,
   hashtag: 40,
   imageBytes: 2 * 1024 * 1024,
+  coverImageBytes: 5 * 1024 * 1024,
   imagePath: 512,
   localImageDataUrl: 3 * 1024 * 1024
   ,reflectionImages: 5

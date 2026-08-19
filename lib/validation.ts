@@ -85,6 +85,15 @@ export function validateImage(file: File): string | null {
   return null;
 }
 
+export function validateCoverImage(file: File): string | null {
+  const allowed = ["image/jpeg", "image/png", "image/webp"];
+  if (!allowed.includes(file.type)) return "Choose a JPG, PNG, or WebP cover photo.";
+  if (file.size > LIMITS.coverImageBytes) {
+    return "Choose a cover photo no larger than 5 MB.";
+  }
+  return null;
+}
+
 export function formatFriendlyDate(iso: string, includeTime = false): string {
   const date = new Date(iso);
   if (Number.isNaN(date.getTime())) return "Date unavailable";

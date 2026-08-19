@@ -36,6 +36,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { LoadingState } from "@/components/ui/loading-state";
 import { usePopupPresence } from "@/components/ui/use-popup-presence";
 import { ProfileAvatar } from "@/components/ui/profile-avatar";
+import { ProfileCover } from "@/components/ui/profile-cover";
 import { ReflectionCard } from "@/components/reflections/reflection-card";
 import { SocialReflectionCard } from "@/components/social/social-reflection-card";
 import { FiatProfileControls } from "@/components/fiat/fiat-profile-controls";
@@ -688,11 +689,7 @@ const confirmDeleteReflection = async () => {
           </div>
         </div>
         <section className="profile-hero border-b border-sage-100">
-          <div
-            className="profile-cover h-36 sm:h-52"
-            style={{ backgroundColor: profile.coverColor ?? "#DDD2F6" }}
-            aria-hidden="true"
-          />
+          <ProfileCover imagePath={profile.coverImagePath} className="h-36 sm:h-52" />
           <div className="relative z-10 px-5 pb-6 sm:px-8 sm:pb-8">
             <div className="-mt-12 flex items-end justify-between gap-4 sm:-mt-16">
               <div className="relative z-20 shrink-0">

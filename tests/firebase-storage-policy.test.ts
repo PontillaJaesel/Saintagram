@@ -15,4 +15,10 @@ describe("Firebase Storage policy", () => {
     expect(rules).toContain("allow delete: if isOwner(userId);");
     expect(rules).toContain("allow update: if false;");
   });
+
+  it("allows only owner-created cover photos up to 5 MB", () => {
+    expect(rules).toContain("match /users/{userId}/cover/{imageName}");
+    expect(rules).toContain("request.resource.size < 5242880");
+    expect(rules).toContain("allow delete: if isOwner(userId);");
+  });
 });
