@@ -75,9 +75,12 @@ export const LIMITS = {
   hashtag: 40,
   imageBytes: 2 * 1024 * 1024,
   imagePath: 512,
-  localImageDataUrl: 3 * 1024 * 1024
-  ,reflectionImages: 5
-  ,reflectionImageBytes: 10 * 1024 * 1024
-  ,reflectionVideoBytes: 50 * 1024 * 1024
-  ,reflectionVideoSeconds: 15
+  localImageDataUrl: 3 * 1024 * 1024,
+  reflectionImages: 5,
+  reflectionImageBytes: 10 * 1024 * 1024,
+  reflectionVideoBytes: 50 * 1024 * 1024,
+
+  // Maximum reflection video duration:
+  // 1 minute / 60 seconds.
+  reflectionVideoSeconds: 60
 } as const;

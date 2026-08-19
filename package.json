@@ -7,8 +7,8 @@
     "node": ">=22.0.0"
   },
   "scripts": {
-    "dev": "next dev",
-    "build": "node scripts/run-vinext-build.mjs && node scripts/prepare-sites.mjs && node scripts/validate-deployment-artifacts.mjs && node scripts/prepare-admin-deployment.mjs",
+    "dev": "npm run prepare:ffmpeg && next dev",
+    "build": "npm run prepare:ffmpeg && node scripts/run-vinext-build.mjs && node scripts/prepare-sites.mjs && node scripts/validate-deployment-artifacts.mjs && node scripts/prepare-admin-deployment.mjs",
     "start": "vinext start",
     "lint": "vinext lint",
     "typecheck": "tsc --noEmit",
@@ -16,8 +16,8 @@
     "test:watch": "vitest",
     "test:rules": "npx firebase-tools emulators:exec --only firestore \"vitest run --config vitest.rules.config.ts\"",
     "test:firebase-live": "node --env-file=.env.local scripts/verify-firebase-connectivity.mjs",
-    "dev:vinext": "vinext dev --port 3001",
-    "build:vinext": "node scripts/run-vinext-build.mjs && node scripts/validate-deployment-artifacts.mjs && node scripts/prepare-admin-deployment.mjs",
+    "dev:vinext": "npm run prepare:ffmpeg && vinext dev --port 3001",
+    "build:vinext": "npm run prepare:ffmpeg && node scripts/run-vinext-build.mjs && node scripts/validate-deployment-artifacts.mjs && node scripts/prepare-admin-deployment.mjs",
     "build:admin": "npm run build",
     "start:vinext": "wrangler dev --config dist/server/wrangler.json",
     "start:admin": "npm run build:admin && wrangler dev --config dist/server/wrangler.admin.json",
@@ -25,9 +25,11 @@
     "deploy:vinext": "npm run deploy",
     "deploy:admin": "npm run build:admin && node scripts/validate-deployment-target.mjs dist/server/wrangler.admin.json saintagram-admin admin && wrangler deploy --config dist/server/wrangler.admin.json",
     "admin:claim": "node --env-file=.env.production scripts/set-admin-claim.mjs",
+    "prepare:ffmpeg": "node scripts/prepare-ffmpeg-assets.mjs",
     "auth:provision": "node --env-file=.env.local scripts/provision-temporary-accounts.mjs"
   },
   "dependencies": {
+    "@ffmpeg/ffmpeg": "^0.12.15",
     "@fontsource/montserrat": "^5.3.0",
     "@fontsource/roboto": "^5.3.0",
     "@types/pdfmake": "^0.2.11",
