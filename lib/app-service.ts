@@ -54,6 +54,9 @@ import {
   registrationEmailError
 } from "@/lib/validation";
 import {
+  syncAdminReflectionNotifications
+} from "@/lib/system-notification-bootstrap";
+import {
   DEFAULT_PRIVACY_PREFERENCES,
   EMPTY_DRAFT,
   type AppUser,
@@ -388,6 +391,8 @@ function storedReflection(
     title: cleanText(stringValue(data.title), LIMITS.momentTitle),
     content,
     isPrivate: data.isPrivate,
+      accountPrivate:
+        data.accountPrivate === true,
     createdAt,
     updatedAt,
     ...(editedAt ? { editedAt } : {}),
@@ -425,7 +430,12 @@ function storedSocialProfile(
     profileName,
     imagePath: stringValue(data.imagePath),
     spiritualBio: stringValue(data.spiritualBio),
-    heavenlyHashtag: stringValue(data.heavenlyHashtag),
+    heavenlyHashtag:
+      stringValue(
+        data.heavenlyHashtag
+      ),
+    isPrivateAccount:
+      data.isPrivateAccount === true,
     createdAt,
     updatedAt
   };
@@ -1486,10 +1496,29 @@ export const appService = {
         userId
       );
 
-    const existing =
-      await getDoc(
-        socialProfileRef
+    const userRef =
+      doc(
+        services.db,
+        "users",
+        userId
       );
+
+    const [
+      existing,
+      userSnapshot
+    ] =
+      await Promise.all([
+        getDoc(
+          socialProfileRef
+        ),
+        getDoc(userRef)
+      ]);
+
+    const isPrivateAccount =
+      userSnapshot.exists() &&
+      userSnapshot.data()
+        .privacyPreferences
+        ?.accountPrivate === true;
 
     const socialProfile:
       SocialProfile = {
@@ -1508,6 +1537,8 @@ export const appService = {
       heavenlyHashtag:
         profile.heavenlyHashtag,
 
+      isPrivateAccount,
+
       createdAt:
         profile.createdAt,
 
@@ -1518,35 +1549,33 @@ export const appService = {
     if (
       existing.exists()
     ) {
-      /*
-      * Update only mutable fields.
-      *
-      * Do NOT touch createdAt.
-      */
       await updateDoc(
         socialProfileRef,
         {
           profileName:
-            socialProfile.profileName,
+            socialProfile
+              .profileName,
 
           imagePath:
-            socialProfile.imagePath,
+            socialProfile
+              .imagePath,
 
           spiritualBio:
-            socialProfile.spiritualBio,
+            socialProfile
+              .spiritualBio,
 
           heavenlyHashtag:
-            socialProfile.heavenlyHashtag,
+            socialProfile
+              .heavenlyHashtag,
+
+          isPrivateAccount,
 
           updatedAt:
-            socialProfile.updatedAt
+            socialProfile
+              .updatedAt
         }
       );
     } else {
-      /*
-      * Only a brand-new social
-      * profile receives createdAt.
-      */
       await setDoc(
         socialProfileRef,
         socialProfile
@@ -2238,6 +2267,15 @@ export const appService = {
       );
     }
 
+    if (
+      target.data()
+        .isPrivateAccount === true
+    ) {
+      throw new Error(
+        "This account is private. Send a follow request instead."
+      );
+    }
+
     const followId =
       `${followerId}_${followingId}`;
 
@@ -2523,29 +2561,102 @@ export const appService = {
   async getPublicReflectionsByUser(
     profileUserId: string
   ): Promise<ReflectionPost[]> {
-    const services = getFirebaseServices();
+    const services =
+      getFirebaseServices();
 
-    if (!services?.auth.currentUser) {
-      throw new Error("Please log in to view reflections.");
+    const currentUser =
+      services?.auth.currentUser;
+
+    if (!currentUser) {
+      throw new Error(
+        "Please log in to view reflections."
+      );
     }
 
-    const snapshot = await getDocs(
-      query(
-        collection(services.db, "reflectionPosts"),
-        where("userId", "==", profileUserId),
-        where("isPrivate", "==", false)
-      )
-    );
+    const profileSnapshot =
+      await getDoc(
+        doc(
+          services.db,
+          "socialProfiles",
+          profileUserId
+        )
+      );
+
+    if (
+      !profileSnapshot.exists()
+    ) {
+      return [];
+    }
+
+    const privateAccount =
+      profileSnapshot.data()
+        .isPrivateAccount === true;
+
+    if (
+      privateAccount &&
+      currentUser.uid !==
+        profileUserId
+    ) {
+      const followSnapshot =
+        await getDoc(
+          doc(
+            services.db,
+            "follows",
+            `${currentUser.uid}_${profileUserId}`
+          )
+        );
+
+      if (
+        !followSnapshot.exists()
+      ) {
+        return [];
+      }
+    }
+
+    const snapshot =
+      await getDocs(
+        query(
+          collection(
+            services.db,
+            "reflectionPosts"
+          ),
+
+          where(
+            "userId",
+            "==",
+            profileUserId
+          ),
+
+          where(
+            "isPrivate",
+            "==",
+            false
+          )
+        )
+      );
 
     return snapshot.docs
       .map((item) =>
-        storedReflection(item.id, item.data(), profileUserId)
+        storedReflection(
+          item.id,
+          item.data(),
+          profileUserId
+        )
       )
-      .filter((post): post is ReflectionPost => Boolean(post))
+      .filter(
+        (
+          post
+        ): post is ReflectionPost =>
+          Boolean(post)
+      )
       .sort(
         (a, b) =>
-          new Date(b.createdAt).getTime() -
-          new Date(a.createdAt).getTime()
+          new Date(
+            b.createdAt
+          ).getTime() -
+          new Date(
+            a.createdAt
+          ).getTime()
       );
   },
 
@@ -2678,8 +2789,17 @@ export const appService = {
         const snapshot = await getDocs(
           query(
             collection(services.db, "reflectionPosts"),
-            where("userId", "==", followingId),
-            where("isPrivate", "==", false)
+            where(
+              "userId",
+              "==",
+              followingId
+            ),
+
+            where(
+              "isPrivate",
+              "==",
+              false
+            )
           )
         );
 
@@ -2739,6 +2859,12 @@ export const appService = {
           ),
           where(
             "isPrivate",
+            "==",
+            false
+          ),
+
+          where(
+            "accountPrivate",
             "==",
             false
           )
@@ -2885,12 +3011,42 @@ export const appService = {
             return;
           }
           try {
-            callback(await getFirebaseUserRecord(
-              firebaseUser.uid,
-              firebaseUser.email ?? ""
-            ));
+            const appUser =
+              await getFirebaseUserRecord(
+                firebaseUser.uid,
+                firebaseUser.email ?? ""
+              );
+
+            /*
+            * Account is now successfully initialized.
+            *
+            * Show the user immediately.
+            */
+            callback(
+              appUser
+            );
+
+            /*
+            * Then asynchronously make sure the user
+            * has notifications for every previous
+            * Saintagram Admin reflection.
+            *
+            * Do not block login if notification
+            * synchronization temporarily fails.
+            */
+            void syncAdminReflectionNotifications()
+              .catch(
+                (error) => {
+                  console.error(
+                    "[ADMIN REFLECTION NOTIFICATION SYNC]",
+                    error
+                  );
+                }
+              );
           } catch {
-            callback(null);
+            callback(
+              null
+            );
           }
         });
       });
@@ -3081,10 +3237,32 @@ export const appService = {
           }
           throw Object.assign(new Error(), { code: "auth/email-not-verified" });
         }
-        const nextUser = await getFirebaseUserRecord(
-          credential.user.uid,
-          credential.user.email ?? email
-        );
+        const nextUser =
+          await getFirebaseUserRecord(
+            credential.user.uid,
+            credential.user.email ??
+              email
+          );
+
+        /*
+        * Make sure this account has received
+        * every existing Saintagram Admin
+        * reflection notification.
+        *
+        * This is deliberately idempotent:
+        * existing reflection notifications
+        * are detected and skipped.
+        */
+        void syncAdminReflectionNotifications()
+          .catch(
+            (error) => {
+              console.error(
+                "[ADMIN REFLECTION NOTIFICATION SYNC]",
+                error
+              );
+            }
+          );
+
         return nextUser;
       }
 
@@ -3489,6 +3667,25 @@ export const appService = {
       const services = getFirebaseServices();
       if (!services) throw new Error("Firebase is not available.");
       const existing = await this.getProfileView(userId);
+      const userRef = doc(
+        services.db,
+        "users",
+        userId
+      );
+
+      const userSnapshot =
+        await getDoc(userRef);
+
+      if (!userSnapshot.exists()) {
+        throw new Error(
+          "Your account record could not be found."
+        );
+      }
+
+      const accountPrivate =
+        userSnapshot.data()
+          .privacyPreferences
+          ?.accountPrivate === true;
       const fullProfile: SpiritualProfile = {
         id: userId,
         userId,
@@ -3513,19 +3710,25 @@ export const appService = {
         hiddenStory: fullProfile.hiddenStory,
         updatedAt: now
       });
-      batch.update(doc(services.db, "users", userId), {
-        profileCompleted: true,
-        updatedAt: now
-      });
+      batch.update(
+        userRef,
+        {
+          profileCompleted: true,
+          updatedAt: now
+        }
+      );
       batch.delete(doc(services.db, "drafts", userId));
       data.onboardingPosts.forEach((content, index) => {
         const postRef = doc(collection(services.db, "reflectionPosts"));
         const post: ReflectionPost = {
           id: postRef.id,
           userId,
-          title: data.onboardingPostTitles?.[index] || `Moment ${index + 1}`,
+          title:
+            data.onboardingPostTitles?.[index] ||
+            `Moment ${index + 1}`,
           content,
           isPrivate: false,
+          accountPrivate,
           createdAt: now,
           updatedAt: now
         };
@@ -3794,10 +3997,25 @@ export const appService = {
       * Missing profile:
       *   CREATE the full document.
       */
-      const socialProfileSnapshot =
-        await getDoc(
-          socialProfileRef
-        );
+      const [
+        socialProfileSnapshot,
+        accountSnapshot
+      ] =
+        await Promise.all([
+          getDoc(
+            socialProfileRef
+          ),
+
+          getDoc(
+            userRef
+          )
+        ]);
+
+      const isPrivateAccount =
+        accountSnapshot.exists() &&
+        accountSnapshot.data()
+          .privacyPreferences
+          ?.accountPrivate === true;
 
       const batch =
         writeBatch(
@@ -3938,6 +4156,8 @@ export const appService = {
 
           heavenlyHashtag:
             updated.heavenlyHashtag,
+
+          isPrivateAccount,
 
           createdAt:
             updated.createdAt,
@@ -4346,6 +4566,20 @@ export const appService = {
       assertFirebaseOwner(userId);
       const services = getFirebaseServices();
       if (!services) throw new Error("Firebase is not available.");
+      const userSnapshot =
+        await getDoc(
+          doc(
+            services.db,
+            "users",
+            userId
+          )
+        );
+
+      const accountPrivate =
+        userSnapshot.exists() &&
+        userSnapshot.data()
+          .privacyPreferences
+          ?.accountPrivate === true;
       const postRef = input.id
         ? doc(services.db, "reflectionPosts", input.id)
         : input.newId
@@ -4367,6 +4601,7 @@ export const appService = {
         title,
         content,
         isPrivate: input.isPrivate,
+        accountPrivate,
         createdAt,
         updatedAt: now,
         ...(input.id ? { editedAt: now } : {}),

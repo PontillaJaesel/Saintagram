@@ -675,7 +675,15 @@ const confirmDeleteReflection = async () => {
       <div className="profile-main-column min-w-0 border-r border-sage-100 bg-paper/55">
         <div className="profile-header-bar sticky top-0 z-[60] flex min-h-16 items-center border-b border-sage-100 bg-paper/95 px-5 backdrop-blur-xl">
           <div>
-            <p className="text-base font-bold text-ink">{profile.profileName}</p>
+            <div className="flex items-center gap-2">
+              <p className="text-base font-bold text-ink">{profile.profileName}</p>
+              {user?.privacyPreferences?.accountPrivate && (
+                <LockKeyhole
+                  className="size-4 shrink-0 text-muted"
+                  aria-label="Private account"
+                />
+              )}
+            </div>
             <p className="font-secondary text-xs text-muted">
               {posts.length} {posts.length === 1 ? "reflection" : "reflections"}
             </p>
@@ -714,9 +722,17 @@ const confirmDeleteReflection = async () => {
 
             <div className="mt-4 max-w-2xl">
               <div className="min-w-0">
-                <h1 className="mt-1 truncate font-serif text-2xl font-bold tracking-tight sm:text-4xl">
-                  {profile.profileName}
-                </h1>
+                <div className="mt-1 flex min-w-0 items-center gap-2">
+                  <h1 className="truncate font-serif text-2xl font-bold tracking-tight sm:text-4xl">
+                    {profile.profileName}
+                  </h1>
+                  {user?.privacyPreferences?.accountPrivate && (
+                    <LockKeyhole
+                      className="size-5 shrink-0 text-muted sm:size-6"
+                      aria-label="Private account"
+                    />
+                  )}
+                </div>
                 <p className="mt-1 truncate text-sm text-muted">
                   {user?.email || "Guest account"}
                 </p>

@@ -1,20 +1,52 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import Link from "next/link";
-import { ArrowRight, Search, UsersRound, X } from "lucide-react";
+import {
+  useEffect,
+  useMemo,
+  useState
+} from "react";
 
-import { useAuth } from "@/components/providers/auth-provider";
-import { FollowButton } from "@/components/social/follow-button";
-import { EmptyState } from "@/components/ui/empty-state";
-import { LoadingState } from "@/components/ui/loading-state";
-import { appService } from "@/lib/app-service";
+import Link from "next/link";
+
+import {
+  ArrowRight,
+  LockKeyhole,
+  Search,
+  UsersRound,
+  X
+} from "lucide-react";
+
+import {
+  useAuth
+} from "@/components/providers/auth-provider";
+
+import {
+  FollowButton
+} from "@/components/social/follow-button";
+
+import {
+  EmptyState
+} from "@/components/ui/empty-state";
+
+import {
+  LoadingState
+} from "@/components/ui/loading-state";
+
 import {
   downloadFirebaseProfileImage,
   isLocalProfileImageSource
 } from "@/lib/profile-images";
 
-import type { SocialProfile } from "@/types";
+import {
+  getCommunityProfiles,
+  type CommunityProfile
+} from "@/lib/social-community";
+
+/*
+ * ============================================================
+ * AVATAR
+ * ============================================================
+ */
 
 function UserAvatar({
   imagePath,
@@ -23,36 +55,72 @@ function UserAvatar({
   imagePath: string;
   profileName: string;
 }) {
-  const { loading, mode, user } = useAuth();
+  const {
+    loading,
+    mode,
+    user
+  } =
+    useAuth();
 
-  const [src, setSrc] = useState(
-    imagePath.startsWith("data:image/") ? imagePath : ""
-  );
+  const [
+    src,
+    setSrc
+  ] =
+    useState(
+      imagePath.startsWith(
+        "data:image/"
+      )
+        ? imagePath
+        : ""
+    );
 
   useEffect(() => {
     let active = true;
 
     if (!imagePath) {
       setSrc("");
-      return () => undefined;
+
+      return () =>
+        undefined;
     }
 
-    if (isLocalProfileImageSource(imagePath)) {
-      setSrc(mode === "local" ? imagePath : "");
-      return () => undefined;
+    if (
+      isLocalProfileImageSource(
+        imagePath
+      )
+    ) {
+      setSrc(
+        mode === "local"
+          ? imagePath
+          : ""
+      );
+
+      return () =>
+        undefined;
     }
 
-    if (loading || !user) {
+    if (
+      loading ||
+      !user
+    ) {
       setSrc("");
-      return () => undefined;
+
+      return () =>
+        undefined;
     }
 
-    void downloadFirebaseProfileImage(imagePath)
-      .then((downloadUrl) => {
-        if (active) {
-          setSrc(downloadUrl);
+    void downloadFirebaseProfileImage(
+      imagePath
+    )
+      .then(
+        (downloadUrl) => {
+          if (active) {
+            setSrc(
+              downloadUrl
+            );
+          }
         }
-      })
+      )
       .catch(() => {
         if (active) {
           setSrc("");
@@ -62,7 +130,12 @@ function UserAvatar({
     return () => {
       active = false;
     };
-  }, [imagePath, loading, mode, user?.id]);
+  }, [
+    imagePath,
+    loading,
+    mode,
+    user?.id
+  ]);
 
   if (src) {
     return (
@@ -78,7 +151,12 @@ function UserAvatar({
     );
   }
 
-  const initial = profileName.trim().charAt(0).toUpperCase() || "?";
+  const initial =
+    profileName
+      .trim()
+      .charAt(0)
+      .toUpperCase() ||
+    "?";
 
   return (
     <div
@@ -90,78 +168,161 @@ function UserAvatar({
   );
 }
 
+/*
+ * ============================================================
+ * DIRECTORY
+ * ============================================================
+ */
+
 export function UserDirectory() {
-  const { user } = useAuth();
+  const { user } =
+    useAuth();
 
-  const [profiles, setProfiles] = useState<SocialProfile[]>([]);
-  const [searchQuery, setSearchQuery] = useState("");
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
+  const [
+    profiles,
+    setProfiles
+  ] =
+    useState<
+      CommunityProfile[]
+    >([]);
 
+  const [
+    searchQuery,
+    setSearchQuery
+  ] =
+    useState("");
+
+  const [
+    loading,
+    setLoading
+  ] =
+    useState(true);
+
+  const [
+    error,
+    setError
+  ] =
+    useState("");
+
+  /*
+   * ==========================================================
+   * LOAD SOCIAL PROFILES
+   * ==========================================================
+   */
   useEffect(() => {
     if (!user) {
+      setProfiles([]);
       setLoading(false);
       return;
     }
 
     let active = true;
 
-    const loadProfiles = async () => {
-      setLoading(true);
-      setError("");
+    const loadProfiles =
+      async () => {
+        setLoading(true);
+        setError("");
 
-      try {
-        const nextProfiles = await appService.getSocialProfiles(user.id);
+        try {
+          const nextProfiles =
+            await getCommunityProfiles(
+              user.id
+            );
 
-        if (!active) return;
+          if (!active) {
+            return;
+          }
 
-        setProfiles(nextProfiles);
-      } catch (loadError) {
-        if (!active) return;
+          setProfiles(
+            nextProfiles
+          );
+        } catch (
+          loadError
+        ) {
+          if (!active) {
+            return;
+          }
 
-        setError(
-          loadError instanceof Error
-            ? loadError.message
-            : "The Saintagram community could not be loaded."
-        );
-      } finally {
-        if (active) {
-          setLoading(false);
+          console.error(
+            "[USER DIRECTORY]",
+            loadError
+          );
+
+          setError(
+            loadError instanceof
+            Error
+              ? loadError.message
+              : "The Saintagram community could not be loaded."
+          );
+        } finally {
+          if (active) {
+            setLoading(
+              false
+            );
+          }
         }
-      }
-    };
+      };
 
     void loadProfiles();
 
     return () => {
       active = false;
     };
-  }, [user]);
+  }, [
+    user?.id
+  ]);
 
-  const filteredProfiles = useMemo(() => {
-    const normalizedQuery = searchQuery
-      .trim()
-      .toLocaleLowerCase();
+  /*
+   * ==========================================================
+   * SEARCH
+   * ==========================================================
+   */
+  const filteredProfiles =
+    useMemo(() => {
+      const normalizedQuery =
+        searchQuery
+          .trim()
+          .toLocaleLowerCase();
 
-    if (!normalizedQuery) {
-      return profiles;
-    }
+      if (
+        !normalizedQuery
+      ) {
+        return profiles;
+      }
 
-    return profiles.filter((profile) => {
-      const searchableText = [
-        profile.profileName,
-        profile.spiritualBio,
-        profile.heavenlyHashtag
-      ]
-        .join(" ")
-        .toLocaleLowerCase();
+      return profiles.filter(
+        (profile) => {
+          const searchableText =
+            [
+              profile.profileName,
+              profile.spiritualBio,
+              profile.heavenlyHashtag
+            ]
+              .join(" ")
+              .toLocaleLowerCase();
 
-      return searchableText.includes(normalizedQuery);
-    });
-  }, [profiles, searchQuery]);
+          return searchableText.includes(
+            normalizedQuery
+          );
+        }
+      );
+    }, [
+      profiles,
+      searchQuery
+    ]);
+
+  /*
+   * ==========================================================
+   * STATES
+   * ==========================================================
+   */
 
   if (loading) {
-    return <LoadingState label="Gathering the community…" />;
+    return (
+      <LoadingState
+        label="Gathering the community…"
+      />
+    );
   }
 
   if (error) {
@@ -177,7 +338,9 @@ export function UserDirectory() {
         <button
           type="button"
           className="btn-secondary mt-5"
-          onClick={() => window.location.reload()}
+          onClick={() =>
+            window.location.reload()
+          }
         >
           Try again
         </button>
@@ -185,7 +348,9 @@ export function UserDirectory() {
     );
   }
 
-  if (!profiles.length) {
+  if (
+    !profiles.length
+  ) {
     return (
       <EmptyState
         icon={UsersRound}
@@ -194,6 +359,12 @@ export function UserDirectory() {
       />
     );
   }
+
+  /*
+   * ==========================================================
+   * DIRECTORY UI
+   * ==========================================================
+   */
 
   return (
     <div className="space-y-6">
@@ -216,9 +387,16 @@ export function UserDirectory() {
             type="search"
             className="field pl-12 pr-12"
             placeholder="Search people…"
-            value={searchQuery}
-            onChange={(event) =>
-              setSearchQuery(event.target.value)
+            value={
+              searchQuery
+            }
+            onChange={(
+              event
+            ) =>
+              setSearchQuery(
+                event.target
+                  .value
+              )
             }
           />
 
@@ -227,7 +405,11 @@ export function UserDirectory() {
               type="button"
               className="absolute right-2 top-1/2 grid size-9 -translate-y-1/2 place-items-center rounded-full text-muted transition hover:bg-sage-100 hover:text-ink"
               aria-label="Clear search"
-              onClick={() => setSearchQuery("")}
+              onClick={() =>
+                setSearchQuery(
+                  ""
+                )
+              }
             >
               <X
                 className="size-4"
@@ -243,8 +425,11 @@ export function UserDirectory() {
             role="status"
             aria-live="polite"
           >
-            {filteredProfiles.length}{" "}
-            {filteredProfiles.length === 1
+            {
+              filteredProfiles.length
+            }{" "}
+            {filteredProfiles.length ===
+            1
               ? "person"
               : "people"}{" "}
             found
@@ -254,60 +439,90 @@ export function UserDirectory() {
 
       {filteredProfiles.length ? (
         <div className="grid gap-4 md:grid-cols-2">
-          {filteredProfiles.map((profile) => (
-            <article
-              key={profile.userId}
-              className="surface flex flex-col p-5 sm:p-6"
-            >
-              <div className="flex items-start gap-4">
-                <UserAvatar
-                  imagePath={profile.imagePath}
-                  profileName={profile.profileName}
-                />
+          {filteredProfiles.map(
+            (profile) => (
+              <article
+                key={
+                  profile.userId
+                }
+                className="surface flex flex-col p-5 sm:p-6"
+              >
+                <div className="flex items-start gap-4">
+                  <UserAvatar
+                    imagePath={
+                      profile.imagePath
+                    }
+                    profileName={
+                      profile.profileName
+                    }
+                  />
 
-                <div className="min-w-0 flex-1">
+                  <div className="min-w-0 flex-1">
+                    <Link
+                      href={`/users/${profile.userId}`}
+                      className="group inline-flex max-w-full items-center gap-2"
+                    >
+                      <h2 className="truncate font-serif text-xl font-bold text-ink group-hover:text-sage-700">
+                        {
+                          profile.profileName
+                        }
+                      </h2>
+
+                      {profile.isPrivateAccount && (
+                        <LockKeyhole
+                          className="size-4 shrink-0 text-muted"
+                          aria-label="Private account"
+                        />
+                      )}
+
+                      <ArrowRight
+                        className="size-4 shrink-0 text-muted transition-transform group-hover:translate-x-1"
+                        aria-hidden="true"
+                      />
+                    </Link>
+
+                    {profile.heavenlyHashtag && (
+                      <p className="mt-1 text-sm font-semibold text-sage-600">
+                        {
+                          profile.heavenlyHashtag
+                        }
+                      </p>
+                    )}
+                  </div>
+                </div>
+
+                {profile.spiritualBio ? (
+                  <p className="user-content mt-4 line-clamp-3 text-sm leading-6 text-muted">
+                    {
+                      profile.spiritualBio
+                    }
+                  </p>
+                ) : (
+                  <p className="mt-4 text-sm italic leading-6 text-muted">
+                    No public bio yet.
+                  </p>
+                )}
+
+                <div className="mt-auto flex flex-wrap items-center justify-between gap-3 pt-5">
                   <Link
                     href={`/users/${profile.userId}`}
-                    className="group inline-flex items-center gap-2"
+                    className="btn-quiet"
                   >
-                    <h2 className="truncate font-serif text-xl font-bold text-ink group-hover:text-sage-700">
-                      {profile.profileName}
-                    </h2>
-
-                    <ArrowRight
-                      className="size-4 shrink-0 text-muted transition-transform group-hover:translate-x-1"
-                      aria-hidden="true"
-                    />
+                    View profile
                   </Link>
 
-                  {profile.heavenlyHashtag && (
-                    <p className="mt-1 text-sm font-semibold text-sage-600">
-                      {profile.heavenlyHashtag}
-                    </p>
-                  )}
+                  <FollowButton
+                    targetUserId={
+                      profile.userId
+                    }
+                    targetIsPrivate={
+                      profile.isPrivateAccount
+                    }
+                  />
                 </div>
-              </div>
-
-              {profile.spiritualBio && (
-                <p className="user-content mt-4 line-clamp-3 text-sm leading-6 text-muted">
-                  {profile.spiritualBio}
-                </p>
-              )}
-
-              <div className="mt-auto flex flex-wrap items-center justify-between gap-3 pt-5">
-                <Link
-                  href={`/users/${profile.userId}`}
-                  className="btn-quiet"
-                >
-                  View profile
-                </Link>
-
-                <FollowButton
-                  targetUserId={profile.userId}
-                />
-              </div>
-            </article>
-          ))}
+              </article>
+            )
+          )}
         </div>
       ) : (
         <EmptyState
@@ -318,7 +533,11 @@ export function UserDirectory() {
             <button
               type="button"
               className="btn-secondary"
-              onClick={() => setSearchQuery("")}
+              onClick={() =>
+                setSearchQuery(
+                  ""
+                )
+              }
             >
               Clear search
             </button>

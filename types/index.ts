@@ -8,6 +8,7 @@ export type SpiritualSymbol =
   | "";
 
 export interface PrivacyPreferences {
+  accountPrivate?: boolean;
   requirePrivateCheck: boolean;
   showReflectionDates: boolean;
 }
@@ -56,6 +57,7 @@ export interface ReflectionPost {
   title?: string;
   content: string;
   isPrivate: boolean;
+  accountPrivate?: boolean;
   createdAt: string;
   updatedAt: string;
   editedAt?: string;
@@ -104,8 +106,16 @@ export interface SocialProfile {
   imagePath: string;
   spiritualBio: string;
   heavenlyHashtag: string;
+  isPrivateAccount?: boolean;
   createdAt: string;
   updatedAt: string;
+}
+
+export interface FollowRequest {
+  id: string;
+  requesterId: string;
+  targetUserId: string;
+  createdAt: string;
 }
 
 export interface FollowRelationship {
@@ -249,6 +259,7 @@ export const EMPTY_DRAFT: ProfileDraftData = {
 };
 
 export const DEFAULT_PRIVACY_PREFERENCES: PrivacyPreferences = {
+  accountPrivate: false,
   requirePrivateCheck: true,
   showReflectionDates: true
 };

@@ -525,6 +525,8 @@ export async function resetOneNonAdminUserData(
      * Restore default privacy behavior.
      */
     privacyPreferences: {
+      accountPrivate: false,
+
       requirePrivateCheck:
         true,
 

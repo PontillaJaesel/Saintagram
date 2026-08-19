@@ -10,9 +10,11 @@ import { Bell, Sparkles } from "lucide-react";
 import { useRouter } from "next/navigation";
 
 import { useAuth } from "@/components/providers/auth-provider";
+import { FollowRequestNotifications } from "@/components/social/follow-request-notifications";
 import { useExclusivePopup } from "@/components/ui/use-exclusive-popup";
 import { usePopupPresence } from "@/components/ui/use-popup-presence";
 import { appService } from "@/lib/app-service";
+import { subscribeFollowRequests } from "@/lib/private-account";
 import { markSystemNotificationRead, subscribeSystemNotifications } from "@/lib/system-notifications";
 
 import {
@@ -210,6 +212,7 @@ export function NotificationBell() {
     SocialNotification[]
   >([]);
   const [systemNotifications, setSystemNotifications] = useState<SystemNotification[]>([]);
+  const [followRequestCount, setFollowRequestCount] = useState(0);
 
   const [
     profiles,
@@ -253,8 +256,33 @@ export function NotificationBell() {
   }, [user]);
 
   useEffect(() => {
-    if (!user) { setSystemNotifications([]); return; }
-    return subscribeSystemNotifications(user.id, setSystemNotifications, setError);
+    if (!user) {
+      setSystemNotifications([]);
+      return;
+    }
+
+    return subscribeSystemNotifications(
+      user.id,
+      setSystemNotifications,
+      setError
+    );
+  }, [user]);
+
+  useEffect(() => {
+    if (!user) {
+      setFollowRequestCount(0);
+      return;
+    }
+
+    return subscribeFollowRequests(
+      user.id,
+      (requests) => {
+        setFollowRequestCount(requests.length);
+      },
+      (message) => {
+        setError(message);
+      }
+    );
   }, [user]);
 
   useEffect(() => {
@@ -347,7 +375,12 @@ export function NotificationBell() {
     notifications.filter(
       (notification) =>
         !notification.readAt
-    ).length + systemNotifications.filter((notification) => !notification.readAt).length;
+    ).length +
+    systemNotifications.filter(
+      (notification) =>
+        !notification.readAt
+    ).length +
+    followRequestCount;
 
   const openSystemNotification = async (notification: SystemNotification) => {
     setOpen(false);
@@ -498,7 +531,9 @@ export function NotificationBell() {
             </p>
           )}
 
-          {!notifications.length && !systemNotifications.length ? (
+          {!notifications.length &&
+          !systemNotifications.length &&
+          followRequestCount === 0 ? (
             <div className="px-5 py-8 text-center">
               <Bell
                 className="mx-auto size-6 text-muted"
@@ -516,6 +551,11 @@ export function NotificationBell() {
             </div>
           ) : (
             <div className="max-h-96 overflow-y-auto">
+              <FollowRequestNotifications
+                onCountChange={setFollowRequestCount}
+                onNavigate={() => setOpen(false)}
+              />
+
               {systemNotifications.map((notification) => (
                 <button key={notification.id} type="button" className={`flex w-full items-start gap-3 border-b border-sage-100 px-5 py-4 text-left transition hover:bg-sage-50 ${!notification.readAt ? "bg-sage-50/60" : ""}`} onClick={() => void openSystemNotification(notification)}>
                   <span className="grid size-10 shrink-0 place-items-center rounded-full bg-sage-100 text-sage-700"><Sparkles className="size-5" aria-hidden="true" /></span>
