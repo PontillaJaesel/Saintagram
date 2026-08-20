@@ -42,6 +42,7 @@ import { SocialReflectionCard } from "@/components/social/social-reflection-card
 import { FiatProfileControls } from "@/components/fiat/fiat-profile-controls";
 import { FiatStreakInterface } from "@/components/fiat/fiat-streak-interface";
 import { appService } from "@/lib/app-service";
+import { getSocialConnectionSummary } from "@/lib/social-connections";
 import { formatFriendlyDate } from "@/lib/validation";
 import type {
   PublicSpiritualProfile,
@@ -122,6 +123,7 @@ export function ProfileDashboard() {
   const searchParams = useSearchParams();
   const [profile, setProfile] = useState<PublicSpiritualProfile | null>(null);
   const [posts, setPosts] = useState<ReflectionPost[]>([]);
+  const [connectionCounts, setConnectionCounts] = useState({ followers: 0, following: 0 });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [tab, setTab] = useState<ProfileTab>("posts");
@@ -414,6 +416,28 @@ export function ProfileDashboard() {
       unsubscribePosts();
     };
   }, [user]);
+
+
+  useEffect(() => {
+    const userId = user?.id;
+    if (!userId) return;
+    let active = true;
+    void getSocialConnectionSummary(userId)
+      .then((result) => {
+        if (active) {
+          setConnectionCounts({
+            followers: result.followersCount,
+            following: result.followingCount
+          });
+        }
+      })
+      .catch(() => {
+        if (active) setConnectionCounts({ followers: 0, following: 0 });
+      });
+    return () => {
+      active = false;
+    };
+  }, [user?.id]);
 
   useEffect(() => {
     if (notified.current) return;
@@ -730,25 +754,37 @@ const confirmDeleteReflection = async () => {
                     />
                   )}
                 </div>
-                <p className="mt-1 truncate text-sm text-muted">
-                  {user?.email || "Guest account"}
-                </p>
               </div>
               {profile.heavenlyHashtag && (
                 <p className="mt-1 font-bold text-gold-700">
                   {profile.heavenlyHashtag}
                 </p>
               )}
-              <p className="mt-5 text-xs font-bold uppercase tracking-widest text-sage-600">
-                Before God, I am someone who…
-              </p>
-              <p className="font-secondary mt-2 whitespace-pre-wrap text-base leading-7 text-ink">
+              <p className="font-secondary mt-4 whitespace-pre-wrap text-base leading-7 text-ink">
                 {profile.spiritualBio || (
                   <span className="italic text-muted">
                     This reflection is still open.
                   </span>
                 )}
               </p>
+              {user && (
+                <div className="mt-4 flex flex-wrap items-center gap-x-5 gap-y-2 text-sm text-muted">
+                  <Link
+                    href={`/users/${user.id}/connections?tab=following`}
+                    className="transition hover:text-sage-700"
+                  >
+                    <strong className="text-ink">{connectionCounts.following}</strong>{" "}
+                    Following
+                  </Link>
+                  <Link
+                    href={`/users/${user.id}/connections?tab=followers`}
+                    className="transition hover:text-sage-700"
+                  >
+                    <strong className="text-ink">{connectionCounts.followers}</strong>{" "}
+                    Followers
+                  </Link>
+                </div>
+              )}
               <p className="font-secondary mt-4 flex items-center gap-2 text-sm text-muted">
                 <CalendarDays className="size-4" aria-hidden="true" />
                 Joined {formatFriendlyDate(profile.createdAt)}
@@ -839,7 +875,6 @@ const confirmDeleteReflection = async () => {
                         }}
                         initialFollowing={false}
                         compactTimestamp
-                        hideViewProfile
                         onEdit={editReflection}
                         onDelete={(post) =>
                           setDeleteTarget(post)

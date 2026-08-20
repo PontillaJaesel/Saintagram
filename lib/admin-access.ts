@@ -7,6 +7,10 @@ import {
 } from "@/lib/firebase-auth-rest";
 import { getFirebaseAdminFirestore } from "@/lib/firebase-admin";
 import { writeAudit } from "@/lib/admin-data";
+import {
+  grantSharedAdminFollowGraph,
+  revokeSharedAdminFollowGraph
+} from "@/lib/required-follows";
 
 export const SHARED_ADMIN_CLAIM = "saintagramSharedAdmin";
 
@@ -104,9 +108,10 @@ export async function setSharedAdminAccess(
 
   await setFirebaseAuthCustomClaims(userId, nextClaims);
 
+  const notificationRef = db.collection("systemNotifications").doc();
+
   try {
     const batch = db.batch();
-    const notificationRef = db.collection("systemNotifications").doc();
     const notification = notificationCopy(granted);
 
     batch.update(userRef, {
@@ -139,10 +144,30 @@ export async function setSharedAdminAccess(
     });
 
     await batch.commit();
+
+    if (granted) {
+      await grantSharedAdminFollowGraph(userId);
+    } else {
+      await revokeSharedAdminFollowGraph(userId);
+    }
   } catch (error) {
-    // Do not leave Authentication and Firestore disagreeing if the application
-    // records fail to update after the custom claim was changed.
+    // Restore both Authentication and Firestore when entitlement/follow setup fails.
     await setFirebaseAuthCustomClaims(userId, previousClaims).catch(() => undefined);
+
+    const rollback = db.batch();
+    rollback.update(userRef, {
+      adminAccessGranted: currentlyGranted,
+      updatedAt: FieldValue.serverTimestamp()
+    });
+    if (grantSnapshot.exists) {
+      rollback.set(grantRef, grantSnapshot.data() ?? {});
+    } else {
+      rollback.delete(grantRef);
+    }
+    rollback.delete(notificationRef);
+    await rollback.commit().catch((rollbackError) => {
+      console.error("Admin access Firestore rollback failed", rollbackError);
+    });
     throw error;
   }
 

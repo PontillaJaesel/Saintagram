@@ -454,6 +454,10 @@ export function UserDataIndex() {
                     </th>
                   )}
 
+                  <th className="w-[210px] px-4 py-4 font-semibold">
+                    Action
+                  </th>
+
                   <th className="w-[180px] px-4 py-4 font-semibold">
                     Default Name
                   </th>
@@ -478,9 +482,6 @@ export function UserDataIndex() {
                     Profile
                   </th>
 
-                  <th className="w-[210px] px-4 py-4 text-right font-semibold">
-                    Action
-                  </th>
                 </tr>
               </thead>
 
@@ -524,6 +525,19 @@ export function UserDataIndex() {
                             />
                           </td>
                         )}
+
+                        {/* ACTION */}
+
+                        <td className="px-4 py-4 align-middle">
+                          <Link
+                            className="btn-secondary inline-flex whitespace-nowrap"
+                            href={`/admin/data/${encodeURIComponent(
+                              user.id
+                            )}`}
+                          >
+                            View All Recorded Data
+                          </Link>
+                        </td>
 
                         {/* DEFAULT NAME */}
 
@@ -599,18 +613,6 @@ export function UserDataIndex() {
                           </span>
                         </td>
 
-                        {/* ACTION */}
-
-                        <td className="px-4 py-4 text-right align-middle">
-                          <Link
-                            className="btn-secondary inline-flex whitespace-nowrap"
-                            href={`/admin/data/${encodeURIComponent(
-                              user.id
-                            )}`}
-                          >
-                            View All Recorded Data
-                          </Link>
-                        </td>
                       </tr>
                     );
                   }
