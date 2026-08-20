@@ -1,0 +1,1866 @@
+diff --git a/app/api/bootstrap-account/route.ts b/app/api/bootstrap-account/route.ts
+index 34cf722..4c505dd 100644
+--- a/app/api/bootstrap-account/route.ts
++++ b/app/api/bootstrap-account/route.ts
+@@ -66,6 +66,7 @@ export async function POST(request: Request): Promise<NextResponse> {
+           updatedAt: now,
+           privacyConsentAt: null,
+           spiritualIntroSeenAt: null,
++          fiatIntroSeenAt: null,
+           profileCompleted: false,
+           mustChangePassword: true,
+           privacyPreferences: {
+@@ -96,6 +97,7 @@ export async function POST(request: Request): Promise<NextResponse> {
+         updatedAt: now,
+         privacyConsentAt: null,
+         spiritualIntroSeenAt: null,
++        fiatIntroSeenAt: null,
+         profileCompleted: false,
+         mustChangePassword: true,
+         privacyPreferences: {
+diff --git a/app/api/fiat/streak/sync/route.ts b/app/api/fiat/streak/sync/route.ts
+new file mode 100644
+index 0000000..8a8a0a0
+--- /dev/null
++++ b/app/api/fiat/streak/sync/route.ts
+@@ -0,0 +1,131 @@
++import { NextResponse } from "next/server";
++
++import {
++  getFirebaseAdminAuth,
++  getFirebaseAdminFirestore
++} from "@/lib/firebase-admin";
++import {
++  findLatestFiatStreakLoss,
++  isFiatCategory
++} from "@/lib/fiat";
++import type { ReflectionPost } from "@/types";
++
++export const runtime = "nodejs";
++
++const headers = {
++  "Cache-Control": "no-store"
++};
++
++function asIso(value: unknown): string {
++  if (
++    value &&
++    typeof value === "object" &&
++    "toDate" in value &&
++    typeof (value as { toDate?: unknown }).toDate === "function"
++  ) {
++    return (value as { toDate: () => Date }).toDate().toISOString();
++  }
++
++  return typeof value === "string" ? value : "";
++}
++
++function formatLossDate(dateKey: string): string {
++  const [year, month, day] = dateKey.split("-").map(Number);
++  const date = new Date(Date.UTC(year, month - 1, day, 12));
++
++  return new Intl.DateTimeFormat("en-US", {
++    month: "short",
++    day: "numeric",
++    year: "numeric",
++    timeZone: "UTC"
++  }).format(date);
++}
++
++export async function POST(request: Request) {
++  try {
++    const authorization = request.headers.get("authorization") ?? "";
++    if (!authorization.startsWith("Bearer ")) {
++      return NextResponse.json(
++        { error: "Authentication is required." },
++        { status: 401, headers }
++      );
++    }
++
++    const token = await getFirebaseAdminAuth().verifyIdToken(authorization.slice(7));
++    const body = (await request.json().catch(() => ({}))) as { today?: unknown };
++    const today = typeof body.today === "string" ? body.today : "";
++
++    if (!/^\d{4}-\d{2}-\d{2}$/.test(today)) {
++      return NextResponse.json(
++        { error: "A valid local date is required." },
++        { status: 400, headers }
++      );
++    }
++
++    const db = getFirebaseAdminFirestore();
++    const snapshot = await db
++      .collection("reflectionPosts")
++      .where("userId", "==", token.uid)
++      .get();
++
++    const posts: ReflectionPost[] = snapshot.docs.flatMap((document) => {
++      const data = document.data();
++      if (!isFiatCategory(data.fiatCategory)) return [];
++
++      const createdAt = asIso(data.createdAt);
++      if (!createdAt) return [];
++
++      return [{
++        id: document.id,
++        userId: token.uid,
++        content: "",
++        isPrivate: data.isPrivate === true,
++        createdAt,
++        updatedAt: asIso(data.updatedAt) || createdAt,
++        fiatCategory: data.fiatCategory,
++        ...(typeof data.fiatDateKey === "string"
++          ? { fiatDateKey: data.fiatDateKey }
++          : {})
++      }];
++    });
++
++    const loss = findLatestFiatStreakLoss(posts, today);
++    if (!loss) {
++      return NextResponse.json({ created: false, loss: null }, { headers });
++    }
++
++    const notificationId = `fiat-streak-lost_${token.uid}_${loss.lostDate}`;
++    const notificationRef = db.collection("systemNotifications").doc(notificationId);
++    const existing = await notificationRef.get();
++
++    if (!existing.exists) {
++      await notificationRef.set({
++        id: notificationId,
++        userId: token.uid,
++        type: "fiat_streak_lost",
++        title: "FiAt streak lost",
++        message: `Your ${loss.previousStreak}-day FiAt streak ended on ${formatLossDate(loss.lostDate)} after both freeze days were used. Your next FiAt starts a new streak.`,
++        missingFields: [],
++        fiatLostDate: loss.lostDate,
++        previousStreak: loss.previousStreak,
++        createdByAdminId: "saintagram-system",
++        createdAt: new Date().toISOString(),
++        readAt: null
++      });
++    }
++
++    return NextResponse.json(
++      {
++        created: !existing.exists,
++        loss
++      },
++      { headers }
++    );
++  } catch (error) {
++    console.error("FiAt streak notification sync failed.", error);
++    return NextResponse.json(
++      { error: "FiAt streak status could not be synchronized." },
++      { status: 500, headers }
++    );
++  }
++}
+diff --git a/app/globals.css b/app/globals.css
+index f7f97e1..d663cf1 100644
+--- a/app/globals.css
++++ b/app/globals.css
+@@ -182,6 +182,11 @@ html {
+   50% { transform: scale(1.025); box-shadow: 0 0 20px rgb(var(--gold-400) / 0.32); }
+ }
+ 
++@keyframes fiat-mark-glow {
++  0%, 100% { transform: scale(1); }
++  50% { transform: scale(1.06); }
++}
++
+ @keyframes popup-panel-enter {
+   from {
+     opacity: 0;
+@@ -722,6 +727,81 @@ body {
+     animation: fiat-glow 3.5s ease-in-out 2;
+   }
+ 
++  .fiat-activity-button {
++    @apply inline-flex min-h-11 items-center gap-1.5 rounded-full border border-transparent bg-transparent px-2.5 py-1.5 text-gold-700 transition duration-200 hover:scale-[1.03] hover:bg-gold-50/60 active:scale-95;
++  }
++
++  .fiat-mark-shell {
++    @apply grid size-9 place-items-center rounded-full;
++    transition: filter 220ms ease, transform 220ms ease;
++  }
++
++  .fiat-streak-count {
++    @apply min-w-5 text-center text-sm font-black tabular-nums;
++  }
++
++  .fiat-activity-button-active .fiat-mark-shell {
++    filter: drop-shadow(0 0 6px rgb(255 100 25 / 0.62)) drop-shadow(0 0 13px rgb(255 190 36 / 0.34));
++    animation: fiat-mark-glow 3.2s ease-in-out infinite;
++  }
++
++  .fiat-activity-button-frozen .fiat-mark-shell {
++    filter: drop-shadow(0 0 7px rgb(14 165 233 / 0.58)) drop-shadow(0 0 14px rgb(125 211 252 / 0.34));
++  }
++
++  .fiat-hero-logo {
++    background: radial-gradient(circle at 50% 48%, rgb(255 248 222 / 0.96), rgb(255 255 255 / 0.72) 68%, transparent 70%);
++  }
++
++  .fiat-hero-logo.is-active {
++    filter: drop-shadow(0 0 10px rgb(255 106 26 / 0.24)) drop-shadow(0 0 22px rgb(255 190 36 / 0.18));
++  }
++
++  .fiat-hero-logo.is-frozen {
++    background: radial-gradient(circle at 50% 48%, rgb(224 242 254 / 0.98), rgb(255 255 255 / 0.76) 68%, transparent 70%);
++    filter: drop-shadow(0 0 10px rgb(14 165 233 / 0.24)) drop-shadow(0 0 22px rgb(125 211 252 / 0.22));
++  }
++
++  .fiat-intro-logo {
++    background: radial-gradient(circle at 45% 38%, #fff8e1, #ffffff 72%);
++    box-shadow: inset 0 0 0 1px rgb(234 220 159 / 0.8);
++  }
++
++  .fiat-rule-number {
++    @apply grid size-6 shrink-0 place-items-center rounded-full bg-[#fff0bd] text-xs font-black text-[#8d6200];
++  }
++
++  .fiat-calendar-day {
++    @apply bg-slate-200 text-slate-500 transition;
++  }
++
++  .fiat-calendar-day.state-fiat {
++    background: #ffad32;
++    color: #3c2c00;
++  }
++
++  .fiat-calendar-day.state-freeze-1,
++  .fiat-calendar-day.state-freeze-2 {
++    background: #dff4ff;
++    color: #0875a5;
++    box-shadow: inset 0 0 0 1px #9bdcff;
++  }
++
++  .fiat-calendar-day.state-lost {
++    background: #fee2e2;
++    color: #b91c1c;
++    box-shadow: inset 0 0 0 1px #fecaca;
++  }
++
++  .fiat-calendar-day.state-future {
++    @apply bg-slate-100 text-slate-300;
++  }
++
++  .fiat-calendar-day.is-today {
++    outline: 2px solid #e5a900;
++    outline-offset: 2px;
++  }
++
+   .fiat-streak-surface {
+     background-color: #ffffff;
+     border-color: #eadc9f;
+@@ -909,6 +989,82 @@ body {
+     border-color: #8f6c12;
+   }
+ 
++  :root[data-theme="dark"] .fiat-activity-button,
++  .dark .fiat-activity-button {
++    color: #f6c453;
++  }
++
++  :root[data-theme="dark"] .fiat-activity-button:hover,
++  .dark .fiat-activity-button:hover {
++    background-color: rgb(185 139 22 / 0.12);
++  }
++
++  :root[data-theme="dark"] .fiat-hero-logo,
++  .dark .fiat-hero-logo {
++    background: radial-gradient(circle at 50% 48%, rgb(83 60 12 / 0.44), rgb(17 24 39 / 0.15) 68%, transparent 70%);
++  }
++
++  :root[data-theme="dark"] .fiat-hero-logo.is-frozen,
++  .dark .fiat-hero-logo.is-frozen {
++    background: radial-gradient(circle at 50% 48%, rgb(12 74 110 / 0.45), rgb(17 24 39 / 0.18) 68%, transparent 70%);
++  }
++
++  :root[data-theme="dark"] .fiat-intro-logo,
++  .dark .fiat-intro-logo {
++    background: radial-gradient(circle at 45% 38%, rgb(83 60 12 / 0.52), #111827 72%);
++    box-shadow: inset 0 0 0 1px #8f6c12;
++  }
++
++  :root[data-theme="dark"] .fiat-intro-callout,
++  :root[data-theme="dark"] .fiat-info-card,
++  .dark .fiat-intro-callout,
++  .dark .fiat-info-card {
++    background-color: #172033;
++    border-color: #475569;
++  }
++
++  :root[data-theme="dark"] .fiat-status-card,
++  .dark .fiat-status-card {
++    color: #f8fafc;
++  }
++
++  :root[data-theme="dark"] .fiat-streak-surface .text-slate-600,
++  :root[data-theme="dark"] .fiat-streak-surface .text-slate-700,
++  .dark .fiat-streak-surface .text-slate-600,
++  .dark .fiat-streak-surface .text-slate-700 {
++    color: #d7dee8;
++  }
++
++  :root[data-theme="dark"] .fiat-calendar-day.state-fiat,
++  .dark .fiat-calendar-day.state-fiat {
++    background: #d9901f;
++    color: #111827;
++  }
++
++  :root[data-theme="dark"] .fiat-calendar-day.state-freeze-1,
++  :root[data-theme="dark"] .fiat-calendar-day.state-freeze-2,
++  .dark .fiat-calendar-day.state-freeze-1,
++  .dark .fiat-calendar-day.state-freeze-2 {
++    background: #12364a;
++    color: #8bdcff;
++    box-shadow: inset 0 0 0 1px #2475a0;
++  }
++
++  :root[data-theme="dark"] .fiat-calendar-day.state-lost,
++  .dark .fiat-calendar-day.state-lost {
++    background: #4b2024;
++    color: #fca5a5;
++    box-shadow: inset 0 0 0 1px #8d343c;
++  }
++
++  :root[data-theme="dark"] .fiat-calendar-day.state-inactive,
++  :root[data-theme="dark"] .fiat-calendar-day.state-future,
++  .dark .fiat-calendar-day.state-inactive,
++  .dark .fiat-calendar-day.state-future {
++    background: #334155;
++    color: #94a3b8;
++  }
++
+   .theme-toggle {
+     @apply relative z-10 inline-flex min-h-9 shrink-0 items-center gap-1.5 rounded-full border border-gold-300 bg-paper/80 p-1 text-ink backdrop-blur-xl transition hover:border-gold-400;
+   }
+diff --git a/components/fiat/fiat-mark.tsx b/components/fiat/fiat-mark.tsx
+new file mode 100644
+index 0000000..bc5261c
+--- /dev/null
++++ b/components/fiat/fiat-mark.tsx
+@@ -0,0 +1,36 @@
++import { useId } from "react";
++
++export function FiatMark({
++  className = ""
++}: {
++  className?: string;
++}) {
++  const gradientId = useId().replace(/:/g, "");
++
++  return (
++    <svg
++      viewBox="0 0 64 64"
++      className={className}
++      aria-hidden="true"
++      focusable="false"
++    >
++      <defs>
++        <linearGradient id={gradientId} x1="8" y1="10" x2="54" y2="52" gradientUnits="userSpaceOnUse">
++          <stop stopColor="#ff2d2d" />
++          <stop offset="0.55" stopColor="#ff6a1a" />
++          <stop offset="1" stopColor="#ffbe24" />
++        </linearGradient>
++      </defs>
++
++      <path
++        d="M32 5.5C16.7 5.5 5 16.6 5 31.9c0 15.7 11.8 26.6 27 26.6 7.3 0 14.2-2.5 19.7-7.1l-4.5-5.3c-4.2 3.4-9.3 5.2-15.2 5.2-11.2 0-19.7-7.9-19.7-19.4 0-11.1 8.3-19.2 19.7-19.2 11.7 0 19.7 7.5 19.7 17.6 0 6.8-3 11.5-7.1 11.5-2.2 0-3.3-1.3-3-4.1l1.6-16.2h-7.5l-.5 3c-2.1-2.6-5.2-4-8.8-4-7.4 0-13.4 6.2-13.4 14.3 0 7.7 5.2 12.9 12.2 12.9 4 0 7.3-1.7 9.6-4.7 1.3 4 4.7 6.1 9.3 6.1 9 0 15.7-7.5 15.7-18.8C59 16.1 48.3 5.5 32 5.5Z"
++        fill={`url(#${gradientId})`}
++      />
++
++      <path
++        d="M28.6 15.5h6.8v10.2h9.4v6.7h-9.4v15.2h-6.8V32.4h-9.3v-6.7h9.3V15.5Z"
++        fill="#fff"
++      />
++    </svg>
++  );
++}
+diff --git a/components/fiat/fiat-streak-interface.tsx b/components/fiat/fiat-streak-interface.tsx
+index 66e3385..c89ae02 100644
+--- a/components/fiat/fiat-streak-interface.tsx
++++ b/components/fiat/fiat-streak-interface.tsx
+@@ -2,24 +2,41 @@
+ 
+ import { useEffect, useMemo, useState } from "react";
+ import Link from "next/link";
+-import { Check, Flame, Star, X } from "lucide-react";
++import {
++  ArrowLeft,
++  BookOpen,
++  Check,
++  CircleX,
++  Flame,
++  HeartHandshake,
++  ShieldCheck,
++  Snowflake,
++  Sparkles,
++  X
++} from "lucide-react";
++
+ import { useAuth } from "@/components/providers/auth-provider";
++import { FiatMark } from "@/components/fiat/fiat-mark";
+ import { useExclusivePopup } from "@/components/ui/use-exclusive-popup";
+ import { usePopupPresence } from "@/components/ui/use-popup-presence";
+ import { appService } from "@/lib/app-service";
+ import {
+   calculateFiatStats,
+-  localDateKey,
+-  reflectionFiatDateKey
++  fiatCalendarDayState,
++  FIAT_FREEZE_LIMIT,
++  localDateKey
+ } from "@/lib/fiat";
+-import type { ReflectionPost } from "@/types";
++import type { FiatCalendarDayState, ReflectionPost } from "@/types";
+ 
+ const WEEKDAYS = ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"] as const;
+ 
++type FiatPanelView = "intro" | "activity";
++
+ function currentWeekKeys(today = new Date()): string[] {
+   const sunday = new Date(today);
+   sunday.setHours(12, 0, 0, 0);
+   sunday.setDate(today.getDate() - today.getDay());
++
+   return WEEKDAYS.map((_label, index) => {
+     const date = new Date(sunday);
+     date.setDate(sunday.getDate() + index);
+@@ -27,128 +44,342 @@ function currentWeekKeys(today = new Date()): string[] {
+   });
+ }
+ 
++function dayStateLabel(state: FiatCalendarDayState): string {
++  switch (state) {
++    case "fiat":
++      return "FiAt recorded";
++    case "freeze-1":
++      return "Freeze 1 used";
++    case "freeze-2":
++      return "Freeze 2 used";
++    case "lost":
++      return "Streak lost";
++    case "future":
++      return "Upcoming day";
++    default:
++      return "No active streak";
++  }
++}
++
++function DayStateIcon({ state }: { state: FiatCalendarDayState }) {
++  if (state === "fiat") {
++    return <Check className="size-5" strokeWidth={3.5} aria-hidden="true" />;
++  }
++  if (state === "freeze-1" || state === "freeze-2") {
++    return <Snowflake className="size-5" strokeWidth={2.7} aria-hidden="true" />;
++  }
++  if (state === "lost") {
++    return <CircleX className="size-5" strokeWidth={2.6} aria-hidden="true" />;
++  }
++  return null;
++}
++
+ export function FiatStreakInterface() {
+-  const { user } = useAuth();
++  const { user, updateUser } = useAuth();
+   const [posts, setPosts] = useState<ReflectionPost[]>([]);
+   const [open, setOpen] = useState(false);
++  const [view, setView] = useState<FiatPanelView>("activity");
++  const [introSaving, setIntroSaving] = useState(false);
++  const [introError, setIntroError] = useState("");
++
+   useExclusivePopup("fiat-streak", open, setOpen);
+   const popupPresence = usePopupPresence(open);
+ 
+   useEffect(() => {
+-    if (!user) return;
++    if (!user) {
++      setPosts([]);
++      return;
++    }
++
+     let active = true;
+     void appService.getReflections(user.id).then((items) => {
+       if (active) setPosts(items);
+     });
++
+     return () => {
+       active = false;
+     };
+-  }, [user]);
++  }, [user?.id]);
+ 
+-  const stats = useMemo(() => calculateFiatStats(posts), [posts]);
+-  const weekKeys = useMemo(() => currentWeekKeys(), []);
+-  const completedDays = useMemo(
+-    () => new Set(posts.filter((post) => post.fiatCategory).map(reflectionFiatDateKey)),
+-    [posts]
+-  );
+   const today = localDateKey();
+-  const perfectWeek = weekKeys.every((date) => completedDays.has(date));
++  const stats = useMemo(() => calculateFiatStats(posts, today), [posts, today]);
++  const weekKeys = useMemo(() => currentWeekKeys(), [today]);
++  const dayStates = useMemo(
++    () => weekKeys.map((date) => fiatCalendarDayState(posts, date, today)),
++    [posts, today, weekKeys]
++  );
++
++  const hasFiatActivity = posts.some((post) => Boolean(post.fiatCategory));
++  const introAlreadySeen = Boolean(user?.fiatIntroSeenAt) || hasFiatActivity;
++  const perfectWeek = dayStates.every((state) => state === "fiat");
++
++  const openFiatPanel = () => {
++    if (open) {
++      setOpen(false);
++      return;
++    }
++
++    setIntroError("");
++    setView(introAlreadySeen ? "activity" : "intro");
++    setOpen(true);
++  };
++
++  const continueFromIntro = async () => {
++    setIntroError("");
++
++    if (!user) return;
++
++    if (user.fiatIntroSeenAt) {
++      setView("activity");
++      return;
++    }
++
++    setIntroSaving(true);
++    try {
++      await updateUser({ fiatIntroSeenAt: new Date().toISOString() });
++      setView("activity");
++    } catch {
++      setIntroError("FiAt could not be started. Please try again.");
++    } finally {
++      setIntroSaving(false);
++    }
++  };
++
++  const streakStatus = stats.streakLostToday
++    ? "Streak lost today"
++    : stats.activeToday
++      ? "FiAt recorded today"
++      : stats.frozenToday
++        ? `Freeze ${stats.freezeUsed} of ${FIAT_FREEZE_LIMIT} is protecting your streak`
++        : stats.currentStreak > 0
++          ? "Your streak is protected"
++          : "Start a new streak today";
+ 
+   return (
+     <div className="relative">
+       <button
+         type="button"
+-        className={`fiat-streak-badge ${stats.activeToday ? "fiat-streak-active" : ""}`}
+-        aria-label={`FiAt current streak: ${stats.currentStreak} days. ${stats.activeToday ? "Completed today" : "Not yet recorded today"}`}
++        className={`fiat-activity-button ${stats.currentStreak > 0 ? "fiat-activity-button-active" : ""} ${stats.frozenToday ? "fiat-activity-button-frozen" : ""}`}
++        aria-label={`FiAt current streak: ${stats.currentStreak} days. ${streakStatus}`}
+         aria-expanded={open}
+-        onClick={() => setOpen((value) => !value)}
++        onClick={openFiatPanel}
+       >
+-        <span className="font-serif text-base font-black tracking-tight" aria-hidden="true">Fi@</span>
+-        <strong>{stats.currentStreak}</strong>
++        <span className="fiat-mark-shell" aria-hidden="true">
++          <FiatMark className="size-8" />
++        </span>
++        <strong className="fiat-streak-count">{stats.currentStreak}</strong>
+       </button>
+ 
+       {popupPresence.rendered && (
+         <section
+-          className={`fiat-streak-surface fixed left-4 right-4 top-20 z-[90] max-h-[calc(100dvh-6rem)] overflow-y-auto overscroll-contain rounded-3xl border text-slate-800 shadow-lift sm:left-auto sm:right-4 sm:w-[22rem] lg:absolute lg:right-0 lg:top-[calc(100%+.65rem)] lg:max-h-[calc(100dvh-5.5rem)] ${popupPresence.closing ? "popup-panel-exit" : "popup-panel-enter"}`}
++          className={`fiat-streak-surface fixed left-4 right-4 top-20 z-[90] max-h-[calc(100dvh-6rem)] overflow-y-auto overscroll-contain rounded-3xl border text-slate-800 shadow-lift sm:left-auto sm:right-4 sm:w-[23rem] lg:absolute lg:right-0 lg:top-[calc(100%+.65rem)] lg:max-h-[calc(100dvh-5.5rem)] ${popupPresence.closing ? "popup-panel-exit" : "popup-panel-enter"}`}
+           role="dialog"
+-          aria-label="FiAt streak"
++          aria-label="FiAt activity"
+         >
+-          <div className="px-5 pb-5 pt-5 sm:px-6">
+-            <div className="flex items-start justify-between gap-4 text-left">
+-              <div>
+-                <p className="text-xs font-black uppercase tracking-[.18em] text-[#9a7000]">FiAt activity</p>
+-                <h2 className="fiat-streak-title mt-1 font-serif text-2xl font-bold text-[#991f22]">FiAt streak</h2>
++          {view === "intro" ? (
++            <div className="px-5 pb-5 pt-5 sm:px-6">
++              <div className="flex items-start justify-between gap-4">
++                <div className="flex items-center gap-3">
++                  <span className="fiat-intro-logo grid size-12 place-items-center rounded-2xl" aria-hidden="true">
++                    <FiatMark className="size-10" />
++                  </span>
++                  <div>
++                    <p className="text-xs font-black uppercase tracking-[.18em] text-[#9a7000]">Welcome to FiAt</p>
++                    <h2 className="fiat-streak-title mt-1 font-serif text-2xl font-bold text-[#991f22]">Your daily “yes” to God</h2>
++                  </div>
++                </div>
++                <button
++                  type="button"
++                  className="fiat-streak-close grid size-10 shrink-0 place-items-center rounded-full text-slate-800 transition hover:bg-[#fdf8e8]"
++                  aria-label="Close FiAt activity"
++                  onClick={() => setOpen(false)}
++                >
++                  <X className="size-5" aria-hidden="true" />
++                </button>
++              </div>
++
++              <div className="fiat-intro-callout mt-5 rounded-[1.4rem] border border-[#f0d889] bg-[#fffaf0] p-4">
++                <p className="text-sm leading-6 text-slate-700">
++                  <strong className="text-[#a76500]">1 Fi@</strong> is one concrete “yes” to God lived through a desire, choice, prayer, sacrifice, or act of love.
++                </p>
+               </div>
++
++              <div className="mt-4 grid gap-3">
++                <div className="fiat-info-card flex gap-3 rounded-2xl border border-slate-200 bg-white/80 p-4">
++                  <HeartHandshake className="mt-0.5 size-5 shrink-0 text-[#c44b34]" aria-hidden="true" />
++                  <div>
++                    <h3 className="text-sm font-black">What counts as a FiAt?</h3>
++                    <p className="mt-1 text-xs leading-5 text-slate-600">Prayer, forgiveness, service, sacrifice, an act of love, a responsible choice, or another sincere response to grace.</p>
++                  </div>
++                </div>
++
++                <div className="fiat-info-card flex gap-3 rounded-2xl border border-slate-200 bg-white/80 p-4">
++                  <BookOpen className="mt-0.5 size-5 shrink-0 text-[#b98400]" aria-hidden="true" />
++                  <div>
++                    <h3 className="text-sm font-black">It is not a holiness score</h3>
++                    <p className="mt-1 text-xs leading-5 text-slate-600">FiAt encourages concrete responses to God’s grace. It does not measure how holy one person is compared with another.</p>
++                  </div>
++                </div>
++              </div>
++
++              <div className="mt-5">
++                <div className="mb-3 flex items-center gap-2">
++                  <ShieldCheck className="size-5 text-[#4c7f9b]" aria-hidden="true" />
++                  <h3 className="font-serif text-lg font-bold">Streak rules</h3>
++                </div>
++                <ol className="space-y-2 text-sm leading-5 text-slate-700">
++                  <li className="flex gap-3"><span className="fiat-rule-number">1</span><span>Record at least one FiAt on a calendar day to add <strong>1 day</strong> to your streak. Extra FiAt entries that day do not add extra streak days.</span></li>
++                  <li className="flex gap-3"><span className="fiat-rule-number">2</span><span>Miss one day and <strong>Freeze 1</strong> automatically protects the streak. The freeze day does not increase the streak number.</span></li>
++                  <li className="flex gap-3"><span className="fiat-rule-number">3</span><span>Miss a second consecutive day and <strong>Freeze 2</strong> protects it one final time.</span></li>
++                  <li className="flex gap-3"><span className="fiat-rule-number">4</span><span>Miss a third consecutive day and the streak is <strong>lost</strong>. Your next FiAt starts a new streak at 1.</span></li>
++                  <li className="flex gap-3"><span className="fiat-rule-number">5</span><span>Recording a FiAt after a freeze resumes the same streak and resets the consecutive-freeze counter.</span></li>
++                </ol>
++              </div>
++
++              {introError && (
++                <p className="mt-4 rounded-xl bg-red-50 px-3 py-2 text-sm font-semibold text-red-700" role="alert">
++                  {introError}
++                </p>
++              )}
++
+               <button
+                 type="button"
+-                className="fiat-streak-close grid size-11 shrink-0 place-items-center rounded-full text-slate-800 transition hover:bg-[#fdf8e8]"
+-                aria-label="Close FiAt streak"
+-                onClick={() => setOpen(false)}
++                className="btn-primary mt-5 w-full !text-white"
++                disabled={introSaving}
++                onClick={() => void continueFromIntro()}
+               >
+-                <X className="size-5" aria-hidden="true" />
++                <Sparkles className="size-4" aria-hidden="true" />
++                {introSaving ? "Starting FiAt…" : "Continue to FiAt"}
+               </button>
+             </div>
++          ) : (
++            <>
++              <div className="px-5 pb-5 pt-5 sm:px-6">
++                <div className="flex items-start justify-between gap-4 text-left">
++                  <div className="flex items-center gap-2">
++                    <button
++                      type="button"
++                      className="fiat-streak-close grid size-10 shrink-0 place-items-center rounded-full text-slate-800 transition hover:bg-[#fdf8e8]"
++                      aria-label="Back to What is FiAt"
++                      onClick={() => setView("intro")}
++                    >
++                      <ArrowLeft className="size-5" aria-hidden="true" />
++                    </button>
++                    <div>
++                      <p className="text-xs font-black uppercase tracking-[.18em] text-[#9a7000]">FiAt activity</p>
++                      <h2 className="fiat-streak-title mt-1 font-serif text-2xl font-bold text-[#991f22]">FiAt streak</h2>
++                    </div>
++                  </div>
+ 
+-            <div className="text-center">
+-              <div className="relative mx-auto mt-1 grid h-20 w-20 place-items-center" aria-hidden="true">
+-                <Flame className="absolute size-20 fill-[#ff9418] text-[#ff9418]" strokeWidth={1.8} />
+-                <Flame className="absolute bottom-1 size-9 fill-[#ffc928] text-[#ffc928]" strokeWidth={1.8} />
+-                <span className="fiat-streak-number relative mt-14 text-4xl font-black leading-none drop-shadow-md">
+-                  {stats.currentStreak}
+-                </span>
+-              </div>
+-              <p className="mt-5 text-2xl font-black tracking-wide text-[#d98200]">day streak!</p>
+-            </div>
++                  <button
++                    type="button"
++                    className="fiat-streak-close grid size-10 shrink-0 place-items-center rounded-full text-slate-800 transition hover:bg-[#fdf8e8]"
++                    aria-label="Close FiAt activity"
++                    onClick={() => setOpen(false)}
++                  >
++                    <X className="size-5" aria-hidden="true" />
++                  </button>
++                </div>
++
++                <div className="mt-3 text-center">
++                  <div className={`fiat-hero-logo relative mx-auto grid size-24 place-items-center rounded-[2rem] ${stats.currentStreak > 0 ? "is-active" : ""} ${stats.frozenToday ? "is-frozen" : ""}`} aria-hidden="true">
++                    <FiatMark className="size-20" />
++                  </div>
++
++                  <div className="mt-3 flex items-baseline justify-center gap-2">
++                    <strong className="text-4xl font-black tracking-tight text-[#bd6b00]">{stats.currentStreak}</strong>
++                    <span className="text-lg font-black text-[#bd6b00]">day streak</span>
++                  </div>
++                  <p className="mt-1 text-sm font-semibold text-slate-600">{streakStatus}</p>
++                </div>
+ 
+-            <div className="fiat-streak-week mt-6 overflow-hidden rounded-[1.6rem] border border-[#eadc9f] bg-[#fdf9ea]">
+-              <div className="grid grid-cols-7 gap-2 px-4 pb-5 pt-4 sm:gap-3">
+-                {weekKeys.map((date, index) => {
+-                  const completed = completedDays.has(date);
+-                  const isToday = date === today;
+-                  return (
+-                    <div className="flex min-w-0 flex-col items-center gap-3" key={date}>
+-                      <span className={`text-sm font-black ${isToday ? "text-[#b57600]" : "text-slate-500"}`}>
+-                        {WEEKDAYS[index]}
+-                      </span>
+-                      <span
+-                        className={`grid size-9 place-items-center rounded-full sm:size-10 ${
+-                          completed
+-                            ? "bg-[#ffad32] text-[#3c2c00]"
+-                            : isToday
+-                            ? "fiat-streak-day-today border-2 border-[#e5a900] bg-white text-[#c78b00]"
+-                              : "fiat-streak-day-empty bg-slate-300 text-slate-500"
+-                        }`}
+-                        aria-label={`${WEEKDAYS[index]}: ${completed ? "FiAt recorded" : "not recorded"}`}
+-                      >
+-                        {completed ? (
+-                          <Check className="size-5" strokeWidth={3.5} aria-hidden="true" />
+-                        ) : isToday ? (
+-                          <Star className="size-6" strokeWidth={2.5} aria-hidden="true" />
+-                        ) : null}
+-                      </span>
++                <div className={`fiat-status-card mt-5 rounded-2xl border p-4 ${stats.streakLostToday ? "border-red-200 bg-red-50" : stats.frozenToday ? "border-sky-200 bg-sky-50" : "border-[#eadc9f] bg-[#fffaf0]"}`}>
++                  <div className="flex items-start gap-3">
++                    {stats.streakLostToday ? (
++                      <CircleX className="mt-0.5 size-5 shrink-0 text-red-600" aria-hidden="true" />
++                    ) : stats.frozenToday ? (
++                      <Snowflake className="mt-0.5 size-5 shrink-0 text-sky-600" aria-hidden="true" />
++                    ) : (
++                      <ShieldCheck className="mt-0.5 size-5 shrink-0 text-[#9a7000]" aria-hidden="true" />
++                    )}
++                    <div className="min-w-0 flex-1">
++                      <div className="flex items-center justify-between gap-3">
++                        <strong className="text-sm">
++                          {stats.streakLostToday ? "Streak lost" : "Automatic streak freeze"}
++                        </strong>
++                        {!stats.streakLostToday && (
++                          <span className="rounded-full bg-white/75 px-2.5 py-1 text-[11px] font-black text-slate-700">
++                            {stats.freezeUsed}/{FIAT_FREEZE_LIMIT} used
++                          </span>
++                        )}
++                      </div>
++                      <p className="mt-1 text-xs leading-5 text-slate-600">
++                        {stats.streakLostToday
++                          ? "Both freeze days were used and a third consecutive day was missed. Your next FiAt starts a new streak."
++                          : stats.frozenToday
++                            ? `Your streak is safe today. ${stats.freezeRemaining} consecutive freeze ${stats.freezeRemaining === 1 ? "day remains" : "days remain"}. Record a FiAt to resume it.`
++                            : "You can miss up to two consecutive days without losing the streak. Freeze days never increase the streak number."}
++                      </p>
+                     </div>
+-                  );
+-                })}
++                  </div>
++                </div>
++
++                <div className="fiat-streak-week mt-5 overflow-hidden rounded-[1.6rem] border border-[#eadc9f] bg-[#fdf9ea]">
++                  <div className="grid grid-cols-7 gap-2 px-4 pb-5 pt-4 sm:gap-3">
++                    {weekKeys.map((date, index) => {
++                      const state = dayStates[index];
++                      const isToday = date === today;
++
++                      return (
++                        <div className="flex min-w-0 flex-col items-center gap-3" key={date}>
++                          <span className={`text-sm font-black ${isToday ? "text-[#b57600]" : "text-slate-500"}`}>
++                            {WEEKDAYS[index]}
++                          </span>
++                          <span
++                            className={`fiat-calendar-day grid size-9 place-items-center rounded-full sm:size-10 state-${state} ${isToday ? "is-today" : ""}`}
++                            aria-label={`${WEEKDAYS[index]}: ${dayStateLabel(state)}`}
++                            title={dayStateLabel(state)}
++                          >
++                            <DayStateIcon state={state} />
++                            {state === "freeze-1" && <span className="sr-only">1</span>}
++                            {state === "freeze-2" && <span className="sr-only">2</span>}
++                          </span>
++                          {(state === "freeze-1" || state === "freeze-2") && (
++                            <span className="-mt-2 text-[9px] font-black uppercase tracking-wide text-sky-700">
++                              F{state === "freeze-1" ? "1" : "2"}
++                            </span>
++                          )}
++                        </div>
++                      );
++                    })}
++                  </div>
++
++                  <div className="fiat-streak-copy border-t border-[#eadc9f] px-5 py-4 text-center text-sm leading-6 text-slate-700">
++                    {perfectWeek ? (
++                      <p><strong className="text-[#b57600]">Perfect week!</strong> You recorded a FiAt every day.</p>
++                    ) : stats.frozenToday ? (
++                      <p><strong className="text-sky-700">Streak frozen.</strong> Add today&apos;s FiAt to continue without using another freeze tomorrow.</p>
++                    ) : stats.streakLostToday ? (
++                      <p><strong className="text-red-700">The streak ended today.</strong> A new FiAt will begin a fresh streak.</p>
++                    ) : (
++                      <p>Record a FiAt today and keep your daily “yes” moving forward.</p>
++                    )}
++                  </div>
++                </div>
+               </div>
+-              <div className="fiat-streak-copy border-t border-[#eadc9f] px-5 py-5 text-center text-base leading-6 text-slate-700">
+-                {perfectWeek ? (
+-                  <p><strong className="text-[#b57600]">Perfect streak!</strong> You recorded a FiAt every day this week.</p>
+-                ) : (
+-                  <p>Record a FiAt every day this week to get a <strong className="text-[#b57600]">perfect streak!</strong></p>
+-                )}
++
++              <div className="fiat-streak-footer sticky bottom-0 border-t border-[#eadc9f] bg-white p-4">
++                <Link
++                  href="/reflect"
++                  className="btn-primary w-full !text-white"
++                  onClick={() => setOpen(false)}
++                >
++                  <Flame className="size-4" aria-hidden="true" />
++                  Add today&apos;s FiAt
++                </Link>
+               </div>
+-            </div>
+-          </div>
+-
+-          <div className="fiat-streak-footer sticky bottom-0 border-t border-[#eadc9f] bg-white p-4">
+-            <Link
+-              href="/reflect"
+-              className="btn-primary w-full !text-white"
+-              onClick={() => setOpen(false)}
+-            >
+-              Add today&apos;s FiAt
+-            </Link>
+-          </div>
++            </>
++          )}
+         </section>
+       )}
+     </div>
+diff --git a/components/social/notification-bell.tsx b/components/social/notification-bell.tsx
+index a74d009..3098d95 100644
+--- a/components/social/notification-bell.tsx
++++ b/components/social/notification-bell.tsx
+@@ -6,7 +6,7 @@ import {
+   useState
+ } from "react";
+ 
+-import { Bell, Sparkles } from "lucide-react";
++import { Bell, Snowflake, Sparkles } from "lucide-react";
+ import { useRouter } from "next/navigation";
+ 
+ import { useAuth } from "@/components/providers/auth-provider";
+@@ -16,6 +16,7 @@ import { usePopupPresence } from "@/components/ui/use-popup-presence";
+ import { appService } from "@/lib/app-service";
+ import { subscribeFollowRequests } from "@/lib/private-account";
+ import { markSystemNotificationRead, subscribeSystemNotifications } from "@/lib/system-notifications";
++import { syncFiatStreakLossNotification } from "@/lib/fiat-streak-sync";
+ 
+ import {
+   downloadFirebaseProfileImage,
+@@ -268,6 +269,46 @@ export function NotificationBell() {
+     );
+   }, [user]);
+ 
++  useEffect(() => {
++    if (!user) return;
++
++    let midnightTimer: number | undefined;
++
++    const sync = () => {
++      void syncFiatStreakLossNotification().catch(() => {
++        // The notification list remains usable even if FiAt sync fails.
++      });
++    };
++
++    const scheduleNextMidnightSync = () => {
++      const now = new Date();
++      const next = new Date(now);
++      next.setHours(24, 0, 5, 0);
++
++      midnightTimer = window.setTimeout(() => {
++        sync();
++        scheduleNextMidnightSync();
++      }, Math.max(1_000, next.getTime() - now.getTime()));
++    };
++
++    const syncWhenVisible = () => {
++      if (document.visibilityState === "visible") {
++        sync();
++      }
++    };
++
++    sync();
++    scheduleNextMidnightSync();
++    document.addEventListener("visibilitychange", syncWhenVisible);
++
++    return () => {
++      if (midnightTimer !== undefined) {
++        window.clearTimeout(midnightTimer);
++      }
++      document.removeEventListener("visibilitychange", syncWhenVisible);
++    };
++  }, [user?.id]);
++
+   useEffect(() => {
+     if (!user) {
+       setFollowRequestCount(0);
+@@ -384,8 +425,24 @@ export function NotificationBell() {
+ 
+   const openSystemNotification = async (notification: SystemNotification) => {
+     setOpen(false);
+-    try { await markSystemNotificationRead(notification.id); } catch { /* Navigation still proceeds. */ }
+-    router.push(notification.type === "admin_reflection" && notification.reflectionId ? `/reflections/${notification.reflectionId}` : user?.profileCompleted ? "/profile/edit" : "/create");
++
++    try {
++      await markSystemNotificationRead(notification.id);
++    } catch {
++      // Navigation still proceeds.
++    }
++
++    if (notification.type === "admin_reflection" && notification.reflectionId) {
++      router.push(`/reflections/${notification.reflectionId}`);
++      return;
++    }
++
++    if (notification.type === "fiat_streak_lost") {
++      router.push("/profile");
++      return;
++    }
++
++    router.push(user?.profileCompleted ? "/profile/edit" : "/create");
+   };
+ 
+   const openNotification =
+@@ -556,13 +613,40 @@ export function NotificationBell() {
+                 onNavigate={() => setOpen(false)}
+               />
+ 
+-              {systemNotifications.map((notification) => (
+-                <button key={notification.id} type="button" className={`flex w-full items-start gap-3 border-b border-sage-100 px-5 py-4 text-left transition hover:bg-sage-50 ${!notification.readAt ? "bg-sage-50/60" : ""}`} onClick={() => void openSystemNotification(notification)}>
+-                  <span className="grid size-10 shrink-0 place-items-center rounded-full bg-sage-100 text-sage-700"><Sparkles className="size-5" aria-hidden="true" /></span>
+-                  <span className="min-w-0 flex-1"><strong className="block text-sm">{notification.title}</strong><span className="mt-1 block text-xs leading-5 text-muted">{notification.message}</span><span className="mt-1 block text-xs text-muted">{notificationTime(notification.createdAt)}</span></span>
+-                  {!notification.readAt && <span className="mt-2 size-2 shrink-0 rounded-full bg-sage-600" aria-label="Unread" />}
+-                </button>
+-              ))}
++              {systemNotifications.map((notification) => {
++                const fiatLost = notification.type === "fiat_streak_lost";
++
++                return (
++                  <button
++                    key={notification.id}
++                    type="button"
++                    className={`flex w-full items-start gap-3 border-b border-sage-100 px-5 py-4 text-left transition hover:bg-sage-50 ${!notification.readAt ? "bg-sage-50/60" : ""}`}
++                    onClick={() => void openSystemNotification(notification)}
++                  >
++                    <span
++                      className={`grid size-10 shrink-0 place-items-center rounded-full ${
++                        fiatLost
++                          ? "bg-sky-100 text-sky-700"
++                          : "bg-sage-100 text-sage-700"
++                      }`}
++                    >
++                      {fiatLost ? (
++                        <Snowflake className="size-5" aria-hidden="true" />
++                      ) : (
++                        <Sparkles className="size-5" aria-hidden="true" />
++                      )}
++                    </span>
++                    <span className="min-w-0 flex-1">
++                      <strong className="block text-sm">{notification.title}</strong>
++                      <span className="mt-1 block text-xs leading-5 text-muted">{notification.message}</span>
++                      <span className="mt-1 block text-xs text-muted">{notificationTime(notification.createdAt)}</span>
++                    </span>
++                    {!notification.readAt && (
++                      <span className="mt-2 size-2 shrink-0 rounded-full bg-sage-600" aria-label="Unread" />
++                    )}
++                  </button>
++                );
++              })}
+               {notifications.map(
+                 (notification) => {
+                   const actor =
+diff --git a/firestore.rules b/firestore.rules
+index 03c1a2a..0bfe6d7 100644
+--- a/firestore.rules
++++ b/firestore.rules
+@@ -111,6 +111,7 @@ service cloud.firestore {
+           'updatedAt',
+           'privacyConsentAt',
+           'spiritualIntroSeenAt',
++          'fiatIntroSeenAt',
+           'profileCompleted',
+           'mustChangePassword',
+           'privacyPreferences'
+@@ -145,6 +146,11 @@ service cloud.firestore {
+           || data.spiritualIntroSeenAt == null
+           || isIsoDate(data.spiritualIntroSeenAt)
+         )
++        && (
++          !('fiatIntroSeenAt' in data)
++          || data.fiatIntroSeenAt == null
++          || isIsoDate(data.fiatIntroSeenAt)
++        )
+         && (
+           !('privacyPreferences' in data)
+           || hasValidPrivacyPreferences(data.privacyPreferences)
+diff --git a/lib/admin-data.ts b/lib/admin-data.ts
+index 4c25536..7f52489 100644
+--- a/lib/admin-data.ts
++++ b/lib/admin-data.ts
+@@ -353,13 +353,19 @@ export async function loadReminders(db:Firestore=getFirebaseAdminFirestore()):Pr
+     .map((row): SystemNotification => ({
+       id: str(row.id),
+       userId: str(row.userId),
+-      type: row.type === "admin_reflection" ? "admin_reflection" : "profile_reminder",
++      type: row.type === "admin_reflection"
++        ? "admin_reflection"
++        : row.type === "fiat_streak_lost"
++          ? "fiat_streak_lost"
++          : "profile_reminder",
+       title: str(row.title) || "Saintagram notification",
+       message: str(row.message),
+       missingFields: Array.isArray(row.missingFields)
+         ? row.missingFields.filter((value): value is string => typeof value === "string")
+         : [],
+       ...(typeof row.reflectionId === "string" ? { reflectionId: row.reflectionId } : {}),
++      ...(typeof row.fiatLostDate === "string" ? { fiatLostDate: row.fiatLostDate } : {}),
++      ...(typeof row.previousStreak === "number" ? { previousStreak: row.previousStreak } : {}),
+       createdByAdminId: str(row.createdByAdminId),
+       createdAt: str(row.createdAt),
+       readAt: typeof row.readAt === "string" ? row.readAt : null
+diff --git a/lib/admin-delete-records.ts b/lib/admin-delete-records.ts
+index eb34273..45e9089 100644
+--- a/lib/admin-delete-records.ts
++++ b/lib/admin-delete-records.ts
+@@ -512,6 +512,9 @@ export async function resetOneNonAdminUserData(
+     spiritualIntroSeenAt:
+       null,
+ 
++    fiatIntroSeenAt:
++      null,
++
+     profileCompleted:
+       false,
+ 
+diff --git a/lib/app-service.ts b/lib/app-service.ts
+index 134273a..79c964f 100644
+--- a/lib/app-service.ts
++++ b/lib/app-service.ts
+@@ -236,6 +236,7 @@ function createUserRecord(
+     updatedAt: now,
+     privacyConsentAt: null,
+     spiritualIntroSeenAt: null,
++    fiatIntroSeenAt: null,
+     profileCompleted: false,
+     mustChangePassword,
+     privacyPreferences: DEFAULT_PRIVACY_PREFERENCES
+@@ -786,6 +787,7 @@ async function ensureLocalSeed(): Promise<void> {
+             updatedAt,
+             privacyConsentAt: createdAt,
+             spiritualIntroSeenAt: createdAt,
++            fiatIntroSeenAt: createdAt,
+             profileCompleted: true,
+             mustChangePassword: true,
+             privacyPreferences: DEFAULT_PRIVACY_PREFERENCES
+diff --git a/lib/fiat-streak-sync.ts b/lib/fiat-streak-sync.ts
+new file mode 100644
+index 0000000..520652b
+--- /dev/null
++++ b/lib/fiat-streak-sync.ts
+@@ -0,0 +1,44 @@
++"use client";
++
++import { getFirebaseServices } from "@/lib/firebase";
++import { localDateKey } from "@/lib/fiat";
++
++let currentRequest: Promise<void> | null = null;
++
++export async function syncFiatStreakLossNotification(): Promise<void> {
++  const services = getFirebaseServices();
++  const firebaseUser = services?.auth.currentUser;
++
++  if (!services || !firebaseUser || !firebaseUser.emailVerified) {
++    return;
++  }
++
++  if (currentRequest) {
++    return currentRequest;
++  }
++
++  currentRequest = (async () => {
++    const token = await firebaseUser.getIdToken(true);
++    const response = await fetch("/api/fiat/streak/sync", {
++      method: "POST",
++      headers: {
++        Authorization: `Bearer ${token}`,
++        "Content-Type": "application/json"
++      },
++      body: JSON.stringify({ today: localDateKey() }),
++      cache: "no-store",
++      credentials: "same-origin"
++    });
++
++    if (!response.ok) {
++      const result = (await response.json().catch(() => ({}))) as { error?: string };
++      throw new Error(result.error ?? "FiAt streak status could not be synchronized.");
++    }
++  })();
++
++  try {
++    await currentRequest;
++  } finally {
++    currentRequest = null;
++  }
++}
+diff --git a/lib/fiat.ts b/lib/fiat.ts
+index 3820885..26e9d14 100644
+--- a/lib/fiat.ts
++++ b/lib/fiat.ts
+@@ -1,18 +1,286 @@
+-import type { FiatCategory, FiatLeaderboardPeriod, FiatStats, ReflectionPost } from "@/types";
++import type {
++  FiatCalendarDayState,
++  FiatCategory,
++  FiatLeaderboardPeriod,
++  FiatStats,
++  FiatStreakLoss,
++  ReflectionPost
++} from "@/types";
++
++export const FIAT_FREEZE_LIMIT = 2 as const;
+ 
+ export const FIAT_CATEGORIES: readonly { value: FiatCategory; label: string }[] = [
+-  { value: "prayer", label: "Prayer" }, { value: "forgiveness", label: "Forgiveness" },
+-  { value: "service", label: "Service" }, { value: "sacrifice", label: "Sacrifice" },
+-  { value: "act-of-love", label: "Act of Love" }, { value: "responsible-choice", label: "Responsible Choice" },
++  { value: "prayer", label: "Prayer" },
++  { value: "forgiveness", label: "Forgiveness" },
++  { value: "service", label: "Service" },
++  { value: "sacrifice", label: "Sacrifice" },
++  { value: "act-of-love", label: "Act of Love" },
++  { value: "responsible-choice", label: "Responsible Choice" },
+   { value: "other", label: "Other" }
+ ] as const;
++
+ const categorySet = new Set<string>(FIAT_CATEGORIES.map((item) => item.value));
+-export function isFiatCategory(value: unknown): value is FiatCategory { return typeof value === "string" && categorySet.has(value); }
+-export function fiatCategoryLabel(value: FiatCategory): string { return FIAT_CATEGORIES.find((item) => item.value === value)?.label ?? "Other"; }
+-export function localDateKey(value: Date | string = new Date()): string { const date=value instanceof Date?value:new Date(value);if(Number.isNaN(date.getTime()))return"";const y=date.getFullYear(),m=String(date.getMonth()+1).padStart(2,"0"),d=String(date.getDate()).padStart(2,"0");return`${y}-${m}-${d}`; }
+-export function reflectionFiatDateKey(post: Pick<ReflectionPost,"createdAt"|"fiatDateKey">): string { return /^\d{4}-\d{2}-\d{2}$/.test(post.fiatDateKey??"")?post.fiatDateKey!:localDateKey(post.createdAt); }
+-const atNoon=(key:string)=>new Date(`${key}T12:00:00`);
+-const addDays=(key:string,amount:number)=>{const d=atNoon(key);d.setDate(d.getDate()+amount);return localDateKey(d);};
+-export function fiatPeriodBounds(period: FiatLeaderboardPeriod, today=localDateKey()):{start:string;end:string}{if(period==="today")return{start:today,end:today};const date=atNoon(today);if(period==="week"){const offset=(date.getDay()+6)%7;return{start:addDays(today,-offset),end:addDays(today,6-offset)};}return{start:`${today.slice(0,7)}-01`,end:localDateKey(new Date(date.getFullYear(),date.getMonth()+1,0,12))};}
+-export function calculateFiatStats(posts: readonly ReflectionPost[], today=localDateKey()):FiatStats{const fiat=posts.filter((p)=>!p.isPrivate&&p.fiatCategory&&reflectionFiatDateKey(p));const days=new Set(fiat.map(reflectionFiatDateKey));const sorted=[...days].sort();let longest=0,run=0,previous="";for(const key of sorted){run=previous&&addDays(previous,1)===key?run+1:1;longest=Math.max(longest,run);previous=key;}const last=sorted.at(-1);let current=0;if(last===today||last===addDays(today,-1)){let cursor=last!;while(days.has(cursor)){current++;cursor=addDays(cursor,-1);}}const week=fiatPeriodBounds("week",today);return{currentStreak:current,longestStreak:longest,activeToday:days.has(today),totalFiatEntries:fiat.length,totalFiatDays:days.size,thisWeekEntries:fiat.filter(p=>{const k=reflectionFiatDateKey(p);return k>=week.start&&k<=week.end;}).length};}
+-export function eligibleFiatCount(posts: readonly ReflectionPost[],start:string,end:string):number{return posts.filter(post=>{if(post.isPrivate||!post.fiatCategory)return false;const key=reflectionFiatDateKey(post);return key>=start&&key<=end;}).length;}
++
++export function isFiatCategory(value: unknown): value is FiatCategory {
++  return typeof value === "string" && categorySet.has(value);
++}
++
++export function fiatCategoryLabel(value: FiatCategory): string {
++  return FIAT_CATEGORIES.find((item) => item.value === value)?.label ?? "Other";
++}
++
++export function localDateKey(value: Date | string = new Date()): string {
++  const date = value instanceof Date ? value : new Date(value);
++  if (Number.isNaN(date.getTime())) return "";
++
++  const year = date.getFullYear();
++  const month = String(date.getMonth() + 1).padStart(2, "0");
++  const day = String(date.getDate()).padStart(2, "0");
++  return `${year}-${month}-${day}`;
++}
++
++export function reflectionFiatDateKey(
++  post: Pick<ReflectionPost, "createdAt" | "fiatDateKey">
++): string {
++  return /^\d{4}-\d{2}-\d{2}$/.test(post.fiatDateKey ?? "")
++    ? post.fiatDateKey!
++    : localDateKey(post.createdAt);
++}
++
++function dateKeyParts(key: string): [number, number, number] | null {
++  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(key);
++  if (!match) return null;
++
++  const year = Number(match[1]);
++  const month = Number(match[2]);
++  const day = Number(match[3]);
++  const value = new Date(Date.UTC(year, month - 1, day));
++
++  if (
++    value.getUTCFullYear() !== year ||
++    value.getUTCMonth() !== month - 1 ||
++    value.getUTCDate() !== day
++  ) {
++    return null;
++  }
++
++  return [year, month, day];
++}
++
++function dateKeyDayNumber(key: string): number {
++  const parts = dateKeyParts(key);
++  if (!parts) return Number.NaN;
++  return Math.floor(Date.UTC(parts[0], parts[1] - 1, parts[2]) / 86_400_000);
++}
++
++export function addFiatDays(key: string, amount: number): string {
++  const dayNumber = dateKeyDayNumber(key);
++  if (!Number.isFinite(dayNumber)) return "";
++
++  const date = new Date((dayNumber + amount) * 86_400_000);
++  const year = date.getUTCFullYear();
++  const month = String(date.getUTCMonth() + 1).padStart(2, "0");
++  const day = String(date.getUTCDate()).padStart(2, "0");
++  return `${year}-${month}-${day}`;
++}
++
++export function fiatDaysBetween(start: string, end: string): number {
++  const startDay = dateKeyDayNumber(start);
++  const endDay = dateKeyDayNumber(end);
++  return Number.isFinite(startDay) && Number.isFinite(endDay)
++    ? endDay - startDay
++    : Number.NaN;
++}
++
++export function fiatPeriodBounds(
++  period: FiatLeaderboardPeriod,
++  today = localDateKey()
++): { start: string; end: string } {
++  if (period === "today") return { start: today, end: today };
++
++  const parts = dateKeyParts(today);
++  if (!parts) return { start: today, end: today };
++
++  const date = new Date(Date.UTC(parts[0], parts[1] - 1, parts[2], 12));
++
++  if (period === "week") {
++    const offset = (date.getUTCDay() + 6) % 7;
++    return {
++      start: addFiatDays(today, -offset),
++      end: addFiatDays(today, 6 - offset)
++    };
++  }
++
++  const start = `${today.slice(0, 7)}-01`;
++  const endDate = new Date(Date.UTC(parts[0], parts[1], 0, 12));
++  const end = `${endDate.getUTCFullYear()}-${String(endDate.getUTCMonth() + 1).padStart(2, "0")}-${String(endDate.getUTCDate()).padStart(2, "0")}`;
++  return { start, end };
++}
++
++/**
++ * Personal FiAt streaks count both public and private FiAt reflections.
++ * Privacy only affects public surfaces such as the leaderboard.
++ */
++export function personalFiatDays(posts: readonly ReflectionPost[]): Set<string> {
++  return new Set(
++    posts
++      .filter((post) => Boolean(post.fiatCategory))
++      .map(reflectionFiatDateKey)
++      .filter((key) => /^\d{4}-\d{2}-\d{2}$/.test(key))
++  );
++}
++
++function sortedPersonalFiatDays(
++  posts: readonly ReflectionPost[],
++  today?: string
++): string[] {
++  const keys = [...personalFiatDays(posts)].sort();
++  return today ? keys.filter((key) => key <= today) : keys;
++}
++
++/**
++ * A FiAt streak survives up to two consecutive missed calendar days.
++ * Those missed days are automatic freezes and do not increase the streak count.
++ * The third consecutive missed day breaks the streak.
++ */
++export function findLatestFiatStreakLoss(
++  posts: readonly ReflectionPost[],
++  today = localDateKey()
++): FiatStreakLoss | null {
++  const days = sortedPersonalFiatDays(posts, today);
++  if (!days.length) return null;
++
++  let segmentCount = 1;
++  let previous = days[0];
++  let latestLoss: FiatStreakLoss | null = null;
++
++  for (let index = 1; index < days.length; index += 1) {
++    const current = days[index];
++    const gap = fiatDaysBetween(previous, current);
++
++    if (gap > FIAT_FREEZE_LIMIT + 1) {
++      latestLoss = {
++        lostDate: addFiatDays(previous, FIAT_FREEZE_LIMIT + 1),
++        lastFiatDate: previous,
++        previousStreak: segmentCount
++      };
++      segmentCount = 1;
++    } else {
++      segmentCount += 1;
++    }
++
++    previous = current;
++  }
++
++  const trailingGap = fiatDaysBetween(previous, today);
++  if (trailingGap >= FIAT_FREEZE_LIMIT + 1) {
++    latestLoss = {
++      lostDate: addFiatDays(previous, FIAT_FREEZE_LIMIT + 1),
++      lastFiatDate: previous,
++      previousStreak: segmentCount
++    };
++  }
++
++  return latestLoss;
++}
++
++export function fiatCalendarDayState(
++  posts: readonly ReflectionPost[],
++  dateKey: string,
++  today = localDateKey()
++): FiatCalendarDayState {
++  if (dateKey > today) return "future";
++
++  const days = sortedPersonalFiatDays(posts, today);
++  if (days.includes(dateKey)) return "fiat";
++
++  let previousFiat = "";
++  for (const key of days) {
++    if (key >= dateKey) break;
++    previousFiat = key;
++  }
++
++  if (!previousFiat) return "inactive";
++
++  const missedDays = fiatDaysBetween(previousFiat, dateKey);
++  if (missedDays === 1) return "freeze-1";
++  if (missedDays === 2) return "freeze-2";
++  if (missedDays === 3) return "lost";
++  return "inactive";
++}
++
++export function calculateFiatStats(
++  posts: readonly ReflectionPost[],
++  today = localDateKey()
++): FiatStats {
++  const fiatEntries = posts.filter(
++    (post) => Boolean(post.fiatCategory) && reflectionFiatDateKey(post)
++  );
++  const allDays = personalFiatDays(posts);
++  const days = [...allDays].filter((key) => key <= today).sort();
++
++  let longest = 0;
++  let segmentCount = 0;
++  let previous = "";
++
++  for (const key of days) {
++    const gap = previous ? fiatDaysBetween(previous, key) : Number.NaN;
++    segmentCount = previous && gap <= FIAT_FREEZE_LIMIT + 1
++      ? segmentCount + 1
++      : 1;
++    longest = Math.max(longest, segmentCount);
++    previous = key;
++  }
++
++  let currentStreak = 0;
++  let freezeUsed: 0 | 1 | 2 = 0;
++  let activeToday = false;
++  let frozenToday = false;
++
++  if (days.length) {
++    const last = days.at(-1)!;
++    const trailingGap = fiatDaysBetween(last, today);
++
++    if (trailingGap <= FIAT_FREEZE_LIMIT) {
++      currentStreak = segmentCount;
++      activeToday = trailingGap === 0;
++      frozenToday = trailingGap === 1 || trailingGap === 2;
++      freezeUsed = frozenToday ? (trailingGap as 1 | 2) : 0;
++    }
++  }
++
++  const latestLoss = findLatestFiatStreakLoss(posts, today);
++  const week = fiatPeriodBounds("week", today);
++
++  return {
++    currentStreak,
++    longestStreak: longest,
++    activeToday,
++    frozenToday,
++    freezeUsed,
++    freezeRemaining: FIAT_FREEZE_LIMIT - freezeUsed,
++    streakLostToday: latestLoss?.lostDate === today,
++    streakLostDate: latestLoss?.lostDate ?? null,
++    totalFiatEntries: fiatEntries.length,
++    totalFiatDays: allDays.size,
++    thisWeekEntries: fiatEntries.filter((post) => {
++      const key = reflectionFiatDateKey(post);
++      return key >= week.start && key <= week.end;
++    }).length
++  };
++}
++
++/**
++ * Leaderboards remain public-only: private FiAt reflections never contribute.
++ */
++export function eligibleFiatCount(
++  posts: readonly ReflectionPost[],
++  start: string,
++  end: string
++): number {
++  return posts.filter((post) => {
++    if (post.isPrivate || !post.fiatCategory) return false;
++    const key = reflectionFiatDateKey(post);
++    return key >= start && key <= end;
++  }).length;
++}
+diff --git a/lib/system-notifications.ts b/lib/system-notifications.ts
+index 53a062b..ed0f0ef 100644
+--- a/lib/system-notifications.ts
++++ b/lib/system-notifications.ts
+@@ -1,4 +1,92 @@
+-"use client";import{collection,doc,onSnapshot,query,serverTimestamp,updateDoc,where,type Unsubscribe}from"firebase/firestore";import{getFirebaseServices}from"@/lib/firebase";import type{SystemNotification}from"@/types";
+-const iso=(v:unknown)=>v&&typeof v==="object"&&"toDate" in v&&typeof(v as {toDate?:unknown}).toDate==="function"?(v as {toDate:()=>Date}).toDate().toISOString():typeof v==="string"?v:"";
+-export function subscribeSystemNotifications(userId:string,onData:(items:SystemNotification[])=>void,onError:(message:string)=>void):Unsubscribe{const services=getFirebaseServices();if(!services)return()=>undefined;return onSnapshot(query(collection(services.db,"systemNotifications"),where("userId","==",userId)),snapshot=>onData(snapshot.docs.map(d=>{const x=d.data();const type:SystemNotification["type"]=x.type==="admin_reflection"?"admin_reflection":"profile_reminder";return{id:d.id,userId:String(x.userId),type,title:String(x.title??"Saintagram notification"),message:String(x.message??""),missingFields:Array.isArray(x.missingFields)?x.missingFields.filter((v):v is string=>typeof v==="string"):[],...(typeof x.reflectionId==="string"?{reflectionId:x.reflectionId}:{}),createdByAdminId:String(x.createdByAdminId??""),createdAt:iso(x.createdAt),readAt:x.readAt?iso(x.readAt):null};}).sort((a,b)=>b.createdAt.localeCompare(a.createdAt))),()=>onError("System notifications could not be updated."));}
+-export async function markSystemNotificationRead(id:string){const services=getFirebaseServices();if(!services)throw new Error("Firebase is not configured.");await updateDoc(doc(services.db,"systemNotifications",id),{readAt:serverTimestamp()});}
++"use client";
++
++import {
++  collection,
++  doc,
++  onSnapshot,
++  query,
++  serverTimestamp,
++  updateDoc,
++  where,
++  type Unsubscribe
++} from "firebase/firestore";
++
++import { getFirebaseServices } from "@/lib/firebase";
++import type { SystemNotification } from "@/types";
++
++function iso(value: unknown): string {
++  if (
++    value &&
++    typeof value === "object" &&
++    "toDate" in value &&
++    typeof (value as { toDate?: unknown }).toDate === "function"
++  ) {
++    return (value as { toDate: () => Date }).toDate().toISOString();
++  }
++
++  return typeof value === "string" ? value : "";
++}
++
++function notificationType(value: unknown): SystemNotification["type"] {
++  if (value === "admin_reflection" || value === "fiat_streak_lost") {
++    return value;
++  }
++  return "profile_reminder";
++}
++
++export function subscribeSystemNotifications(
++  userId: string,
++  onData: (items: SystemNotification[]) => void,
++  onError: (message: string) => void
++): Unsubscribe {
++  const services = getFirebaseServices();
++  if (!services) return () => undefined;
++
++  return onSnapshot(
++    query(
++      collection(services.db, "systemNotifications"),
++      where("userId", "==", userId)
++    ),
++    (snapshot) => {
++      onData(
++        snapshot.docs
++          .map((document) => {
++            const data = document.data();
++            return {
++              id: document.id,
++              userId: String(data.userId),
++              type: notificationType(data.type),
++              title: String(data.title ?? "Saintagram notification"),
++              message: String(data.message ?? ""),
++              missingFields: Array.isArray(data.missingFields)
++                ? data.missingFields.filter((value): value is string => typeof value === "string")
++                : [],
++              ...(typeof data.reflectionId === "string"
++                ? { reflectionId: data.reflectionId }
++                : {}),
++              ...(typeof data.fiatLostDate === "string"
++                ? { fiatLostDate: data.fiatLostDate }
++                : {}),
++              ...(typeof data.previousStreak === "number"
++                ? { previousStreak: data.previousStreak }
++                : {}),
++              createdByAdminId: String(data.createdByAdminId ?? ""),
++              createdAt: iso(data.createdAt),
++              readAt: data.readAt ? iso(data.readAt) : null
++            } satisfies SystemNotification;
++          })
++          .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
++      );
++    },
++    () => onError("System notifications could not be updated.")
++  );
++}
++
++export async function markSystemNotificationRead(id: string) {
++  const services = getFirebaseServices();
++  if (!services) throw new Error("Firebase is not configured.");
++
++  await updateDoc(doc(services.db, "systemNotifications", id), {
++    readAt: serverTimestamp()
++  });
++}
+diff --git a/scripts/provision-temporary-accounts.mjs b/scripts/provision-temporary-accounts.mjs
+index 0e9737a..bbd2be5 100644
+--- a/scripts/provision-temporary-accounts.mjs
++++ b/scripts/provision-temporary-accounts.mjs
+@@ -35,6 +35,7 @@ for (const account of accounts) {
+     createdAt: snapshot.exists ? snapshot.get("createdAt") || now : now, updatedAt: now,
+     privacyConsentAt: snapshot.exists ? snapshot.get("privacyConsentAt") ?? null : null,
+     spiritualIntroSeenAt: snapshot.exists ? snapshot.get("spiritualIntroSeenAt") ?? null : null,
++    fiatIntroSeenAt: snapshot.exists ? snapshot.get("fiatIntroSeenAt") ?? null : null,
+     profileCompleted: snapshot.exists ? snapshot.get("profileCompleted") === true : false,
+     mustChangePassword: true,
+     privacyPreferences: snapshot.exists ? snapshot.get("privacyPreferences") || { requirePrivateCheck: true, showReflectionDates: true } : { requirePrivateCheck: true, showReflectionDates: true }
+diff --git a/tests/fiat-streak-interface.test.tsx b/tests/fiat-streak-interface.test.tsx
+index deb7074..5c83733 100644
+--- a/tests/fiat-streak-interface.test.tsx
++++ b/tests/fiat-streak-interface.test.tsx
+@@ -4,11 +4,18 @@ import userEvent from "@testing-library/user-event";
+ import { beforeEach, describe, expect, it, vi } from "vitest";
+ import { localDateKey } from "@/lib/fiat";
+ 
+-const mocks = vi.hoisted(() => ({ getReflections: vi.fn() }));
++const mocks = vi.hoisted(() => ({
++  getReflections: vi.fn(),
++  updateUser: vi.fn()
++}));
+ 
+ vi.mock("@/components/providers/auth-provider", () => ({
+-  useAuth: () => ({ user: { id: "alice" } })
++  useAuth: () => ({
++    user: { id: "alice", fiatIntroSeenAt: null },
++    updateUser: mocks.updateUser
++  })
+ }));
++
+ vi.mock("@/lib/app-service", () => ({
+   appService: { getReflections: mocks.getReflections }
+ }));
+@@ -16,9 +23,13 @@ vi.mock("@/lib/app-service", () => ({
+ import { FiatStreakInterface } from "@/components/fiat/fiat-streak-interface";
+ 
+ describe("FiAt streak interface", () => {
+-  beforeEach(() => mocks.getReflections.mockReset());
++  beforeEach(() => {
++    mocks.getReflections.mockReset();
++    mocks.updateUser.mockReset();
++    mocks.updateUser.mockResolvedValue({ id: "alice", fiatIntroSeenAt: new Date().toISOString() });
++  });
+ 
+-  it("shows the weekly streak UI and Add today's FiAt action", async () => {
++  it("shows the activity screen immediately when the user already has FiAt activity", async () => {
+     const today = localDateKey();
+     mocks.getReflections.mockResolvedValue([
+       {
+@@ -35,31 +46,42 @@ describe("FiAt streak interface", () => {
+ 
+     const user = userEvent.setup();
+     render(<FiatStreakInterface />);
+-    const trigger = await screen.findByRole("button", { name: /FiAt current streak: 1 days/i });
++
++    const trigger = await screen.findByRole("button", {
++      name: /FiAt current streak: 1 days/i
++    });
+     await user.click(trigger);
+ 
+-    expect(screen.getByRole("dialog", { name: "FiAt streak" })).toBeInTheDocument();
++    expect(screen.getByRole("dialog", { name: "FiAt activity" })).toBeInTheDocument();
+     expect(screen.getByRole("heading", { name: "FiAt streak" })).toBeInTheDocument();
+     expect(screen.getByRole("link", { name: "Add today's FiAt" })).toHaveAttribute("href", "/reflect");
+     await waitFor(() => expect(screen.getByLabelText(/FiAt recorded/i)).toBeInTheDocument());
+ 
+-    await user.click(
+-      screen.getByRole("button", {
+-        name: "Close FiAt streak"
+-      })
+-    );
++    await user.click(screen.getByRole("button", { name: "Back to What is FiAt" }));
++    expect(screen.getByRole("heading", { name: /Your daily/i })).toBeInTheDocument();
++  });
+ 
+-    await waitFor(
+-      () => {
+-        expect(
+-          screen.queryByRole("dialog", {
+-            name: "FiAt streak"
+-          })
+-        ).not.toBeInTheDocument();
+-      },
+-      {
+-        timeout: 2000
+-      }
+-    );
++  it("shows onboarding first when the user has never used FiAt", async () => {
++    mocks.getReflections.mockResolvedValue([]);
++
++    const user = userEvent.setup();
++    render(<FiatStreakInterface />);
++
++    const trigger = await screen.findByRole("button", {
++      name: /FiAt current streak: 0 days/i
++    });
++    await user.click(trigger);
++
++    expect(screen.getByRole("heading", { name: /Your daily/i })).toBeInTheDocument();
++    expect(screen.getByText(/1 Fi@/i)).toBeInTheDocument();
++    expect(screen.getByText(/Miss a third consecutive day/i)).toBeInTheDocument();
++
++    await user.click(screen.getByRole("button", { name: "Continue to FiAt" }));
++    await waitFor(() => {
++      expect(mocks.updateUser).toHaveBeenCalledWith({
++        fiatIntroSeenAt: expect.any(String)
++      });
++    });
++    expect(screen.getByRole("heading", { name: "FiAt streak" })).toBeInTheDocument();
+   });
+ });
+diff --git a/tests/fiat.test.ts b/tests/fiat.test.ts
+index fa51767..787d5b1 100644
+--- a/tests/fiat.test.ts
++++ b/tests/fiat.test.ts
+@@ -1,3 +1,155 @@
+-import{describe,expect,it}from"vitest";import{calculateFiatStats,eligibleFiatCount,fiatPeriodBounds,isFiatCategory,localDateKey}from"@/lib/fiat";import type{FiatCategory,ReflectionPost}from"@/types";
+-const post=(date:string,category:FiatCategory="prayer",id=date):ReflectionPost=>({id,userId:"alice",content:"A yes",isPrivate:false,createdAt:`${date}T12:00:00.000Z`,updatedAt:`${date}T12:00:00.000Z`,fiatCategory:category,fiatDateKey:date});
+-describe("FiAt domain",()=>{it("validates only canonical categories",()=>{expect(isFiatCategory("prayer")).toBe(true);expect(isFiatCategory("score")).toBe(false);});it("counts multiple reflections on one date as one streak day",()=>{const s=calculateFiatStats([post("2026-08-11","prayer","1"),post("2026-08-11","service","2")],"2026-08-11");expect(s.currentStreak).toBe(1);expect(s.totalFiatEntries).toBe(2);expect(s.totalFiatDays).toBe(1);});it("excludes private reflections from stats and leaderboard counts",()=>{const publicPost=post("2026-08-11","prayer","public");const privatePost={...post("2026-08-11","service","private"),isPrivate:true};const stats=calculateFiatStats([publicPost,privatePost],"2026-08-11");expect(stats.totalFiatEntries).toBe(1);expect(stats.totalFiatDays).toBe(1);expect(stats.thisWeekEntries).toBe(1);expect(eligibleFiatCount([publicPost,privatePost],"2026-08-11","2026-08-11")).toBe(1);expect(calculateFiatStats([privatePost],"2026-08-11")).toMatchObject({currentStreak:0,activeToday:false,totalFiatEntries:0,totalFiatDays:0,thisWeekEntries:0});});it("builds consecutive streaks and retains yesterday's maintainable chain",()=>{const posts=[post("2026-08-09"),post("2026-08-10"),post("2026-08-11")];expect(calculateFiatStats(posts,"2026-08-11").currentStreak).toBe(3);expect(calculateFiatStats(posts,"2026-08-12").currentStreak).toBe(3);});it("resets after a missed date",()=>expect(calculateFiatStats([post("2026-08-09")],"2026-08-12").currentStreak).toBe(0));it("uses creation date rather than edit time",()=>{const edited={...post("2026-08-01"),updatedAt:"2026-08-12T12:00:00.000Z",editedAt:"2026-08-12T12:00:00.000Z"};expect(calculateFiatStats([edited],"2026-08-12").activeToday).toBe(false);});it("derived statistics respond to deletion",()=>{const entries=[post("2026-08-10"),post("2026-08-11")];expect(calculateFiatStats(entries,"2026-08-11").currentStreak).toBe(2);expect(calculateFiatStats(entries.slice(1),"2026-08-11").currentStreak).toBe(1);});it("counts every leaderboard entry without a daily cap",()=>{const entries=Array.from({length:5},(_,i)=>post("2026-08-11","prayer",String(i)));expect(eligibleFiatCount(entries,"2026-08-11","2026-08-11")).toBe(5);});it("calculates Monday week and calendar month bounds",()=>{expect(fiatPeriodBounds("week","2026-08-12")).toEqual({start:"2026-08-10",end:"2026-08-16"});expect(fiatPeriodBounds("month","2026-08-12")).toEqual({start:"2026-08-01",end:"2026-08-31"});});it("creates stable local keys",()=>expect(localDateKey(new Date(2026,7,11,12))).toBe("2026-08-11"));});
++import { describe, expect, it } from "vitest";
++
++import {
++  calculateFiatStats,
++  eligibleFiatCount,
++  fiatCalendarDayState,
++  fiatPeriodBounds,
++  findLatestFiatStreakLoss,
++  isFiatCategory,
++  localDateKey
++} from "@/lib/fiat";
++import type { FiatCategory, ReflectionPost } from "@/types";
++
++const post = (
++  date: string,
++  category: FiatCategory = "prayer",
++  id = date,
++  isPrivate = false
++): ReflectionPost => ({
++  id,
++  userId: "alice",
++  content: "A yes",
++  isPrivate,
++  createdAt: `${date}T12:00:00.000Z`,
++  updatedAt: `${date}T12:00:00.000Z`,
++  fiatCategory: category,
++  fiatDateKey: date
++});
++
++describe("FiAt domain", () => {
++  it("validates only canonical categories", () => {
++    expect(isFiatCategory("prayer")).toBe(true);
++    expect(isFiatCategory("score")).toBe(false);
++  });
++
++  it("counts multiple reflections on one date as one streak day", () => {
++    const stats = calculateFiatStats([
++      post("2026-08-11", "prayer", "1"),
++      post("2026-08-11", "service", "2")
++    ], "2026-08-11");
++
++    expect(stats.currentStreak).toBe(1);
++    expect(stats.totalFiatEntries).toBe(2);
++    expect(stats.totalFiatDays).toBe(1);
++  });
++
++  it("counts private FiAt for the personal streak but excludes it from leaderboard counts", () => {
++    const privatePost = post("2026-08-11", "service", "private", true);
++    const stats = calculateFiatStats([privatePost], "2026-08-11");
++
++    expect(stats).toMatchObject({
++      currentStreak: 1,
++      activeToday: true,
++      totalFiatEntries: 1,
++      totalFiatDays: 1,
++      thisWeekEntries: 1
++    });
++    expect(eligibleFiatCount([privatePost], "2026-08-11", "2026-08-11")).toBe(0);
++  });
++
++  it("uses Freeze 1 on the first missed day and keeps the streak count unchanged", () => {
++    const stats = calculateFiatStats([post("2026-08-18")], "2026-08-19");
++
++    expect(stats).toMatchObject({
++      currentStreak: 1,
++      frozenToday: true,
++      freezeUsed: 1,
++      freezeRemaining: 1,
++      streakLostToday: false
++    });
++    expect(fiatCalendarDayState([post("2026-08-18")], "2026-08-19", "2026-08-19")).toBe("freeze-1");
++  });
++
++  it("uses Freeze 2 on the second consecutive missed day", () => {
++    const stats = calculateFiatStats([post("2026-08-18")], "2026-08-20");
++
++    expect(stats).toMatchObject({
++      currentStreak: 1,
++      frozenToday: true,
++      freezeUsed: 2,
++      freezeRemaining: 0,
++      streakLostToday: false
++    });
++    expect(fiatCalendarDayState([post("2026-08-18")], "2026-08-20", "2026-08-20")).toBe("freeze-2");
++  });
++
++  it("loses the streak on the third consecutive missed day", () => {
++    const stats = calculateFiatStats([post("2026-08-18")], "2026-08-21");
++
++    expect(stats).toMatchObject({
++      currentStreak: 0,
++      frozenToday: false,
++      freezeUsed: 0,
++      streakLostToday: true,
++      streakLostDate: "2026-08-21"
++    });
++    expect(fiatCalendarDayState([post("2026-08-18")], "2026-08-21", "2026-08-21")).toBe("lost");
++    expect(findLatestFiatStreakLoss([post("2026-08-18")], "2026-08-21")).toEqual({
++      lostDate: "2026-08-21",
++      lastFiatDate: "2026-08-18",
++      previousStreak: 1
++    });
++  });
++
++  it("starts a new streak after a loss", () => {
++    const posts = [post("2026-08-18"), post("2026-08-22")];
++    const stats = calculateFiatStats(posts, "2026-08-22");
++
++    expect(stats.currentStreak).toBe(1);
++    expect(stats.activeToday).toBe(true);
++    expect(stats.streakLostToday).toBe(false);
++    expect(stats.streakLostDate).toBe("2026-08-21");
++  });
++
++  it("resumes the same streak after one or two freeze days", () => {
++    const oneFreeze = [post("2026-08-18"), post("2026-08-20")];
++    const twoFreezes = [post("2026-08-18"), post("2026-08-21")];
++
++    expect(calculateFiatStats(oneFreeze, "2026-08-20").currentStreak).toBe(2);
++    expect(calculateFiatStats(twoFreezes, "2026-08-21").currentStreak).toBe(2);
++  });
++
++  it("uses creation date rather than edit time", () => {
++    const edited = {
++      ...post("2026-08-01"),
++      updatedAt: "2026-08-12T12:00:00.000Z",
++      editedAt: "2026-08-12T12:00:00.000Z"
++    };
++
++    expect(calculateFiatStats([edited], "2026-08-12").activeToday).toBe(false);
++  });
++
++  it("counts every public leaderboard entry without a daily cap", () => {
++    const entries = Array.from({ length: 5 }, (_, index) =>
++      post("2026-08-11", "prayer", String(index))
++    );
++
++    expect(eligibleFiatCount(entries, "2026-08-11", "2026-08-11")).toBe(5);
++  });
++
++  it("calculates Monday week and calendar month bounds", () => {
++    expect(fiatPeriodBounds("week", "2026-08-12")).toEqual({
++      start: "2026-08-10",
++      end: "2026-08-16"
++    });
++    expect(fiatPeriodBounds("month", "2026-08-12")).toEqual({
++      start: "2026-08-01",
++      end: "2026-08-31"
++    });
++  });
++
++  it("creates stable local keys", () => {
++    expect(localDateKey(new Date(2026, 7, 11, 12))).toBe("2026-08-11");
++  });
++});
+diff --git a/types/index.ts b/types/index.ts
+index ce95fcb..00f085c 100644
+--- a/types/index.ts
++++ b/types/index.ts
+@@ -23,6 +23,7 @@ export interface AppUser {
+   updatedAt: string;
+   privacyConsentAt: string | null;
+   spiritualIntroSeenAt?: string | null;
++  fiatIntroSeenAt?: string | null;
+   profileCompleted: boolean;
+   mustChangePassword?: boolean;
+   fullName?: string;
+@@ -87,11 +88,30 @@ export interface FiatStats {
+   currentStreak: number;
+   longestStreak: number;
+   activeToday: boolean;
++  frozenToday: boolean;
++  freezeUsed: 0 | 1 | 2;
++  freezeRemaining: number;
++  streakLostToday: boolean;
++  streakLostDate: string | null;
+   totalFiatEntries: number;
+   totalFiatDays: number;
+   thisWeekEntries: number;
+ }
+ 
++export interface FiatStreakLoss {
++  lostDate: string;
++  lastFiatDate: string;
++  previousStreak: number;
++}
++
++export type FiatCalendarDayState =
++  | "fiat"
++  | "freeze-1"
++  | "freeze-2"
++  | "lost"
++  | "inactive"
++  | "future";
++
+ export type FiatLeaderboardPeriod = "today" | "week" | "month";
+ export interface FiatLeaderboardEntry {
+   rank: number;
+@@ -181,7 +201,7 @@ export type AdminProfileRequirementKey = "bio" | "guides" | "directions" | "refl
+ export interface AdminProfileRequirement { key: AdminProfileRequirementKey; label: string; complete: boolean; }
+ export interface AdminProfileCompletion { completedCount: number; totalCount: 7; percentage: number; status: "Not Started" | "Incomplete" | "Complete"; requirements: AdminProfileRequirement[]; missingFields: string[]; }
+ export interface LinkOpenEvent { visitId: string; id: string; source: "qr" | "common"; campaign: string | null; openedAt: string; lastOpenedAt: string; openCount: number; trackingVersion: number; visitStatus: "logged_in" | "awaiting_login" | "did_not_login"; userId: string | null; claimedAt: string | null; streetAddress: string | null; city: string | null; region: string | null; country: string | null; postalCode: string | null; formattedAddress: string | null; latitude: string | null; longitude: string | null; locationAccuracyMeters: number | null; locationLabel: string; locationSource: "device" | "cloudflare" | "localhost" | "unavailable"; destination: string; userName?: string; userFullName?: string; userDisplayName?: string; username?: string; }
+-export interface SystemNotification { id: string; userId: string; type: "profile_reminder" | "admin_reflection"; title: string; message: string; missingFields: string[]; reflectionId?: string; createdByAdminId: string; createdAt: string; readAt: string | null; }
++export interface SystemNotification { id: string; userId: string; type: "profile_reminder" | "admin_reflection" | "fiat_streak_lost"; title: string; message: string; missingFields: string[]; reflectionId?: string; fiatLostDate?: string; previousStreak?: number; createdByAdminId: string; createdAt: string; readAt: string | null; }
+ export interface AdminAuditLog {
+   id: string;
+   adminId: string;

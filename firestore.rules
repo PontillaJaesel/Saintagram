@@ -111,6 +111,7 @@ service cloud.firestore {
           'updatedAt',
           'privacyConsentAt',
           'spiritualIntroSeenAt',
+          'fiatIntroSeenAt',
           'profileCompleted',
           'mustChangePassword',
           'privacyPreferences'
@@ -144,6 +145,11 @@ service cloud.firestore {
           !('spiritualIntroSeenAt' in data)
           || data.spiritualIntroSeenAt == null
           || isIsoDate(data.spiritualIntroSeenAt)
+        )
+        && (
+          !('fiatIntroSeenAt' in data)
+          || data.fiatIntroSeenAt == null
+          || isIsoDate(data.fiatIntroSeenAt)
         )
         && (
           !('privacyPreferences' in data)

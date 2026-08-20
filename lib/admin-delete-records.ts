@@ -512,6 +512,9 @@ export async function resetOneNonAdminUserData(
     spiritualIntroSeenAt:
       null,
 
+    fiatIntroSeenAt:
+      null,
+
     profileCompleted:
       false,
 

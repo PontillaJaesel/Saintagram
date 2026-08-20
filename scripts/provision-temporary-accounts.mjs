@@ -35,6 +35,7 @@ for (const account of accounts) {
     createdAt: snapshot.exists ? snapshot.get("createdAt") || now : now, updatedAt: now,
     privacyConsentAt: snapshot.exists ? snapshot.get("privacyConsentAt") ?? null : null,
     spiritualIntroSeenAt: snapshot.exists ? snapshot.get("spiritualIntroSeenAt") ?? null : null,
+    fiatIntroSeenAt: snapshot.exists ? snapshot.get("fiatIntroSeenAt") ?? null : null,
     profileCompleted: snapshot.exists ? snapshot.get("profileCompleted") === true : false,
     mustChangePassword: true,
     privacyPreferences: snapshot.exists ? snapshot.get("privacyPreferences") || { requirePrivateCheck: true, showReflectionDates: true } : { requirePrivateCheck: true, showReflectionDates: true }

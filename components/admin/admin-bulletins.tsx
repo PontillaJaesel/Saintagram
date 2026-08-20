@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useEffect, useMemo, useState } from "react";
+import { FormEvent, useEffect, useMemo, useState, useRef } from "react";
 import {
   CalendarDays,
   Clock3,
@@ -121,12 +121,33 @@ function ModernDateTimeField({
   required?: boolean;
   helperText?: string;
 }) {
-  const formattedValue =
-    value
-      ? dateLabel(
-          toIsoOrNull(value)
-        )
-      : "";
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  const formattedValue = value
+    ? dateLabel(toIsoOrNull(value))
+    : "";
+
+  const openPicker = () => {
+    const input = inputRef.current;
+
+    if (!input) return;
+
+    input.focus({
+      preventScroll: true
+    });
+
+    try {
+      if (
+        typeof input.showPicker ===
+        "function"
+      ) {
+        input.showPicker();
+      }
+    } catch {
+      // The browser can still use its
+      // normal datetime-local behavior.
+    }
+  };
 
   return (
     <div>
@@ -146,7 +167,7 @@ function ModernDateTimeField({
       </div>
 
       <div className="group relative mt-2">
-        {/* Visible modern control */}
+        {/* Visible Saintagram-designed control */}
         <div
           className="
             flex h-12 w-full items-center gap-3
@@ -187,25 +208,39 @@ function ModernDateTimeField({
         </div>
 
         {/*
-         * Keep the real native datetime input covering
-         * the custom control.
-         *
-         * This preserves the browser/mobile date picker,
-         * but users see the Saintagram-designed field.
-         */}
+          Real datetime-local input.
+
+          It covers the styled field so the
+          entire control remains clickable.
+
+          showPicker() is called explicitly
+          because some desktop browsers do
+          not reliably open the picker when
+          the native input is transparent.
+        */}
         <input
+          ref={inputRef}
           id={id}
           type="datetime-local"
           required={required}
           value={value}
           onChange={(event) =>
-            onChange(
-              event.target.value
-            )
+            onChange(event.target.value)
           }
+          onClick={() => {
+            openPicker();
+          }}
+          onFocus={() => {
+            /*
+             * Do not automatically open here.
+             * Focus is kept available for
+             * normal keyboard navigation.
+             */
+          }}
           className="
             absolute inset-0 z-10
-            h-full w-full cursor-pointer
+            h-full w-full
+            cursor-pointer
             opacity-0
           "
         />

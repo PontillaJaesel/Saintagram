@@ -353,13 +353,19 @@ export async function loadReminders(db:Firestore=getFirebaseAdminFirestore()):Pr
     .map((row): SystemNotification => ({
       id: str(row.id),
       userId: str(row.userId),
-      type: row.type === "admin_reflection" ? "admin_reflection" : "profile_reminder",
+      type: row.type === "admin_reflection"
+        ? "admin_reflection"
+        : row.type === "fiat_streak_lost"
+          ? "fiat_streak_lost"
+          : "profile_reminder",
       title: str(row.title) || "Saintagram notification",
       message: str(row.message),
       missingFields: Array.isArray(row.missingFields)
         ? row.missingFields.filter((value): value is string => typeof value === "string")
         : [],
       ...(typeof row.reflectionId === "string" ? { reflectionId: row.reflectionId } : {}),
+      ...(typeof row.fiatLostDate === "string" ? { fiatLostDate: row.fiatLostDate } : {}),
+      ...(typeof row.previousStreak === "number" ? { previousStreak: row.previousStreak } : {}),
       createdByAdminId: str(row.createdByAdminId),
       createdAt: str(row.createdAt),
       readAt: typeof row.readAt === "string" ? row.readAt : null

@@ -23,6 +23,7 @@ export interface AppUser {
   updatedAt: string;
   privacyConsentAt: string | null;
   spiritualIntroSeenAt?: string | null;
+  fiatIntroSeenAt?: string | null;
   profileCompleted: boolean;
   mustChangePassword?: boolean;
   fullName?: string;
@@ -87,10 +88,29 @@ export interface FiatStats {
   currentStreak: number;
   longestStreak: number;
   activeToday: boolean;
+  frozenToday: boolean;
+  freezeUsed: 0 | 1 | 2;
+  freezeRemaining: number;
+  streakLostToday: boolean;
+  streakLostDate: string | null;
   totalFiatEntries: number;
   totalFiatDays: number;
   thisWeekEntries: number;
 }
+
+export interface FiatStreakLoss {
+  lostDate: string;
+  lastFiatDate: string;
+  previousStreak: number;
+}
+
+export type FiatCalendarDayState =
+  | "fiat"
+  | "freeze-1"
+  | "freeze-2"
+  | "lost"
+  | "inactive"
+  | "future";
 
 export type FiatLeaderboardPeriod = "today" | "week" | "month";
 export interface FiatLeaderboardEntry {
@@ -181,7 +201,7 @@ export type AdminProfileRequirementKey = "bio" | "guides" | "directions" | "refl
 export interface AdminProfileRequirement { key: AdminProfileRequirementKey; label: string; complete: boolean; }
 export interface AdminProfileCompletion { completedCount: number; totalCount: 7; percentage: number; status: "Not Started" | "Incomplete" | "Complete"; requirements: AdminProfileRequirement[]; missingFields: string[]; }
 export interface LinkOpenEvent { visitId: string; id: string; source: "qr" | "common"; campaign: string | null; openedAt: string; lastOpenedAt: string; openCount: number; trackingVersion: number; visitStatus: "logged_in" | "awaiting_login" | "did_not_login"; userId: string | null; claimedAt: string | null; streetAddress: string | null; city: string | null; region: string | null; country: string | null; postalCode: string | null; formattedAddress: string | null; latitude: string | null; longitude: string | null; locationAccuracyMeters: number | null; locationLabel: string; locationSource: "device" | "cloudflare" | "localhost" | "unavailable"; destination: string; userName?: string; userFullName?: string; userDisplayName?: string; username?: string; }
-export interface SystemNotification { id: string; userId: string; type: "profile_reminder" | "admin_reflection"; title: string; message: string; missingFields: string[]; reflectionId?: string; createdByAdminId: string; createdAt: string; readAt: string | null; }
+export interface SystemNotification { id: string; userId: string; type: "profile_reminder" | "admin_reflection" | "fiat_streak_lost"; title: string; message: string; missingFields: string[]; reflectionId?: string; fiatLostDate?: string; previousStreak?: number; createdByAdminId: string; createdAt: string; readAt: string | null; }
 export interface AdminAuditLog {
   id: string;
   adminId: string;

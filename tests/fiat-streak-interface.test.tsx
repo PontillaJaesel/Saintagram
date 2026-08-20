@@ -4,11 +4,18 @@ import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { localDateKey } from "@/lib/fiat";
 
-const mocks = vi.hoisted(() => ({ getReflections: vi.fn() }));
+const mocks = vi.hoisted(() => ({
+  getReflections: vi.fn(),
+  updateUser: vi.fn()
+}));
 
 vi.mock("@/components/providers/auth-provider", () => ({
-  useAuth: () => ({ user: { id: "alice" } })
+  useAuth: () => ({
+    user: { id: "alice", fiatIntroSeenAt: null },
+    updateUser: mocks.updateUser
+  })
 }));
+
 vi.mock("@/lib/app-service", () => ({
   appService: { getReflections: mocks.getReflections }
 }));
@@ -16,9 +23,13 @@ vi.mock("@/lib/app-service", () => ({
 import { FiatStreakInterface } from "@/components/fiat/fiat-streak-interface";
 
 describe("FiAt streak interface", () => {
-  beforeEach(() => mocks.getReflections.mockReset());
+  beforeEach(() => {
+    mocks.getReflections.mockReset();
+    mocks.updateUser.mockReset();
+    mocks.updateUser.mockResolvedValue({ id: "alice", fiatIntroSeenAt: new Date().toISOString() });
+  });
 
-  it("shows the weekly streak UI and Add today's FiAt action", async () => {
+  it("shows the activity screen immediately when the user already has FiAt activity", async () => {
     const today = localDateKey();
     mocks.getReflections.mockResolvedValue([
       {
@@ -35,31 +46,44 @@ describe("FiAt streak interface", () => {
 
     const user = userEvent.setup();
     render(<FiatStreakInterface />);
-    const trigger = await screen.findByRole("button", { name: /FiAt current streak: 1 days/i });
+
+    const trigger = await screen.findByRole("button", {
+      name: /FiAt current streak: 1 days/i
+    });
     await user.click(trigger);
 
-    expect(screen.getByRole("dialog", { name: "FiAt streak" })).toBeInTheDocument();
+    expect(screen.getByRole("dialog", { name: "FiAt activity" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "FiAt streak" })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Add today's FiAt" })).toHaveAttribute("href", "/reflect");
-    await waitFor(() => expect(screen.getByLabelText(/FiAt recorded/i)).toBeInTheDocument());
-
-    await user.click(
-      screen.getByRole("button", {
-        name: "Close FiAt streak"
-      })
+    await waitFor(() =>
+      expect(screen.getByTitle("FiAt recorded")).toBeInTheDocument()
     );
 
-    await waitFor(
-      () => {
-        expect(
-          screen.queryByRole("dialog", {
-            name: "FiAt streak"
-          })
-        ).not.toBeInTheDocument();
-      },
-      {
-        timeout: 2000
-      }
-    );
+    await user.click(screen.getByRole("button", { name: "Back to What is FiAt" }));
+    expect(screen.getByRole("heading", { name: /Your daily/i })).toBeInTheDocument();
+  });
+
+  it("shows onboarding first when the user has never used FiAt", async () => {
+    mocks.getReflections.mockResolvedValue([]);
+
+    const user = userEvent.setup();
+    render(<FiatStreakInterface />);
+
+    const trigger = await screen.findByRole("button", {
+      name: /FiAt current streak: 0 days/i
+    });
+    await user.click(trigger);
+
+    expect(screen.getByRole("heading", { name: /Your daily/i })).toBeInTheDocument();
+    expect(screen.getByText(/1 Fi@/i)).toBeInTheDocument();
+    expect(screen.getByText(/Miss a third consecutive day/i)).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Continue to FiAt" }));
+    await waitFor(() => {
+      expect(mocks.updateUser).toHaveBeenCalledWith({
+        fiatIntroSeenAt: expect.any(String)
+      });
+    });
+    expect(screen.getByRole("heading", { name: "FiAt streak" })).toBeInTheDocument();
   });
 });

@@ -182,6 +182,11 @@ html {
   50% { transform: scale(1.025); box-shadow: 0 0 20px rgb(var(--gold-400) / 0.32); }
 }
 
+@keyframes fiat-mark-glow {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.06); }
+}
+
 @keyframes popup-panel-enter {
   from {
     opacity: 0;
@@ -722,6 +727,140 @@ body {
     animation: fiat-glow 3.5s ease-in-out 2;
   }
 
+  .fiat-activity-button {
+    @apply inline-flex min-h-11 items-center gap-0.5 rounded-full border border-transparent bg-transparent px-2.5 py-1.5 text-gold-700 transition duration-200 hover:scale-[1.03] hover:bg-gold-50/60 active:scale-95;
+  }
+
+  .fiat-mark-shell {
+    @apply grid size-11 place-items-center rounded-full;
+
+    background: transparent;
+
+    transition:
+      filter 220ms ease,
+      transform 220ms ease;
+  }
+
+  .fiat-mark-shell img {
+    width: 2.75rem;
+    height: 2.75rem;
+    max-width: none;
+    object-fit: contain;
+    background: transparent;
+    user-select: none;
+    pointer-events: none;
+  }
+
+  .fiat-mark-shell img {
+    display: block;
+    object-fit: contain;
+    background: transparent;
+    user-select: none;
+    pointer-events: none;
+  }
+
+  .fiat-streak-count {
+    @apply min-w-5 text-center text-sm font-black tabular-nums;
+  }
+
+  .fiat-activity-button-active .fiat-mark-shell {
+    filter:
+      drop-shadow(0 0 4px rgb(255 60 20 / 0.72))
+      drop-shadow(0 0 9px rgb(255 120 20 / 0.55))
+      drop-shadow(0 0 16px rgb(255 190 36 / 0.32));
+
+    animation: fiat-mark-glow 3.2s ease-in-out infinite;
+  }
+
+  .fiat-activity-button-frozen .fiat-mark-shell {
+    filter:
+      drop-shadow(0 0 5px rgb(14 165 233 / 0.72))
+      drop-shadow(0 0 11px rgb(56 189 248 / 0.48))
+      drop-shadow(0 0 18px rgb(125 211 252 / 0.3));
+  }
+
+  .fiat-hero-logo {
+    background: transparent;
+
+    transition:
+      filter 220ms ease,
+      transform 220ms ease;
+  }
+
+  .fiat-hero-logo img {
+    display: block;
+    object-fit: contain;
+    background: transparent;
+    user-select: none;
+    pointer-events: none;
+  }
+
+  .fiat-hero-logo.is-active {
+    filter:
+      drop-shadow(0 0 6px rgb(255 70 20 / 0.55))
+      drop-shadow(0 0 14px rgb(255 135 20 / 0.38))
+      drop-shadow(0 0 26px rgb(255 190 36 / 0.24));
+
+    animation: fiat-mark-glow 3.2s ease-in-out infinite;
+  }
+
+  .fiat-hero-logo.is-frozen {
+    background: transparent;
+
+    filter:
+      drop-shadow(0 0 7px rgb(14 165 233 / 0.58))
+      drop-shadow(0 0 15px rgb(56 189 248 / 0.4))
+      drop-shadow(0 0 26px rgb(125 211 252 / 0.25));
+  }
+
+  .fiat-intro-logo {
+    background: transparent;
+    box-shadow: none;
+  }
+
+  .fiat-intro-logo img {
+    display: block;
+    object-fit: contain;
+    background: transparent;
+    user-select: none;
+    pointer-events: none;
+  }
+
+  .fiat-rule-number {
+    @apply grid size-6 shrink-0 place-items-center rounded-full bg-[#fff0bd] text-xs font-black text-[#8d6200];
+  }
+
+  .fiat-calendar-day {
+    @apply bg-slate-200 text-slate-500 transition;
+  }
+
+  .fiat-calendar-day.state-fiat {
+    background: #ffad32;
+    color: #3c2c00;
+  }
+
+  .fiat-calendar-day.state-freeze-1,
+  .fiat-calendar-day.state-freeze-2 {
+    background: #dff4ff;
+    color: #0875a5;
+    box-shadow: inset 0 0 0 1px #9bdcff;
+  }
+
+  .fiat-calendar-day.state-lost {
+    background: #fee2e2;
+    color: #b91c1c;
+    box-shadow: inset 0 0 0 1px #fecaca;
+  }
+
+  .fiat-calendar-day.state-future {
+    @apply bg-slate-100 text-slate-300;
+  }
+
+  .fiat-calendar-day.is-today {
+    outline: 2px solid #e5a900;
+    outline-offset: 2px;
+  }
+
   .fiat-streak-surface {
     background-color: #ffffff;
     border-color: #eadc9f;
@@ -907,6 +1046,209 @@ body {
   .dark .fiat-streak-footer {
     background-color: #111827;
     border-color: #8f6c12;
+  }
+
+  :root[data-theme="dark"] .fiat-activity-button,
+  .dark .fiat-activity-button {
+    color: #f6c453;
+  }
+
+  :root[data-theme="dark"] .fiat-activity-button:hover,
+  .dark .fiat-activity-button:hover {
+    background-color: rgb(185 139 22 / 0.12);
+  }
+
+  :root[data-theme="dark"] .fiat-hero-logo,
+  .dark .fiat-hero-logo {
+    background: transparent;
+  }
+
+  :root[data-theme="dark"] .fiat-hero-logo.is-frozen,
+  .dark .fiat-hero-logo.is-frozen {
+    background: transparent;
+  }
+
+  :root[data-theme="dark"] .fiat-intro-logo,
+  .dark .fiat-intro-logo {
+    background: transparent;
+    box-shadow: none;
+  }
+
+  :root[data-theme="dark"] .fiat-intro-callout,
+  :root[data-theme="dark"] .fiat-info-card,
+  .dark .fiat-intro-callout,
+  .dark .fiat-info-card {
+    background-color: #172033;
+    border-color: #475569;
+  }
+
+  /* ==========================================
+   FiAt status card — Dark mode
+   ========================================== */
+
+  :root[data-theme="dark"] .fiat-status-card,
+  .dark .fiat-status-card {
+    background-color: #242115 !important;
+    border-color: #8f6c12 !important;
+    color: #f8fafc !important;
+  }
+
+  /* Card heading */
+  :root[data-theme="dark"] .fiat-status-card strong,
+  .dark .fiat-status-card strong {
+    color: #f8fafc;
+  }
+
+  /* Description */
+  :root[data-theme="dark"] .fiat-status-card p,
+  .dark .fiat-status-card p {
+    color: #d7dee8 !important;
+  }
+
+  /* "0/2 used" badge */
+  :root[data-theme="dark"] .fiat-status-card span.rounded-full,
+  .dark .fiat-status-card span.rounded-full {
+    background-color: rgb(255 255 255 / 0.1) !important;
+    color: #f8fafc !important;
+    border: 1px solid rgb(255 255 255 / 0.08);
+  }
+
+
+  /* ==========================================
+    Freeze state
+    ========================================== */
+
+  :root[data-theme="dark"] .fiat-status-card:has(.text-sky-600),
+  .dark .fiat-status-card:has(.text-sky-600) {
+    background-color: #102b3a !important;
+    border-color: #2475a0 !important;
+  }
+
+  :root[data-theme="dark"] .fiat-status-card:has(.text-sky-600) strong,
+  .dark .fiat-status-card:has(.text-sky-600) strong {
+    color: #bae6fd;
+  }
+
+
+  /* ==========================================
+    Lost streak state
+    ========================================== */
+
+  :root[data-theme="dark"] .fiat-status-card:has(.text-red-600),
+  .dark .fiat-status-card:has(.text-red-600) {
+    background-color: #3a1f24 !important;
+    border-color: #8d343c !important;
+  }
+
+  :root[data-theme="dark"] .fiat-status-card:has(.text-red-600) strong,
+  .dark .fiat-status-card:has(.text-red-600) strong {
+    color: #fecaca;
+  }
+
+  :root[data-theme="dark"] .fiat-streak-surface .text-slate-600,
+  :root[data-theme="dark"] .fiat-streak-surface .text-slate-700,
+  .dark .fiat-streak-surface .text-slate-600,
+  .dark .fiat-streak-surface .text-slate-700 {
+    color: #d7dee8;
+  }
+
+  :root[data-theme="dark"] .fiat-calendar-day.state-fiat,
+  .dark .fiat-calendar-day.state-fiat {
+    background: #d9901f;
+    color: #111827;
+  }
+
+  :root[data-theme="dark"] .fiat-calendar-day.state-freeze-1,
+  :root[data-theme="dark"] .fiat-calendar-day.state-freeze-2,
+  .dark .fiat-calendar-day.state-freeze-1,
+  .dark .fiat-calendar-day.state-freeze-2 {
+    background: #12364a;
+    color: #8bdcff;
+    box-shadow: inset 0 0 0 1px #2475a0;
+  }
+
+  :root[data-theme="dark"] .fiat-calendar-day.state-lost,
+  .dark .fiat-calendar-day.state-lost {
+    background: #4b2024;
+    color: #fca5a5;
+    box-shadow: inset 0 0 0 1px #8d343c;
+  }
+
+  :root[data-theme="dark"] .fiat-calendar-day.state-inactive,
+  :root[data-theme="dark"] .fiat-calendar-day.state-future,
+  .dark .fiat-calendar-day.state-inactive,
+  .dark .fiat-calendar-day.state-future {
+    background: #334155;
+    color: #94a3b8;
+  }
+
+  /* ==========================================
+   FiAt popup inner scrollbar
+   ========================================== */
+
+  .fiat-streak-scroll {
+    height: 100%;
+    max-height: 100%;
+
+    overflow-x: hidden;
+    overflow-y: scroll;
+
+    overscroll-behavior: contain;
+
+    /* Slight inset from the gold popup border */
+    margin-right: 0.35rem;
+
+    scrollbar-width: thin;
+    scrollbar-color: #b98b16 transparent;
+    scrollbar-gutter: stable;
+  }
+
+  /* Chrome / Edge / Safari */
+  .fiat-streak-scroll::-webkit-scrollbar {
+    width: 8px;
+  }
+
+  .fiat-streak-scroll::-webkit-scrollbar-track {
+    margin-top: 0.75rem;
+    margin-bottom: 0.75rem;
+    background: transparent;
+  }
+
+  .fiat-streak-scroll::-webkit-scrollbar-thumb {
+    min-height: 42px;
+
+    border: 2px solid transparent;
+    border-radius: 9999px;
+
+    background-color: #b98b16;
+    background-clip: padding-box;
+  }
+
+  .fiat-streak-scroll::-webkit-scrollbar-thumb:hover {
+    background-color: #d4a91d;
+    background-clip: padding-box;
+  }
+
+
+  /* Desktop popup needs an explicit scroll height */
+  @media (min-width: 1024px) {
+    .fiat-streak-scroll {
+      height: auto;
+      max-height: calc(100dvh - 9rem);
+    }
+  }
+
+
+  /* Dark mode */
+  :root[data-theme="dark"] .fiat-streak-scroll,
+  .dark .fiat-streak-scroll {
+    scrollbar-color: #b98b16 transparent;
+  }
+
+  :root[data-theme="dark"] .fiat-streak-scroll::-webkit-scrollbar-thumb,
+  .dark .fiat-streak-scroll::-webkit-scrollbar-thumb {
+    background-color: #b98b16;
+    background-clip: padding-box;
   }
 
   .theme-toggle {
@@ -1149,4 +1491,145 @@ body {
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
   }
+}
+
+.admin-datetime-field {
+  display: flex;
+  min-height: 3.75rem;
+  width: 100%;
+  align-items: center;
+  gap: 0.75rem;
+
+  padding: 0.5rem 0.75rem;
+
+  border: 1px solid rgb(var(--gold-500) / 0.25);
+  border-radius: 1.15rem;
+
+  background: rgb(var(--paper));
+
+  cursor: pointer;
+
+  transition:
+    border-color 160ms ease,
+    box-shadow 160ms ease,
+    background-color 160ms ease;
+}
+
+.admin-datetime-field:hover {
+  border-color: rgb(var(--gold-500) / 0.55);
+}
+
+.admin-datetime-field:focus-within {
+  border-color: rgb(var(--gold-500) / 0.8);
+
+  box-shadow:
+    0 0 0 3px rgb(var(--gold-500) / 0.12);
+}
+
+.admin-datetime-icon {
+  display: grid;
+  width: 2.5rem;
+  height: 2.5rem;
+  flex-shrink: 0;
+  place-items: center;
+
+  border-radius: 0.8rem;
+
+  background: #fff1f2;
+  color: #b22222;
+}
+
+.admin-datetime-input {
+  min-width: 0;
+  flex: 1;
+
+  border: 0;
+  outline: 0;
+
+  background: transparent;
+
+  color: rgb(var(--ink));
+
+  font: inherit;
+  font-size: 0.95rem;
+  font-weight: 500;
+
+  cursor: pointer;
+}
+
+/*
+ * Hide Chrome's default calendar button because Saintagram
+ * already provides its own button on the right.
+ */
+.admin-datetime-input::-webkit-calendar-picker-indicator {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.admin-datetime-open {
+  display: grid;
+  width: 2.5rem;
+  height: 2.5rem;
+  flex-shrink: 0;
+  place-items: center;
+
+  border: 0;
+  border-radius: 9999px;
+
+  background: transparent;
+  color: rgb(var(--muted));
+
+  cursor: pointer;
+
+  transition:
+    color 160ms ease,
+    background-color 160ms ease;
+}
+
+.admin-datetime-open:hover {
+  background: rgb(var(--gold-500) / 0.1);
+  color: rgb(var(--gold-600));
+}
+
+
+/* Dark mode */
+
+:root[data-theme="dark"] .admin-datetime-field,
+.dark .admin-datetime-field {
+  border-color: rgb(185 139 22 / 0.32);
+  background: #171a21;
+}
+
+:root[data-theme="dark"] .admin-datetime-field:hover,
+.dark .admin-datetime-field:hover {
+  border-color: rgb(239 191 4 / 0.55);
+}
+
+:root[data-theme="dark"] .admin-datetime-icon,
+.dark .admin-datetime-icon {
+  background: #fff1f2;
+  color: #b22222;
+}
+
+:root[data-theme="dark"] .admin-datetime-input,
+.dark .admin-datetime-input {
+  color: #f3f4f6;
+
+  /*
+   * Helps Chrome render its datetime controls correctly
+   * against a dark background.
+   */
+  color-scheme: dark;
+}
+
+:root[data-theme="dark"] .admin-datetime-open,
+.dark .admin-datetime-open {
+  color: #9ca3af;
+}
+
+:root[data-theme="dark"] .admin-datetime-open:hover,
+.dark .admin-datetime-open:hover {
+  background: rgb(239 191 4 / 0.1);
+  color: #f6c453;
 }

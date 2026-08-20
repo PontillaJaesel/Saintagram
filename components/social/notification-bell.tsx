@@ -6,7 +6,7 @@ import {
   useState
 } from "react";
 
-import { Bell, Sparkles } from "lucide-react";
+import { Bell, Snowflake, Sparkles } from "lucide-react";
 import { useRouter } from "next/navigation";
 
 import { useAuth } from "@/components/providers/auth-provider";
@@ -16,6 +16,7 @@ import { usePopupPresence } from "@/components/ui/use-popup-presence";
 import { appService } from "@/lib/app-service";
 import { subscribeFollowRequests } from "@/lib/private-account";
 import { markSystemNotificationRead, subscribeSystemNotifications } from "@/lib/system-notifications";
+import { syncFiatStreakLossNotification } from "@/lib/fiat-streak-sync";
 
 import {
   downloadFirebaseProfileImage,
@@ -269,6 +270,46 @@ export function NotificationBell() {
   }, [user]);
 
   useEffect(() => {
+    if (!user) return;
+
+    let midnightTimer: number | undefined;
+
+    const sync = () => {
+      void syncFiatStreakLossNotification().catch(() => {
+        // The notification list remains usable even if FiAt sync fails.
+      });
+    };
+
+    const scheduleNextMidnightSync = () => {
+      const now = new Date();
+      const next = new Date(now);
+      next.setHours(24, 0, 5, 0);
+
+      midnightTimer = window.setTimeout(() => {
+        sync();
+        scheduleNextMidnightSync();
+      }, Math.max(1_000, next.getTime() - now.getTime()));
+    };
+
+    const syncWhenVisible = () => {
+      if (document.visibilityState === "visible") {
+        sync();
+      }
+    };
+
+    sync();
+    scheduleNextMidnightSync();
+    document.addEventListener("visibilitychange", syncWhenVisible);
+
+    return () => {
+      if (midnightTimer !== undefined) {
+        window.clearTimeout(midnightTimer);
+      }
+      document.removeEventListener("visibilitychange", syncWhenVisible);
+    };
+  }, [user?.id]);
+
+  useEffect(() => {
     if (!user) {
       setFollowRequestCount(0);
       return;
@@ -384,8 +425,24 @@ export function NotificationBell() {
 
   const openSystemNotification = async (notification: SystemNotification) => {
     setOpen(false);
-    try { await markSystemNotificationRead(notification.id); } catch { /* Navigation still proceeds. */ }
-    router.push(notification.type === "admin_reflection" && notification.reflectionId ? `/reflections/${notification.reflectionId}` : user?.profileCompleted ? "/profile/edit" : "/create");
+
+    try {
+      await markSystemNotificationRead(notification.id);
+    } catch {
+      // Navigation still proceeds.
+    }
+
+    if (notification.type === "admin_reflection" && notification.reflectionId) {
+      router.push(`/reflections/${notification.reflectionId}`);
+      return;
+    }
+
+    if (notification.type === "fiat_streak_lost") {
+      router.push("/profile");
+      return;
+    }
+
+    router.push(user?.profileCompleted ? "/profile/edit" : "/create");
   };
 
   const openNotification =
@@ -556,13 +613,40 @@ export function NotificationBell() {
                 onNavigate={() => setOpen(false)}
               />
 
-              {systemNotifications.map((notification) => (
-                <button key={notification.id} type="button" className={`flex w-full items-start gap-3 border-b border-sage-100 px-5 py-4 text-left transition hover:bg-sage-50 ${!notification.readAt ? "bg-sage-50/60" : ""}`} onClick={() => void openSystemNotification(notification)}>
-                  <span className="grid size-10 shrink-0 place-items-center rounded-full bg-sage-100 text-sage-700"><Sparkles className="size-5" aria-hidden="true" /></span>
-                  <span className="min-w-0 flex-1"><strong className="block text-sm">{notification.title}</strong><span className="mt-1 block text-xs leading-5 text-muted">{notification.message}</span><span className="mt-1 block text-xs text-muted">{notificationTime(notification.createdAt)}</span></span>
-                  {!notification.readAt && <span className="mt-2 size-2 shrink-0 rounded-full bg-sage-600" aria-label="Unread" />}
-                </button>
-              ))}
+              {systemNotifications.map((notification) => {
+                const fiatLost = notification.type === "fiat_streak_lost";
+
+                return (
+                  <button
+                    key={notification.id}
+                    type="button"
+                    className={`flex w-full items-start gap-3 border-b border-sage-100 px-5 py-4 text-left transition hover:bg-sage-50 ${!notification.readAt ? "bg-sage-50/60" : ""}`}
+                    onClick={() => void openSystemNotification(notification)}
+                  >
+                    <span
+                      className={`grid size-10 shrink-0 place-items-center rounded-full ${
+                        fiatLost
+                          ? "bg-sky-100 text-sky-700"
+                          : "bg-sage-100 text-sage-700"
+                      }`}
+                    >
+                      {fiatLost ? (
+                        <Snowflake className="size-5" aria-hidden="true" />
+                      ) : (
+                        <Sparkles className="size-5" aria-hidden="true" />
+                      )}
+                    </span>
+                    <span className="min-w-0 flex-1">
+                      <strong className="block text-sm">{notification.title}</strong>
+                      <span className="mt-1 block text-xs leading-5 text-muted">{notification.message}</span>
+                      <span className="mt-1 block text-xs text-muted">{notificationTime(notification.createdAt)}</span>
+                    </span>
+                    {!notification.readAt && (
+                      <span className="mt-2 size-2 shrink-0 rounded-full bg-sage-600" aria-label="Unread" />
+                    )}
+                  </button>
+                );
+              })}
               {notifications.map(
                 (notification) => {
                   const actor =
