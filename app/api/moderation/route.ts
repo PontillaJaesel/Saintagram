@@ -82,12 +82,12 @@ export async function POST(request: Request) {
     const decision = await moderateTextWithProfanityApi(text);
     if (!decision.allowed || decision.blocked) {
       return NextResponse.json(
-        { allowed: false, blocked: true, message: decision.reason },
+        { allowed: false, blocked: true, message: decision.reason, source: decision.source },
         { status: 400 }
       );
     }
 
-    return NextResponse.json({ allowed: true, blocked: false }, { status: 200 });
+    return NextResponse.json({ allowed: true, blocked: false, source: decision.source }, { status: 200 });
   } catch (error) {
     console.error("Moderation failed.", error);
     return NextResponse.json({ allowed: false, blocked: true, message: MODERATION_UNAVAILABLE_ERROR }, { status: 503 });

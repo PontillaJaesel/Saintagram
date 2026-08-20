@@ -33,11 +33,20 @@ import {
   PROFILE_NAME_IDEAS
 } from "@/lib/constants";
 import {
+  LIVE_MODERATION_DEBOUNCE_MS,
   MODERATION_TEXT_ERROR,
-  moderateTextContent
+  localModerationDecision,
+  moderateTextContent,
+  moderateTextForLiveCheck
 } from "@/lib/moderation";
 import { normalizeHashtag } from "@/lib/validation";
 import type { SpiritualProfile } from "@/types";
+
+type ProfileModerationField =
+  | "profileName"
+  | "spiritualBio"
+  | "godsComment"
+  | "heavenlyHashtag";
 
 function EditorSection({
   title,
@@ -105,6 +114,13 @@ export function ProfileEditor() {
   const committedImagePathRef = useRef("");
   const latestImagePathRef = useRef("");
   const initialProfileRef = useRef("");
+  const liveModerationTimersRef = useRef<
+    Partial<Record<ProfileModerationField, ReturnType<typeof setTimeout>>>
+  >({});
+  const liveModerationControllersRef = useRef<
+    Partial<Record<ProfileModerationField, AbortController>>
+  >({});
+  const liveModerationGenerationRef = useRef(0);
 
   useEffect(() => {
     if (!user || !privacyConfirmed) return;
@@ -206,30 +222,78 @@ export function ProfileEditor() {
     setError("");
   };
 
-  const checkLiveTextWarning = async (
-    field: "profileName" | "spiritualBio" | "godsComment" | "heavenlyHashtag",
+  const cancelLiveModeration = (field: ProfileModerationField) => {
+    const timer = liveModerationTimersRef.current[field];
+    if (timer) clearTimeout(timer);
+    delete liveModerationTimersRef.current[field];
+
+    liveModerationControllersRef.current[field]?.abort();
+    delete liveModerationControllersRef.current[field];
+  };
+
+  const checkLiveTextWarning = (
+    field: ProfileModerationField,
     value: string
   ) => {
-    if (!value.trim()) {
-      if (liveWarningField === field) {
-        setLiveWarningField(null);
-        setLiveWarningMessage("");
-      }
+    const generation = ++liveModerationGenerationRef.current;
+    cancelLiveModeration(field);
+
+    const local = localModerationDecision(value);
+    setLiveWarningField(null);
+    setLiveWarningMessage("");
+
+    if (!local.allowed) {
+      setLiveWarningField(field);
+      setLiveWarningMessage(local.reason || MODERATION_TEXT_ERROR);
       return;
     }
 
-    const moderation = await moderateTextContent(value);
-    if (moderation.allowed) {
-      if (liveWarningField === field) {
-        setLiveWarningField(null);
-        setLiveWarningMessage("");
-      }
-      return;
-    }
+    if (!value.trim()) return;
 
-    setLiveWarningField(field);
-    setLiveWarningMessage(moderation.reason || MODERATION_TEXT_ERROR);
+    liveModerationTimersRef.current[field] = setTimeout(() => {
+      const controller = new AbortController();
+      liveModerationControllersRef.current[field] = controller;
+
+      void moderateTextForLiveCheck(value, { signal: controller.signal })
+        .then((moderation) => {
+          if (
+            controller.signal.aborted ||
+            liveModerationGenerationRef.current !== generation
+          ) {
+            return;
+          }
+
+          if (!moderation.allowed) {
+            setLiveWarningField(field);
+            setLiveWarningMessage(moderation.reason || MODERATION_TEXT_ERROR);
+          }
+        })
+        .catch((moderationError) => {
+          if (
+            !(moderationError instanceof Error) ||
+            moderationError.name !== "AbortError"
+          ) {
+            console.warn("Live profanity check failed.", moderationError);
+          }
+        })
+        .finally(() => {
+          if (liveModerationControllersRef.current[field] === controller) {
+            delete liveModerationControllersRef.current[field];
+          }
+        });
+    }, LIVE_MODERATION_DEBOUNCE_MS);
   };
+
+  useEffect(() => {
+    return () => {
+      Object.values(liveModerationTimersRef.current).forEach((timer) => {
+        if (timer) clearTimeout(timer);
+      });
+      Object.values(liveModerationControllersRef.current).forEach((controller) =>
+        controller?.abort()
+      );
+    };
+  }, []);
 
   const submit = async (event: FormEvent) => {
     event.preventDefault();
@@ -770,7 +834,7 @@ export function ProfileEditor() {
           <ArrowLeft className="size-4" aria-hidden="true" />
           Cancel
         </Link>
-        <button type="submit" className="btn-primary" disabled={saving}>
+        <button type="submit" className="btn-primary" disabled={saving || Boolean(liveWarningMessage)}>
           {saving ? (
             <LoaderCircle className="size-4 animate-spin" aria-hidden="true" />
           ) : (

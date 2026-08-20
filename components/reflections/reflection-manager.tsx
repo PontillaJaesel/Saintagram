@@ -24,8 +24,16 @@ import { FiatCategorySelector } from "@/components/fiat/fiat-category-selector";
 import { appService } from "@/lib/app-service";
 import { LIMITS } from "@/lib/constants";
 import { deleteReflectionMedia, reflectionMediaId, uploadReflectionMedia, validateReflectionMedia } from "@/lib/reflection-media";
-import { MODERATION_TEXT_ERROR, moderateTextContent } from "@/lib/moderation";
+import {
+  LIVE_MODERATION_DEBOUNCE_MS,
+  MODERATION_TEXT_ERROR,
+  localModerationDecision,
+  moderateTextContent,
+  moderateTextForLiveCheck
+} from "@/lib/moderation";
 import type { FiatCategory, ReflectionPost } from "@/types";
+
+type ReflectionModerationField = "title" | "content" | "fiatOther";
 
 export function ReflectionManager() {
   const { user } = useAuth();
@@ -60,32 +68,94 @@ export function ReflectionManager() {
   const [pendingHref, setPendingHref] = useState<string | null>(null);
 
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const liveModerationTimersRef = useRef<
+    Partial<Record<ReflectionModerationField, ReturnType<typeof setTimeout>>>
+  >({});
+  const liveModerationControllersRef = useRef<
+    Partial<Record<ReflectionModerationField, AbortController>>
+  >({});
+  const liveModerationGenerationRef = useRef(0);
 
+  const cancelLiveModeration = (field: ReflectionModerationField) => {
+    const timer = liveModerationTimersRef.current[field];
+    if (timer) clearTimeout(timer);
+    delete liveModerationTimersRef.current[field];
 
-  const checkLiveTextWarning = async (
-    field: "title" | "content" | "fiatOther",
+    liveModerationControllersRef.current[field]?.abort();
+    delete liveModerationControllersRef.current[field];
+  };
+
+  const cancelAllLiveModeration = () => {
+    (["title", "content", "fiatOther"] as ReflectionModerationField[]).forEach(
+      cancelLiveModeration
+    );
+  };
+
+  const checkLiveTextWarning = (
+    field: ReflectionModerationField,
     value: string
   ) => {
-    if (!value.trim()) {
-      if (liveWarningField === field) {
-        setLiveWarningField(null);
-        setLiveWarningMessage("");
-      }
+    const generation = ++liveModerationGenerationRef.current;
+    cancelLiveModeration(field);
+
+    const local = localModerationDecision(value);
+    setLiveWarningField(null);
+    setLiveWarningMessage("");
+
+    if (!local.allowed) {
+      setLiveWarningField(field);
+      setLiveWarningMessage(local.reason || MODERATION_TEXT_ERROR);
       return;
     }
 
-    const moderation = await moderateTextContent(value);
-    if (moderation.allowed) {
-      if (liveWarningField === field) {
-        setLiveWarningField(null);
-        setLiveWarningMessage("");
-      }
-      return;
-    }
+    // Private reflections stay local-only so journal text is not sent to the
+    // third-party profanity service while the user is typing.
+    if (!value.trim() || isPrivate) return;
 
-    setLiveWarningField(field);
-    setLiveWarningMessage(moderation.reason || MODERATION_TEXT_ERROR);
+    liveModerationTimersRef.current[field] = setTimeout(() => {
+      const controller = new AbortController();
+      liveModerationControllersRef.current[field] = controller;
+
+      void moderateTextForLiveCheck(value, { signal: controller.signal })
+        .then((moderation) => {
+          if (
+            controller.signal.aborted ||
+            liveModerationGenerationRef.current !== generation
+          ) {
+            return;
+          }
+
+          if (!moderation.allowed) {
+            setLiveWarningField(field);
+            setLiveWarningMessage(moderation.reason || MODERATION_TEXT_ERROR);
+          }
+        })
+        .catch((moderationError) => {
+          if (
+            !(moderationError instanceof Error) ||
+            moderationError.name !== "AbortError"
+          ) {
+            console.warn("Live profanity check failed.", moderationError);
+          }
+        })
+        .finally(() => {
+          if (liveModerationControllersRef.current[field] === controller) {
+            delete liveModerationControllersRef.current[field];
+          }
+        });
+    }, LIVE_MODERATION_DEBOUNCE_MS);
   };
+
+  useEffect(() => {
+    return () => {
+      Object.values(liveModerationTimersRef.current).forEach((timer) => {
+        if (timer) clearTimeout(timer);
+      });
+      Object.values(liveModerationControllersRef.current).forEach((controller) =>
+        controller?.abort()
+      );
+    };
+  }, []);
 
   const resetComposer = () => {
     setContent("");
@@ -537,7 +607,11 @@ export function ReflectionManager() {
               type="checkbox"
               className="mt-1 size-5 accent-sage-700"
               checked={isPrivate}
-              onChange={(event) => setIsPrivate(event.target.checked)}
+              onChange={(event) => {
+                const nextPrivate = event.target.checked;
+                setIsPrivate(nextPrivate);
+                if (nextPrivate) cancelAllLiveModeration();
+              }}
             />
             <span>
               <span className="flex items-center gap-2 text-sm font-bold text-ink">
@@ -560,7 +634,7 @@ export function ReflectionManager() {
           <button
             type="submit"
             className="btn-primary mt-5 w-full"
-            disabled={saving}
+            disabled={saving || Boolean(liveWarningMessage)}
           >
             <CheckCircle2 className="size-4" aria-hidden="true" />
             {saving

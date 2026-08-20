@@ -5,6 +5,7 @@ import {
   ReactNode,
   useEffect,
   useMemo,
+  useRef,
   useState
 } from "react";
 
@@ -24,8 +25,11 @@ import { useToast } from "@/components/providers/toast-provider";
 import { appService } from "@/lib/app-service";
 import { fiatCategoryLabel } from "@/lib/fiat";
 import {
+  LIVE_MODERATION_DEBOUNCE_MS,
   MODERATION_TEXT_ERROR,
-  moderateTextContent
+  localModerationDecision,
+  moderateTextContent,
+  moderateTextForLiveCheck
 } from "@/lib/moderation";
 
 import {
@@ -339,6 +343,73 @@ export function SocialReflectionCard({
 
   const [error, setError] =
     useState("");
+  const [commentWarning, setCommentWarning] = useState("");
+  const [replyWarning, setReplyWarning] = useState("");
+  const liveModerationTimersRef = useRef<
+    Partial<Record<"comment" | "reply", ReturnType<typeof setTimeout>>>
+  >({});
+  const liveModerationControllersRef = useRef<
+    Partial<Record<"comment" | "reply", AbortController>>
+  >({});
+  const liveModerationGenerationRef = useRef(0);
+
+  const checkLiveSocialText = (
+    field: "comment" | "reply",
+    value: string
+  ) => {
+    const generation = ++liveModerationGenerationRef.current;
+    const timer = liveModerationTimersRef.current[field];
+    if (timer) clearTimeout(timer);
+    delete liveModerationTimersRef.current[field];
+    liveModerationControllersRef.current[field]?.abort();
+    delete liveModerationControllersRef.current[field];
+
+    const setWarning = field === "comment" ? setCommentWarning : setReplyWarning;
+    const local = localModerationDecision(value);
+    setWarning(local.allowed ? "" : local.reason || MODERATION_TEXT_ERROR);
+
+    if (!local.allowed || !value.trim()) return;
+
+    liveModerationTimersRef.current[field] = setTimeout(() => {
+      const controller = new AbortController();
+      liveModerationControllersRef.current[field] = controller;
+
+      void moderateTextForLiveCheck(value, { signal: controller.signal })
+        .then((moderation) => {
+          if (
+            controller.signal.aborted ||
+            liveModerationGenerationRef.current !== generation
+          ) {
+            return;
+          }
+          setWarning(moderation.allowed ? "" : moderation.reason || MODERATION_TEXT_ERROR);
+        })
+        .catch((moderationError) => {
+          if (
+            !(moderationError instanceof Error) ||
+            moderationError.name !== "AbortError"
+          ) {
+            console.warn("Live profanity check failed.", moderationError);
+          }
+        })
+        .finally(() => {
+          if (liveModerationControllersRef.current[field] === controller) {
+            delete liveModerationControllersRef.current[field];
+          }
+        });
+    }, LIVE_MODERATION_DEBOUNCE_MS);
+  };
+
+  useEffect(() => {
+    return () => {
+      Object.values(liveModerationTimersRef.current).forEach((timer) => {
+        if (timer) clearTimeout(timer);
+      });
+      Object.values(liveModerationControllersRef.current).forEach((controller) =>
+        controller?.abort()
+      );
+    };
+  }, []);
 
   const isOwnPost =
     Boolean(
@@ -681,6 +752,7 @@ export function SocialReflectionCard({
           );
 
         setCommentContent("");
+        setCommentWarning("");
         setCommentsOpen(true);
 
         notify(
@@ -743,6 +815,7 @@ export function SocialReflectionCard({
                 );
 
             setReplyContent("");
+            setReplyWarning("");
             setReplyTarget(null);
 
             notify(
@@ -925,13 +998,11 @@ export function SocialReflectionCard({
                 value={
                   replyContent
                 }
-                onChange={(
-                  event
-                ) =>
-                  setReplyContent(
-                    event.target.value
-                  )
-                }
+                onChange={(event) => {
+                  const nextValue = event.target.value;
+                  setReplyContent(nextValue);
+                  checkLiveSocialText("reply", nextValue);
+                }}
                 maxLength={500}
                 rows={2}
                 className="min-w-0 flex-1 resize-none rounded-2xl border border-sage-200 bg-paper px-4 py-3 text-sm leading-6 text-ink outline-none transition placeholder:text-muted focus:border-sage-500 focus:ring-2 focus:ring-sage-100"
@@ -952,6 +1023,7 @@ export function SocialReflectionCard({
                 className="grid size-11 shrink-0 place-items-center rounded-full bg-sage-700 text-white transition hover:bg-sage-800 disabled:cursor-not-allowed disabled:opacity-50"
                 disabled={
                   replyBusy ||
+                  Boolean(replyWarning) ||
                   !replyContent.trim()
                 }
                 aria-label="Post reply"
@@ -1352,13 +1424,11 @@ export function SocialReflectionCard({
                               value={
                                 replyContent
                               }
-                              onChange={(
-                                event
-                              ) =>
-                                setReplyContent(
-                                  event.target.value
-                                )
-                              }
+                              onChange={(event) => {
+                                const nextValue = event.target.value;
+                                setReplyContent(nextValue);
+                                checkLiveSocialText("reply", nextValue);
+                              }}
                               maxLength={500}
                               rows={2}
                               className="min-w-0 flex-1 resize-none rounded-2xl border border-sage-200 bg-paper px-4 py-3 text-sm leading-6 text-ink outline-none transition placeholder:text-muted focus:border-sage-500 focus:ring-2 focus:ring-sage-100"
@@ -1373,6 +1443,7 @@ export function SocialReflectionCard({
                               className="grid size-11 shrink-0 place-items-center rounded-full bg-sage-700 text-white transition hover:bg-sage-800 disabled:opacity-50"
                               disabled={
                                 replyBusy ||
+                                Boolean(replyWarning) ||
                                 !replyContent.trim()
                               }
                               aria-label="Post reply"
@@ -1494,14 +1565,11 @@ export function SocialReflectionCard({
                   value={
                     commentContent
                   }
-                  onChange={(
-                    event
-                  ) =>
-                    setCommentContent(
-                      event.target
-                        .value
-                    )
-                  }
+                  onChange={(event) => {
+                    const nextValue = event.target.value;
+                    setCommentContent(nextValue);
+                    checkLiveSocialText("comment", nextValue);
+                  }}
                   maxLength={500}
                   rows={2}
                   className="w-full resize-none rounded-2xl border border-sage-200 bg-paper px-4 py-3 text-sm leading-6 text-ink outline-none transition placeholder:text-muted focus:border-sage-500 focus:ring-2 focus:ring-sage-100"
@@ -1525,6 +1593,7 @@ export function SocialReflectionCard({
                 className="grid size-11 shrink-0 place-items-center rounded-full bg-sage-700 text-white transition hover:bg-sage-800 disabled:cursor-not-allowed disabled:opacity-50"
                 disabled={
                   commentBusy ||
+                  Boolean(commentWarning) ||
                   !commentContent.trim()
                 }
                 aria-label="Post comment"
@@ -1559,6 +1628,16 @@ export function SocialReflectionCard({
               </p>
             )}
         </section>
+      )}
+
+      {(commentWarning || replyWarning) && (
+        <div
+          className="border-t border-clay-100 bg-clay-50 px-5 py-3 text-sm font-semibold text-clay-600 sm:px-6"
+          role="alert"
+          aria-live="polite"
+        >
+          {replyWarning || commentWarning}
+        </div>
       )}
 
       {error && (

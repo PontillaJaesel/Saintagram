@@ -1,6 +1,8 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
+  localModerationDecision,
   moderateTextContent,
+  moderateTextForLiveCheck,
   moderateTextForSubmission,
   normalizeModerationText,
   validateModerationImageFile
@@ -38,6 +40,66 @@ describe("moderation policy", () => {
       allowed: false,
       blocked: true
     });
+  });
+
+  it("blocks expanded Filipino profanity and spaced/leet variants locally", () => {
+    expect(localModerationDecision("pakingshet naman")).toMatchObject({
+      allowed: false,
+      blocked: true
+    });
+    expect(localModerationDecision("g @ g o")).toMatchObject({
+      allowed: false,
+      blocked: true
+    });
+    expect(localModerationDecision("p u t a n g i n a")).toMatchObject({
+      allowed: false,
+      blocked: true
+    });
+  });
+
+  it("does not block context-sensitive Filipino words used normally", () => {
+    expect(localModerationDecision("Si Hudas ay binanggit sa pagbasa.")).toMatchObject({
+      allowed: true,
+      blocked: false
+    });
+    expect(localModerationDecision("Ang boto ko ay mahalaga.")).toMatchObject({
+      allowed: true,
+      blocked: false
+    });
+    expect(localModerationDecision("Sumakay kami ng habal-habal.")).toMatchObject({
+      allowed: true,
+      blocked: false
+    });
+  });
+
+  it("uses the moderation API for a live check after local text passes", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          allowed: false,
+          blocked: true,
+          message: "Please remove inappropriate or vulgar language before submitting.",
+          source: "profanity-api"
+        }),
+        {
+          status: 400,
+          headers: { "Content-Type": "application/json" }
+        }
+      )
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(moderateTextForLiveCheck("remote-only blocked phrase")).resolves.toMatchObject({
+      allowed: false,
+      blocked: true,
+      source: "profanity-api"
+    });
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/api/moderation",
+      expect.objectContaining({ method: "POST" })
+    );
   });
 
   it("uses the server moderation route for final submissions", async () => {

@@ -8,6 +8,7 @@ export const MODERATION_IMAGE_ERROR =
   "This image cannot be uploaded because it violates our community guidelines.";
 export const MODERATION_UNAVAILABLE_ERROR =
   "Moderation is temporarily unavailable. Please try again.";
+export const LIVE_MODERATION_DEBOUNCE_MS = 500;
 
 export interface ModerationDecision {
   allowed: boolean;
@@ -80,8 +81,62 @@ export function validateModerationImageFile(file: File): string | null {
 }
 
 export async function moderateTextContent(value: string): Promise<ModerationDecision> {
-  // Local-only by design: this function is also used for live warnings while typing.
+  // Local-only by design. Private content can safely use this function without
+  // sending journal/profile text to a third-party service.
   return localModerationDecision(value);
+}
+
+export async function moderateTextForLiveCheck(
+  value: string,
+  options: { signal?: AbortSignal } = {}
+): Promise<ModerationDecision> {
+  const local = localModerationDecision(value);
+  if (!local.allowed || !value.trim()) return local;
+
+  try {
+    const response = await fetch("/api/moderation", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ kind: "text", text: value, purpose: "live" }),
+      signal: options.signal
+    });
+
+    const payload = (await response.json().catch(() => ({}))) as {
+      allowed?: boolean;
+      blocked?: boolean;
+      message?: string;
+      source?: ModerationDecision["source"];
+    };
+
+    // Live warnings are best-effort. A temporary server/API outage must not
+    // freeze the editor; the mandatory final submission check remains in place.
+    if (!response.ok && response.status >= 500) return local;
+
+    if (payload.allowed === false || payload.blocked) {
+      return {
+        allowed: false,
+        blocked: true,
+        reason: payload.message || MODERATION_TEXT_ERROR,
+        matchedTerms: [],
+        source: payload.source ?? "profanity-api"
+      };
+    }
+
+    if (!response.ok) return local;
+
+    return {
+      allowed: true,
+      blocked: false,
+      reason: "",
+      matchedTerms: [],
+      source: payload.source ?? "profanity-api"
+    };
+  } catch (error) {
+    if (error instanceof Error && error.name === "AbortError") {
+      throw error;
+    }
+    return local;
+  }
 }
 
 export async function moderateTextForSubmission(value: string): Promise<ModerationDecision> {
