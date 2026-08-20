@@ -6,7 +6,7 @@ import {
   useState
 } from "react";
 
-import { Bell, Snowflake, Sparkles } from "lucide-react";
+import { Bell, ShieldCheck, Snowflake, Sparkles } from "lucide-react";
 import { useRouter } from "next/navigation";
 
 import { useAuth } from "@/components/providers/auth-provider";
@@ -442,6 +442,14 @@ export function NotificationBell() {
       return;
     }
 
+    if (
+      notification.type === "admin_access_granted" ||
+      notification.type === "admin_access_revoked"
+    ) {
+      router.push("/settings#admin-access");
+      return;
+    }
+
     router.push(user?.profileCompleted ? "/profile/edit" : "/create");
   };
 
@@ -615,6 +623,9 @@ export function NotificationBell() {
 
               {systemNotifications.map((notification) => {
                 const fiatLost = notification.type === "fiat_streak_lost";
+                const adminAccess =
+                  notification.type === "admin_access_granted" ||
+                  notification.type === "admin_access_revoked";
 
                 return (
                   <button
@@ -632,6 +643,8 @@ export function NotificationBell() {
                     >
                       {fiatLost ? (
                         <Snowflake className="size-5" aria-hidden="true" />
+                      ) : adminAccess ? (
+                        <ShieldCheck className="size-5" aria-hidden="true" />
                       ) : (
                         <Sparkles className="size-5" aria-hidden="true" />
                       )}
