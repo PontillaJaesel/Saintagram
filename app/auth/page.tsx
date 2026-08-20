@@ -40,6 +40,11 @@ function AuthForm() {
   const [errorField, setErrorField] = useState<AuthErrorField>(null);
   const [message, setMessage] = useState("");
   const [submitting, setSubmitting] = useState(false);
+
+  const [failedLoginAttempts, setFailedLoginAttempts] = useState(0);
+  const [requestingReset, setRequestingReset] = useState(false);
+  const [resetRequestSent, setResetRequestSent] = useState(false);
+
   const usernameRef = useRef<HTMLInputElement>(null);
   const passwordRef = useRef<HTMLInputElement>(null);
 
@@ -65,37 +70,150 @@ function AuthForm() {
 
   const submit = async (event: FormEvent) => {
     event.preventDefault();
+
     if (submitting) return;
+
     setError("");
     setErrorField(null);
     setMessage("");
 
     if (!username.trim()) {
-        setError("Enter your username.");
-        setErrorField("username");
-        window.requestAnimationFrame(() => usernameRef.current?.focus());
-        return;
+      setError("Enter your username.");
+      setErrorField("username");
+
+      window.requestAnimationFrame(() =>
+        usernameRef.current?.focus()
+      );
+
+      return;
     }
+
     if (!password.trim()) {
-        setError("Enter your password.");
-        setErrorField("password");
-        window.requestAnimationFrame(() => passwordRef.current?.focus());
-        return;
+      setError("Enter your password.");
+      setErrorField("password");
+
+      window.requestAnimationFrame(() =>
+        passwordRef.current?.focus()
+      );
+
+      return;
     }
 
     setSubmitting(true);
+
     try {
-      const nextUser = await auth.login(username.trim(), password);
+      const nextUser = await auth.login(
+        username.trim(),
+        password
+      );
+
+      // Successful login clears the failed-attempt state.
+      setFailedLoginAttempts(0);
+      setResetRequestSent(false);
+
       navigateAfterLogin(nextUser);
     } catch (submitError) {
-      setError(
+      const errorCode =
+        typeof submitError === "object" &&
+        submitError &&
+        "code" in submitError
+          ? String(
+              (submitError as { code?: unknown }).code
+            )
+          : "";
+
+      const errorMessage =
         submitError instanceof Error
           ? submitError.message
-          : "Something went wrong. Please try again."
-      );
+          : "Something went wrong. Please try again.";
+
+      /*
+      * appService may return either the original
+      * Firebase error code or its friendly message,
+      * so support both.
+      */
+      const credentialFailure =
+        [
+          "auth/invalid-credential",
+          "auth/invalid-login-credentials",
+          "auth/wrong-password",
+          "auth/user-not-found"
+        ].includes(errorCode) ||
+        errorMessage ===
+          "That username and password do not match. Please try again." ||
+        errorMessage ===
+          "We could not find an account with that username.";
+
+      if (credentialFailure) {
+        setFailedLoginAttempts((current) =>
+          Math.min(current + 1, 3)
+        );
+      }
+
+      setError(errorMessage);
       setErrorField("credentials");
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  const requestPasswordReset = async () => {
+    if (
+      requestingReset ||
+      resetRequestSent ||
+      !username.trim()
+    ) {
+      return;
+    }
+
+    setRequestingReset(true);
+    setError("");
+    setMessage("");
+
+    try {
+      const response = await fetch(
+        "/api/password-reset-requests",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({
+            username: username.trim()
+          })
+        }
+      );
+
+      const result = (await response
+        .json()
+        .catch(() => ({}))) as {
+        requested?: boolean;
+        message?: string;
+        error?: string;
+      };
+
+      if (!response.ok) {
+        throw new Error(
+          result.error ??
+            "The password reset request could not be sent."
+        );
+      }
+
+      setResetRequestSent(true);
+
+      setMessage(
+        "Your password reset request has been sent to the administrator."
+      );
+    } catch (requestError) {
+      setError(
+        requestError instanceof Error
+          ? requestError.message
+          : "The password reset request could not be sent."
+      );
+
+      setErrorField("credentials");
+    } finally {
+      setRequestingReset(false);
     }
   };
 
@@ -148,7 +266,16 @@ function AuthForm() {
                 value={username}
                 onChange={(event) => {
                   setUsername(event.target.value);
-                  if (errorField === "username" || errorField === "credentials") {
+
+                  // A different username starts a new attempt count.
+                  setFailedLoginAttempts(0);
+                  setResetRequestSent(false);
+                  setMessage("");
+
+                  if (
+                    errorField === "username" ||
+                    errorField === "credentials"
+                  ) {
                     setError("");
                     setErrorField(null);
                   }
@@ -244,10 +371,52 @@ function AuthForm() {
               {submitting ? "Please wait…" : "Log in"}
               {!submitting && <ArrowRight className="size-4" aria-hidden="true" />}
             </button>
+            {failedLoginAttempts >= 3 && (
+              <div className="rounded-[var(--radius-base)] border border-gold-200 bg-gold-50/70 px-4 py-4">
+                {resetRequestSent ? (
+                  <div className="text-center">
+                    <p className="text-sm font-bold text-ink">
+                      Reset request sent
+                    </p>
+
+                    <p className="mt-1 text-xs leading-5 text-muted">
+                      Your password reset request has been sent
+                      to the administrator for review.
+                    </p>
+                  </div>
+                ) : (
+                  <>
+                    <div className="text-center">
+                      <p className="text-sm font-bold text-ink">
+                        Forgot your password?
+                      </p>
+
+                      <p className="mt-1 text-xs leading-5 text-muted">
+                        You have entered an incorrect password
+                        three times. You can request a password
+                        reset from the administrator.
+                      </p>
+                    </div>
+
+                    <button
+                      type="button"
+                      className="btn-secondary mt-3 w-full"
+                      disabled={requestingReset}
+                      onClick={() => void requestPasswordReset()}
+                    >
+                      {requestingReset
+                        ? "Sending request…"
+                        : "Request password reset"}
+                    </button>
+                  </>
+                )}
+              </div>
+            )}
           </form>
 
           <p className="mt-7 text-center text-sm text-muted">
-            Need help signing in? Contact support for access.
+            Need help signing in? After three failed attempts,
+            you can request a password reset.
           </p>
         </div>
       </section>
