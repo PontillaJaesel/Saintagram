@@ -1,11 +1,16 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   moderateTextContent,
+  moderateTextForSubmission,
   normalizeModerationText,
   validateModerationImageFile
 } from "@/lib/moderation";
 
 describe("moderation policy", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
   it("allows benign text", async () => {
     await expect(moderateTextContent("I am grateful for this quiet moment.")).resolves.toMatchObject({
       allowed: true,
@@ -32,6 +37,44 @@ describe("moderation policy", () => {
     await expect(moderateTextContent("F-u-c-k!!! y0u")).resolves.toMatchObject({
       allowed: false,
       blocked: true
+    });
+  });
+
+  it("uses the server moderation route for final submissions", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          allowed: false,
+          blocked: true,
+          message: "Please remove inappropriate or vulgar language before submitting."
+        }),
+        {
+          status: 400,
+          headers: { "Content-Type": "application/json" }
+        }
+      )
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(moderateTextForSubmission("remote-only blocked phrase")).resolves.toMatchObject({
+      allowed: false,
+      blocked: true
+    });
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/api/moderation",
+      expect.objectContaining({ method: "POST" })
+    );
+  });
+
+  it("falls back to the local decision when the moderation route is unavailable", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new TypeError("network unavailable")));
+
+    await expect(moderateTextForSubmission("A peaceful reflection.")).resolves.toMatchObject({
+      allowed: true,
+      blocked: false,
+      source: "local"
     });
   });
 

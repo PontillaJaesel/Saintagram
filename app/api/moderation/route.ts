@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getFirebaseAdminAuth } from "@/lib/firebase-admin";
 import { MODERATION_POLICY_ERROR, MODERATION_UNAVAILABLE_ERROR, MODERATION_IMAGE_ERROR } from "@/lib/moderation";
+import { moderateTextWithProfanityApi } from "@/lib/profanity-api";
 
 export const runtime = "nodejs";
 
@@ -78,33 +79,12 @@ export async function POST(request: Request) {
       return NextResponse.json({ allowed: true, blocked: false }, { status: 200 });
     }
 
-    if (!OPENAI_API_KEY) {
-      const normalized = text.toLowerCase();
-      const banned = ["fuck", "shit", "puta", "tangina", "gago", "bitch", "stupid", "idiot"];
-      const match = banned.some((term) => normalized.includes(term));
-      if (match) {
-        return NextResponse.json({ allowed: false, blocked: true, message: "Please remove inappropriate or vulgar language before submitting." }, { status: 400 });
-      }
-      return NextResponse.json({ allowed: true, blocked: false }, { status: 200 });
-    }
-
-    const response = await fetch("https://api.openai.com/v1/moderations", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${OPENAI_API_KEY}`,
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({ input: text })
-    });
-
-    if (!response.ok) {
-      return NextResponse.json({ allowed: false, blocked: true, message: MODERATION_UNAVAILABLE_ERROR }, { status: 503 });
-    }
-
-    const payload = await response.json();
-    const flagged = Boolean(payload?.results?.[0]?.flagged);
-    if (flagged) {
-      return NextResponse.json({ allowed: false, blocked: true, message: MODERATION_POLICY_ERROR }, { status: 400 });
+    const decision = await moderateTextWithProfanityApi(text);
+    if (!decision.allowed || decision.blocked) {
+      return NextResponse.json(
+        { allowed: false, blocked: true, message: decision.reason },
+        { status: 400 }
+      );
     }
 
     return NextResponse.json({ allowed: true, blocked: false }, { status: 200 });

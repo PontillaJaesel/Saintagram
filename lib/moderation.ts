@@ -14,7 +14,7 @@ export interface ModerationDecision {
   blocked: boolean;
   reason: string;
   matchedTerms: string[];
-  source: "local" | "openai" | "none";
+  source: "local" | "profanity-api" | "openai" | "none";
 }
 
 export function normalizeModerationText(value: string): string {
@@ -80,15 +80,49 @@ export function validateModerationImageFile(file: File): string | null {
 }
 
 export async function moderateTextContent(value: string): Promise<ModerationDecision> {
+  // Local-only by design: this function is also used for live warnings while typing.
   return localModerationDecision(value);
 }
 
+export async function moderateTextForSubmission(value: string): Promise<ModerationDecision> {
+  const local = localModerationDecision(value);
+  if (!local.allowed || !value.trim()) return local;
+
+  try {
+    await moderateWithServerRoute(value, "text");
+    return local;
+  } catch (error) {
+    const reason =
+      error instanceof Error && error.message
+        ? error.message
+        : MODERATION_POLICY_ERROR;
+
+    // A route/network outage should not break an existing save flow. The server
+    // route also falls back to the local filter when the external API is down.
+    if (reason === MODERATION_UNAVAILABLE_ERROR) return local;
+
+    return {
+      allowed: false,
+      blocked: true,
+      reason,
+      matchedTerms: [],
+      source: "none"
+    };
+  }
+}
+
 export async function moderateWithServerRoute(value: string, kind: "text" | "image" = "text", extra?: Record<string, unknown>): Promise<void> {
-  const response = await fetch("/api/moderation", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ kind, text: value, ...extra })
-  });
+  let response: Response;
+
+  try {
+    response = await fetch("/api/moderation", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ kind, text: value, ...extra })
+    });
+  } catch {
+    throw new Error(MODERATION_UNAVAILABLE_ERROR);
+  }
 
   const payload = await response.json().catch(() => ({
     allowed: false,

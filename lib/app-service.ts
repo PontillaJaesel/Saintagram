@@ -54,7 +54,11 @@ import {
   normalizeList,
   registrationEmailError
 } from "@/lib/validation";
-import { MODERATION_TEXT_ERROR, moderateTextContent } from "@/lib/moderation";
+import {
+  MODERATION_TEXT_ERROR,
+  moderateTextContent,
+  moderateTextForSubmission
+} from "@/lib/moderation";
 import {
   syncAdminReflectionNotifications
 } from "@/lib/system-notification-bootstrap";
@@ -1953,7 +1957,7 @@ export const appService = {
       );
     }
 
-    const moderation = await moderateTextContent(content);
+    const moderation = await moderateTextForSubmission(content);
     if (!moderation.allowed) {
       throw new Error(moderation.reason || MODERATION_TEXT_ERROR);
     }
@@ -2089,7 +2093,7 @@ export const appService = {
       );
     }
 
-    const moderation = await moderateTextContent(content);
+    const moderation = await moderateTextForSubmission(content);
     if (!moderation.allowed) {
       throw new Error(moderation.reason || MODERATION_TEXT_ERROR);
     }
@@ -3701,9 +3705,15 @@ export const appService = {
   ): Promise<SpiritualProfile> {
     const data = normalizeDraft(rawData);
     if (!data.profileName) throw new Error("Please add a profile name.");
-    const moderation = await moderateTextContent(`${data.profileName}\n${data.spiritualBio}\n${data.godsComment}\n${data.heavenlyHashtag}\n${data.hiddenStory}`);
-    if (!moderation.allowed) {
-      throw new Error(moderation.reason || MODERATION_TEXT_ERROR);
+    const publicModeration = await moderateTextForSubmission(
+      `${data.profileName}\n${data.spiritualBio}\n${data.godsComment}\n${data.heavenlyHashtag}`
+    );
+    if (!publicModeration.allowed) {
+      throw new Error(publicModeration.reason || MODERATION_TEXT_ERROR);
+    }
+    const privateModeration = await moderateTextContent(data.hiddenStory);
+    if (!privateModeration.allowed) {
+      throw new Error(privateModeration.reason || MODERATION_TEXT_ERROR);
     }
     const now = nowIso();
 
@@ -3858,9 +3868,15 @@ export const appService = {
     userId: string,
     profile: SpiritualProfile
   ): Promise<SpiritualProfile> {
-    const moderation = await moderateTextContent(`${profile.profileName}\n${profile.spiritualBio}\n${profile.godsComment}\n${profile.heavenlyHashtag}\n${profile.hiddenStory}`);
-    if (!moderation.allowed) {
-      throw new Error(moderation.reason || MODERATION_TEXT_ERROR);
+    const publicModeration = await moderateTextForSubmission(
+      `${profile.profileName}\n${profile.spiritualBio}\n${profile.godsComment}\n${profile.heavenlyHashtag}`
+    );
+    if (!publicModeration.allowed) {
+      throw new Error(publicModeration.reason || MODERATION_TEXT_ERROR);
+    }
+    const privateModeration = await moderateTextContent(profile.hiddenStory);
+    if (!privateModeration.allowed) {
+      throw new Error(privateModeration.reason || MODERATION_TEXT_ERROR);
     }
     const now = nowIso();
 
@@ -4703,7 +4719,10 @@ export const appService = {
     const content = cleanText(input.content, LIMITS.post);
     const title = cleanText(input.title ?? "", LIMITS.momentTitle);
     if (!content) throw new Error("Write a short moment before saving.");
-    const moderation = await moderateTextContent(`${title}\n${content}\n${String(input.fiatOther ?? "")}`);
+    const moderationText = `${title}\n${content}\n${String(input.fiatOther ?? "")}`;
+    const moderation = input.isPrivate
+      ? await moderateTextContent(moderationText)
+      : await moderateTextForSubmission(moderationText);
     if (!moderation.allowed) {
       throw new Error(moderation.reason || MODERATION_TEXT_ERROR);
     }
