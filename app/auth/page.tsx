@@ -4,11 +4,9 @@ import {
   FormEvent,
   Suspense,
   useEffect,
-  useMemo,
   useRef,
   useState
 } from "react";
-import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
   ArrowLeft,
@@ -47,16 +45,6 @@ function AuthForm() {
 
   const usernameRef = useRef<HTMLInputElement>(null);
   const passwordRef = useRef<HTMLInputElement>(null);
-
-  const copy = useMemo(
-    () => ({
-      eyebrow: "Welcome back",
-      title: "Return to your reflection.",
-      description:
-        "Use the one-time credentials below, then choose a permanent password before continuing."
-    }),
-    []
-  );
 
   const navigateAfterLogin = (nextUser: Awaited<ReturnType<typeof auth.login>>) => {
     const destination = resolvePostAuthRoute(nextUser);
@@ -220,39 +208,34 @@ function AuthForm() {
   const formOnRight = true;
 
   return (
-    <main className="auth-screen-enter relative min-h-screen overflow-hidden lg:grid lg:place-items-center lg:bg-canvas lg:p-4">
-      <div className="relative min-h-screen w-full overflow-hidden lg:h-[calc(100vh-2rem)] lg:min-h-0 lg:rounded-[2rem] lg:border lg:border-sage-100 lg:bg-paper lg:shadow-lift">
+    <main className="auth-screen-enter relative min-h-screen overflow-x-hidden lg:grid lg:place-items-center lg:overflow-hidden lg:bg-canvas lg:p-4">
+      <div className="relative min-h-screen w-full overflow-x-hidden lg:h-[calc(100vh-2rem)] lg:min-h-0 lg:overflow-hidden lg:rounded-[2rem] lg:border lg:border-sage-100 lg:bg-paper lg:shadow-lift">
       <section
-        className={`flex min-h-screen flex-col px-5 py-5 transition-transform duration-700 ease-[cubic-bezier(.22,1,.36,1)] sm:px-10 lg:absolute lg:inset-y-0 lg:left-0 lg:min-h-0 lg:w-1/2 lg:overflow-y-auto lg:px-14 lg:py-8 ${
+        className={`flex min-h-screen flex-col px-7 py-5 transition-transform duration-700 ease-[cubic-bezier(.22,1,.36,1)] sm:px-10 lg:absolute lg:inset-y-0 lg:left-0 lg:min-h-0 lg:w-1/2 lg:overflow-y-auto lg:px-14 lg:py-8 ${
           formOnRight ? "lg:translate-x-full" : "lg:translate-x-0"
         }`}
       >
         <div className="flex items-start justify-between">
           <div className="flex flex-col items-start gap-5">
             <Logo />
-            <Link
-              href="/"
-              className="grid size-11 shrink-0 place-items-center rounded-full border border-sage-200 bg-paper text-sage-700 shadow-sm transition hover:border-sage-300 hover:bg-sage-50"
+            <button
+              type="button"
+              onClick={() => window.location.assign("/")}
+              className="relative z-10 grid size-11 shrink-0 place-items-center rounded-full border border-sage-200 bg-paper text-sage-700 shadow-sm transition hover:border-sage-300 hover:bg-sage-50"
               aria-label="Back to welcome"
               title="Back to welcome"
             >
               <ArrowLeft className="size-5" aria-hidden="true" />
-            </Link>
+            </button>
           </div>
           <ThemeToggle />
         </div>
-        <div className="mx-auto flex w-full max-w-md flex-1 flex-col justify-center py-10">
-          <p className="eyebrow">{copy.eyebrow}</p>
-          <h1 className="mt-3 font-serif text-4xl font-bold tracking-tight sm:text-5xl">
-            {copy.title}
+        <div className="mx-auto flex w-full max-w-md flex-1 -translate-y-8 flex-col justify-center py-8 sm:-translate-y-8 sm:py-10 lg:-translate-y-4">
+          <h1 className="font-serif text-5xl font-bold leading-none tracking-tight sm:text-6xl">
+            Log in
           </h1>
-          {copy.description && (
-            <p className="mt-4 text-base leading-7 text-muted">
-              {copy.description}
-            </p>
-          )}
 
-          <form className="mt-8 space-y-5" onSubmit={submit} noValidate>
+          <form className="mt-7 space-y-5" onSubmit={submit} noValidate>
             <div>
               <label htmlFor="username" className="label">
                 Username
@@ -293,7 +276,7 @@ function AuthForm() {
             <div>
               <div className="flex items-center justify-between">
                 <label htmlFor="password" className="label">
-                  Temporary password
+                  Password
                 </label>
               </div>
               <div className="relative">
@@ -336,9 +319,27 @@ function AuthForm() {
                   )}
                 </button>
               </div>
-              <p id="password-help" className="mt-2 text-xs text-muted">
-                Your one-time temporary password is required to sign in.
-              </p>
+              <div
+                id="password-help"
+                className="mt-3 rounded-[var(--radius-base)] border border-gold-200 bg-gold-50/60 px-4 py-3 text-xs leading-5 text-muted sm:px-5 sm:py-4"
+              >
+                <p className="text-sm font-bold text-ink">Password Guide</p>
+                <p className="mt-1.5">
+                  New to Saintagram? This guide is for new users getting started with the web application.
+                </p>
+                <p className="mt-2 font-semibold text-ink">
+                  On your first login, complete and save your profile first. Then create a new password for future logins.
+                </p>
+                <ol className="mt-2 list-decimal space-y-1 pl-4">
+                  <li>Open <span className="font-semibold text-ink">Settings → Password</span>.</li>
+                  <li>Enter your current or default password.</li>
+                  <li>Enter and confirm your new password.</li>
+                  <li>Click <span className="font-semibold text-ink">Change Password</span> to save.</li>
+                </ol>
+                <p className="mt-2 border-t border-gold-200 pt-2 font-semibold text-ink">
+                  Remember or securely save your new password. You will use it for your next login.
+                </p>
+              </div>
             </div>
             {error && (
               <div
