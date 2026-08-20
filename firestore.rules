@@ -105,6 +105,7 @@ service cloud.firestore {
           'username',
           'fullName',
           'role',
+          'adminAccessGranted',
           'isGuest',
           'authProvider',
           'createdAt',
@@ -130,6 +131,7 @@ service cloud.firestore {
         && (!('username' in data) || data.username.size() <= 80)
         && (!('fullName' in data) || isShortString(data.fullName, 120))
         && (!('role' in data) || data.role in ['user', 'tester', 'app_admin'])
+        && (!('adminAccessGranted' in data) || data.adminAccessGranted is bool)
         && (!('isGuest' in data) || data.isGuest is bool)
         && (!('authProvider' in data) || data.authProvider == 'password')
         && isIsoDate(data.createdAt)
@@ -974,6 +976,7 @@ service cloud.firestore {
           == false
         && request.resource.data.get('authProvider', 'password')
           == authProviderName()
+        && request.resource.data.get('adminAccessGranted', false) == false
         && hasValidUserShape(request.resource.data);
 
       allow update: if isCurrentUser(userId)
@@ -1002,7 +1005,9 @@ service cloud.firestore {
         && request.resource.data.get('fullName', '')
           == resource.data.get('fullName', '')
         && request.resource.data.get('role', 'user')
-          == resource.data.get('role', 'user');
+          == resource.data.get('role', 'user')
+        && request.resource.data.get('adminAccessGranted', false)
+          == resource.data.get('adminAccessGranted', false);
 
       allow delete: if isCurrentUser(userId);
     }

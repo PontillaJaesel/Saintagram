@@ -64,6 +64,7 @@ export async function loadAdminUsers(
         displayName,
         username,
         accountRole,
+        adminAccessGranted: data.adminAccessGranted === true,
         authProvider: str(data.authProvider) || "password",
         createdAt: str(jsonValue(data.createdAt)),
         profileCompleted: data.profileCompleted === true,
@@ -357,7 +358,11 @@ export async function loadReminders(db:Firestore=getFirebaseAdminFirestore()):Pr
         ? "admin_reflection"
         : row.type === "fiat_streak_lost"
           ? "fiat_streak_lost"
-          : "profile_reminder",
+          : row.type === "admin_access_granted"
+            ? "admin_access_granted"
+            : row.type === "admin_access_revoked"
+              ? "admin_access_revoked"
+              : "profile_reminder",
       title: str(row.title) || "Saintagram notification",
       message: str(row.message),
       missingFields: Array.isArray(row.missingFields)
@@ -396,4 +401,4 @@ export async function loadOverview(): Promise<AdminDashboardOverview> {
   };
 }
 export async function loadUserData(userId:string, auditAdminId?:string):Promise<AdminUserData>{const db=getFirebaseAdminFirestore();const [user,profile,privateProfile,draft,...sets]=await Promise.all([db.collection("users").doc(userId).get(),db.collection("profiles").doc(userId).get(),db.collection("privateProfiles").doc(userId).get(),db.collection("drafts").doc(userId).get(),...ADMIN_COLLECTIONS.slice(4).map(name=>db.collection(name).get())]);if(!user.exists)throw new Error("USER_NOT_FOUND");const collections:Record<string,Record<string,unknown>[]>= {}; ADMIN_COLLECTIONS.slice(4).forEach((name,index)=>{collections[name]=records(sets[index]).filter(row=>Object.values(row).includes(userId));});if(auditAdminId)await writeAudit(auditAdminId,"user_data_viewed",userId,{});return{user:jsonValue({id:user.id,...user.data()}) as Record<string,unknown>,profile:profile.exists?jsonValue(profile.data()) as Record<string,unknown>:null,privateProfile:privateProfile.exists?jsonValue(privateProfile.data()) as Record<string,unknown>:null,draft:draft.exists?jsonValue(draft.data()) as Record<string,unknown>:null,collections};}
-export async function writeAudit(adminId:string,action:"profile_reminder_sent"|"notification_resent"|"user_data_viewed"|"export_generated"|"admin_reflection_published"|"admin_reflection_updated"|"admin_reflection_deleted",targetUserId:string|null,metadata:Record<string,unknown>){const ref=getFirebaseAdminFirestore().collection("adminAuditLogs").doc();await ref.set({id:ref.id,adminId,action,targetUserId,createdAt:FieldValue.serverTimestamp(),metadata});return ref.id;}
+export async function writeAudit(adminId:string,action:"profile_reminder_sent"|"notification_resent"|"user_data_viewed"|"export_generated"|"admin_reflection_published"|"admin_reflection_updated"|"admin_reflection_deleted"|"admin_access_granted"|"admin_access_revoked",targetUserId:string|null,metadata:Record<string,unknown>){const ref=getFirebaseAdminFirestore().collection("adminAuditLogs").doc();await ref.set({id:ref.id,adminId,action,targetUserId,createdAt:FieldValue.serverTimestamp(),metadata});return ref.id;}

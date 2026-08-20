@@ -228,6 +228,45 @@ describe("Saintagram Firestore ownership rules", () => {
     await assertFails(deleteDoc(doc(aliceDb, "users", ALICE_ID)));
   });
 
+  it("keeps the shared admin entitlement server-controlled", async () => {
+    const freshOwnerDb = testEnv.authenticatedContext(ALICE_ID, {
+      email: aliceUser.email,
+      ...VERIFIED_EMAIL
+    }).firestore();
+    await assertFails(
+      setDoc(doc(freshOwnerDb, "users", ALICE_ID), {
+        ...aliceUser,
+        adminAccessGranted: true
+      })
+    );
+
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      await setDoc(doc(context.firestore(), "users", ALICE_ID), {
+        ...aliceUser,
+        adminAccessGranted: true
+      });
+    });
+
+    const aliceDb = testEnv.authenticatedContext(ALICE_ID, {
+      email: aliceUser.email,
+      ...VERIFIED_EMAIL
+    }).firestore();
+    const aliceRef = doc(aliceDb, "users", ALICE_ID);
+
+    await assertSucceeds(
+      updateDoc(aliceRef, {
+        profileCompleted: true,
+        updatedAt: NOW
+      })
+    );
+    await assertFails(
+      updateDoc(aliceRef, {
+        adminAccessGranted: false,
+        updatedAt: NOW
+      })
+    );
+  });
+
   it("allows server-provisioned username and password-change metadata", async () => {
     const aliceDb = testEnv
       .authenticatedContext(ALICE_ID, {

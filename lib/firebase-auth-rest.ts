@@ -18,6 +18,7 @@ type IdentityToolkitError = {
 type IdentityUser = {
   localId: string;
   email?: string;
+  emailVerified?: boolean;
   displayName?: string;
   customAttributes?: string;
   disabled?: boolean;
@@ -27,6 +28,7 @@ export type FirebaseAuthRestUser = {
   uid: string;
   email: string | null;
   displayName: string | null;
+  emailVerified: boolean;
   disabled: boolean;
   customClaims: Record<
     string,
@@ -156,6 +158,8 @@ export async function getFirebaseAuthUser(
     email: user.email ?? null,
     displayName:
       user.displayName ?? null,
+    emailVerified:
+      user.emailVerified === true,
     disabled:
       user.disabled === true,
     customClaims:
@@ -230,6 +234,7 @@ export async function getFirebaseAuthUserFromIdToken(
     uid: user.localId,
     email: user.email ?? null,
     displayName: user.displayName ?? null,
+    emailVerified: user.emailVerified === true,
     disabled: user.disabled === true,
     customClaims: parseCustomClaims(user.customAttributes)
   };
@@ -281,6 +286,31 @@ export async function deleteFirebaseAuthUser(
     )}/accounts:delete`,
     {
       localId: userId
+    }
+  );
+}
+
+export async function setFirebaseAuthCustomClaims(
+  userId: string,
+  customClaims: Record<string, unknown>
+): Promise<void> {
+  const serialized = JSON.stringify(customClaims);
+
+  if (new TextEncoder().encode(serialized).byteLength > 1000) {
+    throw new Error(
+      "Firebase custom claims exceed the 1000-byte limit."
+    );
+  }
+
+  const project = projectId();
+
+  await identityRequest(
+    `projects/${encodeURIComponent(
+      project
+    )}/accounts:update`,
+    {
+      localId: userId,
+      customAttributes: serialized
     }
   );
 }

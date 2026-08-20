@@ -819,6 +819,11 @@ export function UserDetail({
     setDeleteConfirmation
   ] = useState("");
 
+  const [
+    adminAccessAction,
+    setAdminAccessAction
+  ] = useState<"grant" | "revoke" | null>(null);
+
   const { notify } = useToast();
 
   if (!data) {
@@ -869,6 +874,44 @@ export function UserDetail({
       .finally(() =>
         setBusy(false)
       );
+  };
+
+  /* ----------------------------------------------------------
+     GRANT / REVOKE SHARED ADMIN ACCESS
+     ---------------------------------------------------------- */
+
+  const updateAdminAccess = async () => {
+    if (!adminAccessAction || busy) return;
+
+    const granted = adminAccessAction === "grant";
+    setBusy(true);
+
+    try {
+      await adminFetch(
+        `/api/admin/users/${encodeURIComponent(id)}/admin-access`,
+        {
+          method: "POST",
+          body: JSON.stringify({ granted })
+        }
+      );
+
+      notify(
+        granted
+          ? "Administrator access granted. The user was notified in Saintagram."
+          : "Shared administrator access revoked."
+      );
+      setAdminAccessAction(null);
+      load();
+    } catch (accessError) {
+      notify(
+        accessError instanceof Error
+          ? accessError.message
+          : "Administrator access could not be updated.",
+        "error"
+      );
+    } finally {
+      setBusy(false);
+    }
   };
 
   /* ----------------------------------------------------------
@@ -1108,6 +1151,52 @@ export function UserDetail({
           )}
         </section>
 
+        {/* SHARED ADMIN ACCESS */}
+
+        <section className="surface p-5 xl:col-span-2">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+            <div>
+              <p className="eyebrow">Administrator access</p>
+              <h2 className="mt-2 font-serif text-xl font-bold">
+                Shared Admin Dashboard Access
+              </h2>
+              <p className="mt-2 max-w-3xl text-sm leading-6 text-muted">
+                Grant this user permission to open the separate Saintagram Admin
+                Dashboard from their Settings page. The handoff does not expose
+                their password, and their admin login is limited to the admin
+                tab/browser session.
+              </p>
+            </div>
+
+            <span
+              className={`inline-flex shrink-0 rounded-full border px-3 py-1.5 text-xs font-bold ${
+                data.summary.adminAccessGranted
+                  ? "border-sage-200 bg-sage-50 text-sage-700"
+                  : "border-sage-100 bg-paper text-muted"
+              }`}
+            >
+              {data.summary.adminAccessGranted ? "Access granted" : "Not granted"}
+            </span>
+          </div>
+
+          <div className="mt-5">
+            <button
+              type="button"
+              className={data.summary.adminAccessGranted ? "btn-secondary" : "btn-primary"}
+              disabled={busy}
+              onClick={() =>
+                setAdminAccessAction(
+                  data.summary.adminAccessGranted ? "revoke" : "grant"
+                )
+              }
+            >
+              {data.summary.adminAccessGranted
+                ? "Revoke Admin Access"
+                : "Grant Admin Access"}
+            </button>
+          </div>
+        </section>
+
         {/* DATA SUMMARY */}
 
         <section className="surface p-5 xl:col-span-2">
@@ -1253,6 +1342,35 @@ export function UserDetail({
           </div>
         </section>
       </div>
+
+      {/* ====================================================
+          SHARED ADMIN ACCESS CONFIRMATION
+          ==================================================== */}
+
+      <ConfirmDialog
+        open={adminAccessAction !== null}
+        title={
+          adminAccessAction === "revoke"
+            ? "Revoke shared admin access?"
+            : "Grant shared admin access?"
+        }
+        description={
+          adminAccessAction === "revoke"
+            ? `Remove the Settings shortcut and shared administrator entitlement from ${data.summary.name}? Any shared-admin API access will stop immediately.`
+            : `${data.summary.name} will receive an in-app notification and a new Settings button that opens the Saintagram Admin Dashboard without another password prompt.`
+        }
+        confirmLabel={
+          adminAccessAction === "revoke"
+            ? "Revoke Admin Access"
+            : "Grant Admin Access"
+        }
+        destructive={adminAccessAction === "revoke"}
+        busy={busy}
+        onClose={() => {
+          if (!busy) setAdminAccessAction(null);
+        }}
+        onConfirm={() => void updateAdminAccess()}
+      />
 
       {/* ====================================================
           PROFILE REMINDER CONFIRMATION

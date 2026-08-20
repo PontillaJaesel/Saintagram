@@ -23,6 +23,8 @@ import { useAuth } from "@/components/providers/auth-provider";
 import { useToast } from "@/components/providers/toast-provider";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { appService } from "@/lib/app-service";
+import { adminFetch } from "@/lib/admin-api";
+import { getFirebaseServices } from "@/lib/firebase";
 import { createPersonalDataPdf } from "@/lib/personal-data-pdf";
 import { resolvePostAuthRoute } from "@/lib/routes";
 import {
@@ -88,6 +90,8 @@ export function SettingsPanel() {
   const [exporting, setExporting] = useState(false);
   const [logoutOpen, setLogoutOpen] = useState(false);
   const [loggingOut, setLoggingOut] = useState(false);
+  const [openingAdmin, setOpeningAdmin] = useState(false);
+  const refreshedAdminAccessForUser = useRef("");
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -126,6 +130,17 @@ export function SettingsPanel() {
     | "requirePrivateCheck"
     | null
   >(null);
+
+  useEffect(() => {
+    const userId = user?.id ?? "";
+    if (!userId || refreshedAdminAccessForUser.current === userId) return;
+
+    refreshedAdminAccessForUser.current = userId;
+    void refreshUser().catch(() => {
+      // The rest of Settings remains usable if this refresh is temporarily
+      // unavailable. The admin button is still protected by the server claim.
+    });
+  }, [user?.id, refreshUser]);
 
   useEffect(() => {
     if (
@@ -334,6 +349,60 @@ export function SettingsPanel() {
     }
   };
 
+  const openAdminDashboard = async () => {
+    if (openingAdmin) return;
+
+    setOpeningAdmin(true);
+    try {
+      const refreshed = await refreshUser();
+      if (!refreshed?.adminAccessGranted) {
+        throw new Error("Your shared administrator access is not active.");
+      }
+
+      const services = getFirebaseServices();
+      if (!services) {
+        throw new Error("Firebase is not configured for this deployment.");
+      }
+
+      await services.persistenceReady;
+      const firebaseUser = services.auth.currentUser;
+      if (!firebaseUser || firebaseUser.uid !== refreshed.id) {
+        throw new Error("Please sign in again before opening the Admin Dashboard.");
+      }
+
+      // Force a new ID token so a newly granted custom admin claim is available
+      // immediately without making the user sign out of the normal app first.
+      const idToken = await firebaseUser.getIdToken(true);
+      const { code } = await adminFetch<{ code: string }>(
+        "/api/admin/handoff",
+        { method: "POST" },
+        idToken
+      );
+
+      const configuredUrl =
+        process.env.NEXT_PUBLIC_ADMIN_APP_URL?.trim() ?? "";
+      const localHost =
+        window.location.hostname === "localhost" ||
+        window.location.hostname === "127.0.0.1";
+      const destination = configuredUrl ||
+        (localHost
+          ? `${window.location.origin}/admin`
+          : "https://saintagram-admin.axjp.workers.dev/admin");
+      const adminUrl = new URL(destination, window.location.origin);
+      adminUrl.hash = new URLSearchParams({ handoff: code }).toString();
+
+      window.location.assign(adminUrl.toString());
+    } catch (adminError) {
+      notify(
+        adminError instanceof Error
+          ? adminError.message
+          : "The Admin Dashboard could not be opened.",
+        "error"
+      );
+      setOpeningAdmin(false);
+    }
+  };
+
   return (
     <div className="mx-auto max-w-3xl space-y-5">
       <SettingsSection
@@ -422,6 +491,34 @@ export function SettingsPanel() {
           </div>
         </dl>
       </SettingsSection>
+
+      {user.adminAccessGranted === true && (
+        <SettingsSection
+          id="admin-access"
+          title="Admin Dashboard"
+          description="Your account has been granted shared Saintagram administrator access."
+          icon={ShieldCheck}
+        >
+          <p className="text-sm leading-6 text-muted">
+            Open the administrator site without entering your password again.
+            The administrator session is limited to that tab or browser window
+            and is cleared when it is closed.
+          </p>
+          <button
+            type="button"
+            className="btn-primary mt-4"
+            disabled={openingAdmin}
+            onClick={() => void openAdminDashboard()}
+          >
+            {openingAdmin ? (
+              <LoaderCircle className="size-4 animate-spin" aria-hidden="true" />
+            ) : (
+              <ShieldCheck className="size-4" aria-hidden="true" />
+            )}
+            {openingAdmin ? "Opening Admin…" : "Open Saintagram Admin"}
+          </button>
+        </SettingsSection>
+      )}
 
       <SettingsSection
         title="Privacy preferences"

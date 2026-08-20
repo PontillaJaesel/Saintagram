@@ -28,7 +28,12 @@ function iso(value: unknown): string {
 }
 
 function notificationType(value: unknown): SystemNotification["type"] {
-  if (value === "admin_reflection" || value === "fiat_streak_lost") {
+  if (
+    value === "admin_reflection" ||
+    value === "fiat_streak_lost" ||
+    value === "admin_access_granted" ||
+    value === "admin_access_revoked"
+  ) {
     return value;
   }
   return "profile_reminder";
