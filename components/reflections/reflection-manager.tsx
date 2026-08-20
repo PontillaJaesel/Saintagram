@@ -16,6 +16,7 @@ import {
   PenLine
 } from "lucide-react";
 import { LoadingState } from "@/components/ui/loading-state";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { useAuth } from "@/components/providers/auth-provider";
 import { useToast } from "@/components/providers/toast-provider";
 import { ReflectionMediaPicker } from "@/components/reflections/reflection-media-picker";
@@ -53,6 +54,11 @@ export function ReflectionManager() {
   const [errorField, setErrorField] = useState<
     "content" | "fiatOther" | "form" | null
   >(null);
+
+  const [composerDirty, setComposerDirty] = useState(false);
+  const [leaveWarningOpen, setLeaveWarningOpen] = useState(false);
+  const [pendingHref, setPendingHref] = useState<string | null>(null);
+
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
 
@@ -92,6 +98,8 @@ export function ReflectionManager() {
     setLiveWarningField(null);
     setLiveWarningMessage("");
     setErrorField(null);
+
+    setComposerDirty(false);
   };
 
   const submit = async (event: FormEvent) => {
@@ -156,6 +164,7 @@ export function ReflectionManager() {
             : "Your reflection was saved."
       );
       if (editingPost) {
+        setComposerDirty(false);
         router.push("/profile");
         return;
       }
@@ -246,6 +255,130 @@ export function ReflectionManager() {
     };
   }, [editId, user?.id]);
 
+  useEffect(() => {
+    const handleNavigationClick = (event: MouseEvent) => {
+      if (!composerDirty || saving) {
+        return;
+      }
+
+      // Only intercept normal left-click navigation.
+      if (
+        event.button !== 0 ||
+        event.metaKey ||
+        event.ctrlKey ||
+        event.shiftKey ||
+        event.altKey
+      ) {
+        return;
+      }
+
+      const target = event.target;
+
+      if (!(target instanceof Element)) {
+        return;
+      }
+
+      const anchor = target.closest("a[href]");
+
+      if (!(anchor instanceof HTMLAnchorElement)) {
+        return;
+      }
+
+      // Allow external links, downloads, and new tabs normally.
+      if (
+        anchor.target === "_blank" ||
+        anchor.hasAttribute("download")
+      ) {
+        return;
+      }
+
+      const destination = new URL(
+        anchor.href,
+        window.location.href
+      );
+
+      if (destination.origin !== window.location.origin) {
+        return;
+      }
+
+      const current = new URL(window.location.href);
+
+      // Allow same-page anchors such as #reflection-editor.
+      if (
+        destination.pathname === current.pathname &&
+        destination.search === current.search
+      ) {
+        return;
+      }
+
+      event.preventDefault();
+      event.stopPropagation();
+
+      setPendingHref(
+        `${destination.pathname}${destination.search}${destination.hash}`
+      );
+
+      setLeaveWarningOpen(true);
+    };
+
+    document.addEventListener(
+      "click",
+      handleNavigationClick,
+      true
+    );
+
+    return () => {
+      document.removeEventListener(
+        "click",
+        handleNavigationClick,
+        true
+      );
+    };
+  }, [composerDirty, saving]);
+
+  useEffect(() => {
+    if (!composerDirty) {
+      return;
+    }
+
+    const handleBeforeUnload = (event: BeforeUnloadEvent) => {
+      event.preventDefault();
+
+      // Required by some browsers.
+      event.returnValue = "";
+    };
+
+    window.addEventListener(
+      "beforeunload",
+      handleBeforeUnload
+    );
+
+    return () => {
+      window.removeEventListener(
+        "beforeunload",
+        handleBeforeUnload
+      );
+    };
+  }, [composerDirty]);
+
+  const keepWriting = () => {
+    setLeaveWarningOpen(false);
+    setPendingHref(null);
+  };
+
+  const leaveWithoutPosting = () => {
+    const destination = pendingHref;
+
+    setLeaveWarningOpen(false);
+    setPendingHref(null);
+
+    resetComposer();
+
+    if (destination) {
+      router.push(destination);
+    }
+  };
+
   if (editId && loadingEdit) {
     return (
       <LoadingState label="Opening your reflection…" />
@@ -301,6 +434,7 @@ export function ReflectionManager() {
         <form
           id="reflection-editor"
           onSubmit={submit}
+          onChangeCapture={() => setComposerDirty(true)}
           className="scroll-mt-6 p-5 sm:p-7"
           noValidate
         >
@@ -370,9 +504,33 @@ export function ReflectionManager() {
             {content.length} / {LIMITS.post}
           </p>
 
-          <ReflectionMediaPicker files={mediaFiles} onChange={setMediaFiles} disabled={saving} />
+          <ReflectionMediaPicker
+            files={mediaFiles}
+            onChange={(files) => {
+              setMediaFiles(files);
+              setComposerDirty(true);
+            }}
+            disabled={saving}
+          />
 
-          <FiatCategorySelector value={fiatCategory} onChange={setFiatCategory} otherText={fiatOther} onOtherTextChange={(value)=>{setFiatOther(value);if(errorField==="fiatOther"){setError("");setErrorField(null);}}} otherError={errorField==="fiatOther"} />
+          <FiatCategorySelector
+            value={fiatCategory}
+            onChange={(category) => {
+              setFiatCategory(category);
+              setComposerDirty(true);
+            }}
+            otherText={fiatOther}
+            onOtherTextChange={(value) => {
+              setFiatOther(value);
+              setComposerDirty(true);
+
+              if (errorField === "fiatOther") {
+                setError("");
+                setErrorField(null);
+              }
+            }}
+            otherError={errorField === "fiatOther"}
+          />
 
           <label className="mt-5 flex cursor-pointer items-start gap-3 rounded-[var(--radius-base)] border border-sage-200 p-4 transition hover:border-sage-400">
             <input
@@ -416,6 +574,29 @@ export function ReflectionManager() {
         </form>
       </section>
 
+      <ConfirmDialog
+        open={leaveWarningOpen}
+        title={
+          editingPost
+            ? "Leave without saving changes?"
+            : "Leave without posting?"
+        }
+        description={
+          editingPost
+            ? "Your changes to this reflection have not been saved. If you leave now, those changes will be lost."
+            : "Your reflection has not been posted. If you leave now, everything you entered will be lost."
+        }
+        confirmLabel={
+          editingPost
+            ? "Leave without saving"
+            : "Leave without posting"
+        }
+        cancelLabel="Keep writing"
+        destructive
+        onClose={keepWriting}
+        onConfirm={leaveWithoutPosting}
+      />
+      
     </div>
   );
 }

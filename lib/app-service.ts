@@ -240,6 +240,7 @@ function createUserRecord(
     updatedAt: now,
     privacyConsentAt: null,
     spiritualIntroSeenAt: null,
+    fiatIntroSeenAt: null,
     profileCompleted: false,
     mustChangePassword,
     privacyPreferences: DEFAULT_PRIVACY_PREFERENCES
@@ -790,6 +791,7 @@ async function ensureLocalSeed(): Promise<void> {
             updatedAt,
             privacyConsentAt: createdAt,
             spiritualIntroSeenAt: createdAt,
+            fiatIntroSeenAt: createdAt,
             profileCompleted: true,
             mustChangePassword: true,
             privacyPreferences: DEFAULT_PRIVACY_PREFERENCES

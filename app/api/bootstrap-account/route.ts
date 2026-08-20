@@ -66,6 +66,7 @@ export async function POST(request: Request): Promise<NextResponse> {
           updatedAt: now,
           privacyConsentAt: null,
           spiritualIntroSeenAt: null,
+          fiatIntroSeenAt: null,
           profileCompleted: false,
           mustChangePassword: true,
           privacyPreferences: {
@@ -96,6 +97,7 @@ export async function POST(request: Request): Promise<NextResponse> {
         updatedAt: now,
         privacyConsentAt: null,
         spiritualIntroSeenAt: null,
+        fiatIntroSeenAt: null,
         profileCompleted: false,
         mustChangePassword: true,
         privacyPreferences: {

@@ -1,6 +1,6 @@
 import "server-only";
 import { NextResponse } from "next/server";
-import { getFirebaseAdminAuth } from "@/lib/firebase-admin";
+import { getFirebaseAdminAuth, getFirebaseAdminFirestore } from "@/lib/firebase-admin";
 import type { DecodedIdToken } from "firebase-admin/auth";
 
 export class AdminAuthError extends Error { constructor(public status: 401 | 403, message: string) { super(message); } }
@@ -14,6 +14,20 @@ export async function requireAdmin(request: Request): Promise<DecodedIdToken> {
     // runtime and was rejecting freshly issued production tokens.
     const token = await getFirebaseAdminAuth().verifyIdToken(authorization.slice(7));
     if (token.admin !== true) throw new AdminAuthError(403, "Administrator access is required.");
+
+    // Shared administrators are checked against the server-owned Firestore
+    // entitlement on every admin API request. This makes a revocation take
+    // effect immediately even if the browser still holds an older ID token.
+    if (token.saintagramSharedAdmin === true) {
+      const user = await getFirebaseAdminFirestore()
+        .collection("users")
+        .doc(token.uid)
+        .get();
+      if (!user.exists || user.data()?.adminAccessGranted !== true) {
+        throw new AdminAuthError(403, "Shared administrator access is no longer active.");
+      }
+    }
+
     return token;
   } catch (error) {
     if (error instanceof AdminAuthError) throw error;
