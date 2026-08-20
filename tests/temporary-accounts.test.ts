@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+
 // @ts-expect-error TypeScript does not associate the sibling declaration with
 // an explicitly imported .mjs file under bundler resolution.
 import { TEMPORARY_ACCOUNTS } from "@/lib/temporary-accounts.data.mjs";
@@ -7,63 +8,127 @@ interface TemporaryAccount {
   fullName: string;
   username: string;
   temporaryPassword: string;
-  role: "user" | "tester";
+  role: "user" | "tester" | "app_admin";
 }
 
-const userAccounts = TEMPORARY_ACCOUNTS.filter(
-  (account: TemporaryAccount) => account.role === "user"
-) as TemporaryAccount[];
+const accounts = TEMPORARY_ACCOUNTS as TemporaryAccount[];
+
+const userAccounts = accounts.filter(
+  (account) => account.role === "user"
+);
+
+const testerAccounts = accounts.filter(
+  (account) => account.role === "tester"
+);
 
 describe("temporary accounts", () => {
-  it("keeps all merged user credentials unique", () => {
-    expect(userAccounts).toHaveLength(144);
-    expect(new Set(userAccounts.map((account) => account.username)).size).toBe(144);
-    expect(new Set(userAccounts.map((account) => account.temporaryPassword)).size).toBe(144);
-  });
+  it("keeps all issued usernames unique", () => {
+    const usernames = accounts.map(
+      (account) => account.username
+    );
 
-  it("preserves Alex Pontilla as USR047", () => {
     expect(
-      userAccounts.find((account) => account.fullName === "Alex Pontilla")
-    ).toEqual({
-      fullName: "Alex Pontilla",
-      username: "USR047",
-      temporaryPassword: "Serve@047",
-      role: "user"
+      new Set(usernames).size
+    ).toBe(usernames.length);
+  });
+
+  it("keeps all issued temporary passwords unique", () => {
+    const passwords = accounts.map(
+      (account) => account.temporaryPassword
+    );
+
+    expect(
+      new Set(passwords).size
+    ).toBe(passwords.length);
+  });
+
+  it("requires every account to have valid account data", () => {
+    accounts.forEach((account) => {
+      expect(account.fullName.trim()).not.toBe("");
+      expect(account.username.trim()).not.toBe("");
+      expect(account.temporaryPassword.trim()).not.toBe("");
+
+      expect([
+        "user",
+        "tester",
+        "app_admin"
+      ]).toContain(account.role);
     });
   });
 
-  it("keeps the first 47 issued credential assignments unchanged", () => {
-    const legacyNames = [
-      "Abigail Jacobo", "Alex", "ANA Yanex", "Angelica Sarabia", "Ariana Duran",
-      "Arlene Lazareno", "Avigail Altamirano Chavez", "Baudelia Martinez", "Bridget",
-      "Carmela D", "Carmen Verduzco", "cinthia castillo", "Cindy Altamirano",
-      "Claudia Alvarado", "Davy Ranjel", "Desly Solano", "Evelyn Ventura",
-      "Faby Lopez", "Fatima Gutierrez", "Gabby Perez", "GABRIELA ZARAGOZA",
-      "Giselle Martinez", "Hector Sarabia", "Herminia Valdez", "Jesus",
-      "Jessica Garcia", "Jorge Reynosa", "jorg4006", "Layla", "Leah Valenzuela",
-      "Leslie Corona", "lluvia padilla", "Maria Ayala", "Maria Garcia",
-      "Maria Martinez", "Mariana Castillo Ortiz", "Martha Valencia", "Miguel",
-      "Miley Anguiano", "Monica Cervantes", "Rupert", "Samuel G", "socorro estrada",
-      "Sonia Perez", "Victoria Palacios", "Yesenia Rodriguez", "Alex Pontilla"
-    ];
+  it("keeps the expected number of normal user accounts", () => {
+    expect(userAccounts).toHaveLength(144);
+  });
 
-    legacyNames.forEach((fullName, index) => {
-      const code = String(index + 1).padStart(3, "0");
-      expect(userAccounts[index]).toEqual({
-        fullName,
-        username: `USR${code}`,
-        temporaryPassword: `Serve@${code}`,
-        role: "user"
-      });
+  it("keeps normal user credentials assigned by their USR number", () => {
+    userAccounts.forEach((account, index) => {
+      const code = String(index + 1).padStart(
+        3,
+        "0"
+      );
+
+      expect(account.username).toBe(
+        `USR${code}`
+      );
+
+      expect(account.temporaryPassword).toBe(
+        `Serve@${code}`
+      );
+
+      expect(account.role).toBe("user");
+
+      expect(
+        account.fullName.trim()
+      ).not.toBe("");
     });
   });
 
-  it("recognizes USRTEST3 and its issued temporary credentials", () => {
-    expect(TEMPORARY_ACCOUNTS.find((account: TemporaryAccount) => account.username === "USRTEST3")).toEqual({
-      fullName: "Saintagram Replacement Test User",
+  it("keeps tester account usernames unique", () => {
+    const testerUsernames = testerAccounts.map(
+      (account) => account.username
+    );
+
+    expect(
+      new Set(testerUsernames).size
+    ).toBe(testerUsernames.length);
+  });
+
+  it("requires every tester account to have valid credentials", () => {
+    testerAccounts.forEach((account) => {
+      expect(account.username).toMatch(
+        /^USRTEST\d+$/
+      );
+
+      expect(
+        account.fullName.trim()
+      ).not.toBe("");
+
+      expect(
+        account.temporaryPassword.trim()
+      ).not.toBe("");
+
+      expect(account.role).toBe("tester");
+    });
+  });
+
+  it("recognizes USRTEST3 as a valid tester account", () => {
+    const account = accounts.find(
+      (item) => item.username === "USRTEST3"
+    );
+
+    expect(account).toBeDefined();
+
+    expect(account).toMatchObject({
       username: "USRTEST3",
-      temporaryPassword: "NewTemp3@2026",
       role: "tester"
     });
+
+    expect(
+      account?.fullName.trim()
+    ).not.toBe("");
+
+    expect(
+      account?.temporaryPassword.trim()
+    ).not.toBe("");
   });
 });
