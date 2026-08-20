@@ -866,6 +866,8 @@ body {
     border-color: #eadc9f;
     color: #1f2937;
     scrollbar-color: #d4c481 #ffffff;
+
+    padding-right: 3px;
   }
 
   .popup-panel-enter {
@@ -1046,6 +1048,7 @@ body {
   .dark .fiat-streak-footer {
     background-color: #111827;
     border-color: #8f6c12;
+    margin-right: -3px;
   }
 
   :root[data-theme="dark"] .fiat-activity-button,
@@ -1183,20 +1186,18 @@ body {
   }
 
   /* ==========================================
-   FiAt popup inner scrollbar
-   ========================================== */
+    FiAt popup inner scrollbar
+    ========================================== */
 
   .fiat-streak-scroll {
-    height: 100%;
-    max-height: 100%;
+    width: 100%;
+    max-height: calc(100dvh - 10rem);
 
     overflow-x: hidden;
     overflow-y: scroll;
 
     overscroll-behavior: contain;
-
-    /* Slight inset from the gold popup border */
-    margin-right: 0.35rem;
+    -webkit-overflow-scrolling: touch;
 
     scrollbar-width: thin;
     scrollbar-color: #b98b16 transparent;
@@ -1209,17 +1210,14 @@ body {
   }
 
   .fiat-streak-scroll::-webkit-scrollbar-track {
-    margin-top: 0.75rem;
-    margin-bottom: 0.75rem;
+    margin-block: 0.75rem;
     background: transparent;
   }
 
   .fiat-streak-scroll::-webkit-scrollbar-thumb {
     min-height: 42px;
-
     border: 2px solid transparent;
     border-radius: 9999px;
-
     background-color: #b98b16;
     background-clip: padding-box;
   }
@@ -1229,15 +1227,11 @@ body {
     background-clip: padding-box;
   }
 
-
-  /* Desktop popup needs an explicit scroll height */
   @media (min-width: 1024px) {
     .fiat-streak-scroll {
-      height: auto;
       max-height: calc(100dvh - 9rem);
     }
   }
-
 
   /* Dark mode */
   :root[data-theme="dark"] .fiat-streak-scroll,

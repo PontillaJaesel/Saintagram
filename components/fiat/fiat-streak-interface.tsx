@@ -182,7 +182,7 @@ export function FiatStreakInterface() {
 
       {popupPresence.rendered && (
         <section
-          className={`fiat-streak-surface fixed left-4 right-4 top-20 bottom-[4.5rem] z-[90] overflow-hidden rounded-3xl border text-slate-800 shadow-lift sm:left-auto sm:right-4 sm:w-[23rem] lg:absolute lg:right-0 lg:top-[calc(100%+.65rem)] lg:bottom-auto lg:max-h-[calc(100dvh-9rem)] ${popupPresence.closing ? "popup-panel-exit" : "popup-panel-enter"}`}
+          className={`fiat-streak-surface fixed left-4 right-4 top-20 z-[90] max-h-[calc(100dvh-10rem)] overflow-hidden rounded-3xl border text-slate-800 shadow-lift sm:left-auto sm:right-4 sm:w-[23rem] lg:absolute lg:right-0 lg:top-[calc(100%+.65rem)] lg:max-h-[calc(100dvh-9rem)] ${popupPresence.closing ? "popup-panel-exit" : "popup-panel-enter"}`}
           role="dialog"
           aria-label="FiAt activity"
         >

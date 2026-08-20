@@ -674,7 +674,7 @@ const confirmDeleteReflection = async () => {
   return (
     <div className="profile-dashboard grid min-h-[calc(100dvh-4rem)] xl:min-h-screen xl:grid-cols-[minmax(0,42rem)_minmax(19rem,1fr)]">
       <div className="profile-main-column min-w-0 border-r border-sage-100 bg-paper/55">
-        <div className="profile-header-bar sticky top-0 z-[60] flex min-h-16 items-center border-b border-sage-100 bg-paper/95 px-5 backdrop-blur-xl">
+        <div className="profile-header-bar sticky top-0 z-[60] flex min-h-16 items-center border-b border-sage-100 bg-paper/95 px-5 lg:backdrop-blur-xl">
           <div>
             <div className="flex items-center gap-2">
               <p className="text-base font-bold text-ink">{profile.profileName}</p>
