@@ -122,7 +122,7 @@ When setup is complete, **Profile** is your home base. From there you can:
 - Choose **Edit profile** to update it
 - Open **Reflect** to write a reflection
 - Open **Journey** to see your timeline
-- Open **Community** to explore available people and posts
+- Open **Community** to explore available people,  posts, and special announcements
 - Open **Settings** to manage your account and privacy
 
 Your profile is about your story. You do not need to make it perfect before
@@ -205,6 +205,7 @@ for your account, you may find:
 - **Following**: people or posts you already follow
 - **Discover**: available profiles and posts to explore
 - **Search people**: a way to look for someone by name
+- **Bulletin**: a space for special announcements
 
 Move at your own pace. You never need to share more than you are comfortable
 sharing.
