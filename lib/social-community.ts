@@ -193,6 +193,15 @@ function storedCommunityProfile(
 
     profileName,
 
+    coverColor:
+      stringValue(data.coverColor),
+
+    coverImageId:
+      stringValue(data.coverImageId),
+
+    coverImagePath:
+      stringValue(data.coverImagePath),
+
     imagePath:
       stringValue(
         data.imagePath

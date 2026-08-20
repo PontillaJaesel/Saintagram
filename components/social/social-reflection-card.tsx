@@ -240,7 +240,6 @@ function CommentItem({
 export function SocialReflectionCard({
   post,
   compactTimestamp = false,
-  hideViewProfile = false,
   initialFollowing = false,
   initialCommentsOpen = false,
   onEdit,
@@ -248,7 +247,6 @@ export function SocialReflectionCard({
 }: {
   post: SocialFeedPost;
   compactTimestamp?: boolean;
-  hideViewProfile?: boolean;
   initialFollowing?: boolean;
   initialCommentsOpen?: boolean;
   onEdit?: (post: SocialFeedPost) => void;
@@ -349,12 +347,19 @@ export function SocialReflectionCard({
   const isPublic =
     post.isPrivate === false;
 
-  const canInteract =
+  const canLike =
     Boolean(
       user &&
       isPublic &&
       !isOwnPost &&
       following
+    );
+
+  const canComment =
+    Boolean(
+      user &&
+      isPublic &&
+      (isOwnPost || following)
     );
 
   const topLevelComments =
@@ -604,7 +609,7 @@ export function SocialReflectionCard({
     async () => {
       if (
         !user ||
-        !canInteract ||
+        !canLike ||
         likeBusy
       ) {
         return;
@@ -646,7 +651,7 @@ export function SocialReflectionCard({
 
       if (
         !user ||
-        !canInteract ||
+        !canComment ||
         commentBusy
       ) {
         return;
@@ -1048,95 +1053,87 @@ export function SocialReflectionCard({
 >
   {/* AUTHOR HEADER & REFLECTION COMBINED FOR X-STYLE LAYOUT */}
   <header className="px-5 pb-4 pt-5 sm:px-6 sm:pb-5 sm:pt-6">
-    <div className="relative flex items-start gap-4">
+    <div className="relative flex items-start gap-3">
       <Link
         href={`/users/${post.author.userId}`}
-        className="group flex w-full min-w-0 flex-1 items-start gap-3"
+        className="group/avatar shrink-0"
+        aria-label={`View ${post.author.profileName}'s profile`}
       >
         <SocialAvatar
           imagePath={post.author.imagePath}
           profileName={post.author.profileName}
           medium={compactTimestamp}
         />
+      </Link>
 
-        <div className="min-w-0 flex-1">
-          {/* X-Style Inline Row: Name, Hashtag/Handle, and Timestamp */}
-          <div
-            className={`flex flex-wrap items-center gap-x-2 gap-y-0.5 ${
-              isOwnPost && (onEdit || onDelete)
-                ? "pr-12"
-                : hideViewProfile
-                  ? ""
-                  : "pr-24"
+      <div className="min-w-0 flex-1">
+        <div
+          className={`flex flex-wrap items-center gap-x-2 gap-y-0.5 ${
+            isOwnPost && (onEdit || onDelete) ? "pr-12" : ""
+          }`}
+        >
+          <Link
+            href={`/users/${post.author.userId}`}
+            className={`truncate font-serif font-bold text-ink transition hover:text-sage-700 ${
+              compactTimestamp ? "text-[17px]" : "text-lg"
             }`}
           >
-            <span className={`truncate font-serif font-bold text-ink transition group-hover:text-sage-700 ${compactTimestamp ? "text-[17px]" : "text-lg"}`}>
-              {post.author.profileName}
-            </span>
+            {post.author.profileName}
+          </Link>
 
-            {post.author.heavenlyHashtag && (
-              <span className="text-xs font-semibold text-sage-600">
-                {post.author.heavenlyHashtag}
-              </span>
-            )}
-            <span className="text-xs text-muted" aria-hidden="true">·</span>
-
-            <div className="flex items-center gap-1 text-xs text-muted">
-              <time dateTime={post.createdAt}>
-                {compactTimestamp
-                  ? formatReflectionAge(post.createdAt)
-                  : formatFriendlyDate(post.createdAt)}
-              </time>
-              {post.editedAt && <span>(Edited)</span>}
-            </div>
-          </div>
-
-          {post.fiatCategory && (
-            <span className="mt-1.5 inline-flex w-fit rounded-full border border-gold-200 bg-gold-50 px-2 py-0.5 text-[10px] font-bold leading-4 text-gold-700">
-              Fi@ · {post.fiatCategory === "other" && post.fiatOther
-                ? post.fiatOther
-                : fiatCategoryLabel(post.fiatCategory)}
+          {post.author.heavenlyHashtag && (
+            <span className="text-xs font-semibold text-sage-600">
+              {post.author.heavenlyHashtag}
             </span>
           )}
+          <span className="text-xs text-muted" aria-hidden="true">·</span>
+          <Link
+            href={`/reflections/${post.id}`}
+            className="flex items-center gap-1 text-xs text-muted transition hover:text-sage-700"
+          >
+            <time dateTime={post.createdAt}>
+              {compactTimestamp
+                ? formatReflectionAge(post.createdAt)
+                : formatFriendlyDate(post.createdAt)}
+            </time>
+            {post.editedAt && <span>(Edited)</span>}
+          </Link>
+        </div>
 
-          {/* REFLECTION CONTENT */}
-          <div className="mt-3">
+        {post.fiatCategory && (
+          <span className="mt-1.5 inline-flex w-fit rounded-full border border-gold-200 bg-gold-50 px-2 py-0.5 text-[10px] font-bold leading-4 text-gold-700">
+            Fi@ · {post.fiatCategory === "other" && post.fiatOther
+              ? post.fiatOther
+              : fiatCategoryLabel(post.fiatCategory)}
+          </span>
+        )}
+
+        <Link
+          href={`/reflections/${post.id}`}
+          className="mt-3 block rounded-xl outline-none transition hover:bg-sage-50/60 focus-visible:ring-2 focus-visible:ring-sage-300"
+          aria-label={`Open ${post.author.profileName}'s reflection`}
+        >
+          <div className="p-1">
             {post.title && (
               <h2 className={`user-content font-serif font-bold leading-6 text-ink ${compactTimestamp ? "text-base" : "text-[17px]"}`}>
                 {post.title}
               </h2>
             )}
-
             <p className={`user-content whitespace-pre-wrap break-words leading-6 text-ink ${compactTimestamp ? "text-[15px]" : "text-base"} ${post.title ? "mt-1" : ""}`}>
               {post.content}
             </p>
-            <ReflectionMediaView media={post.media} />
           </div>
-        </div>
-      </Link>
+        </Link>
+        <ReflectionMediaView media={post.media} />
+      </div>
 
       {isOwnPost && (onEdit || onDelete) ? (
         <div className="absolute right-0 top-0">
           <ReflectionOwnerMenu
-            onEdit={
-              onEdit
-                ? () => onEdit(post)
-                : undefined
-            }
-            onDelete={
-              onDelete
-                ? () => onDelete(post)
-                : undefined
-            }
+            onEdit={onEdit ? () => onEdit(post) : undefined}
+            onDelete={onDelete ? () => onDelete(post) : undefined}
           />
         </div>
-      ) : !hideViewProfile ? (
-        <Link
-          href={`/users/${post.author.userId}`}
-          className="absolute right-0 top-0 rounded-full px-3 py-2 text-xs font-bold text-sage-700 transition hover:bg-sage-50"
-        >
-          View profile
-        </Link>
       ) : null}
     </div>
   </header>
@@ -1149,12 +1146,12 @@ export function SocialReflectionCard({
             className={`flex min-h-12 items-center justify-center gap-2 border-r border-sage-100 px-4 text-sm font-semibold transition ${
               likedByCurrentUser
                 ? "text-clay-600"
-                : canInteract
+                : canLike
                   ? "text-muted hover:bg-clay-50 hover:text-clay-600"
                   : "cursor-not-allowed text-muted/60"
             }`}
             disabled={
-              !canInteract ||
+              !canLike ||
               likeBusy
             }
             aria-pressed={
@@ -1473,8 +1470,8 @@ export function SocialReflectionCard({
           )}
 
           {/* COMMENT FORM:
-              only followers can post */}
-          {canInteract && (
+              followers and the post owner can post */}
+          {canComment && (
             <form
               className="mt-5 flex items-end gap-2 border-t border-sage-100 pt-5"
               onSubmit={
@@ -1544,7 +1541,7 @@ export function SocialReflectionCard({
             </form>
           )}
 
-          {!canInteract &&
+          {!canComment &&
             !isOwnPost && (
               <p className="mt-5 border-t border-sage-100 pt-4 text-center text-sm text-muted">
                 Follow{" "}

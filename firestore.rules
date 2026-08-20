@@ -576,8 +576,6 @@ service cloud.firestore {
           (
             !hasParentComment
             && !hasReplyTarget
-            && data.postOwnerId
-              != data.userId
           )
 
           ||
@@ -743,7 +741,8 @@ service cloud.firestore {
         && get(reflectionPath).data.userId == postOwnerId
         && get(reflectionPath).data.isPrivate == false
         && (
-          get(reflectionPath).data.accountPrivate == false
+          request.auth.uid == postOwnerId
+          || get(reflectionPath).data.accountPrivate == false
           || followsPostOwner(
             request.auth.uid,
             postOwnerId
@@ -1317,10 +1316,21 @@ service cloud.firestore {
     match /follows/{followId} {
 
       /*
-      * Follow relationships are visible to authenticated
-      * Saintagram users.
+      * Follow relationships are readable only by either participant.
+      * Public/private third-party connection lists use the authenticated
+      * server route, which enforces profile privacy before returning data.
       */
-      allow get, list: if signedIn();
+      allow get: if signedIn()
+        && (
+          followId.matches(request.auth.uid + '_.*')
+          || followId.matches('.*_' + request.auth.uid)
+        );
+
+      allow list: if signedIn()
+        && (
+          resource.data.followerId == request.auth.uid
+          || resource.data.followingId == request.auth.uid
+        );
 
       /*
       * ==========================================================
@@ -1516,7 +1526,7 @@ service cloud.firestore {
         /*
         * NORMAL TOP-LEVEL COMMENT:
         *
-        * must follow the post owner.
+        * owner may comment directly; everyone else must follow the post owner.
         */
         (
           !request.resource.data
@@ -1526,13 +1536,12 @@ service cloud.firestore {
               'replyToUserId'
             ])
 
-          && request.resource.data
-            .postOwnerId
-            != request.auth.uid
-
-          && followsPostOwner(
-            request.auth.uid,
-            request.resource.data.postOwnerId
+          && (
+            request.resource.data.postOwnerId == request.auth.uid
+            || followsPostOwner(
+              request.auth.uid,
+              request.resource.data.postOwnerId
+            )
           )
         )
 

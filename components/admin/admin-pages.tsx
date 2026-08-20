@@ -673,6 +673,9 @@ export function Users() {
               <thead>
                 <tr className="text-muted">
                   <th className="px-5 py-4 font-semibold whitespace-nowrap">
+                    Action
+                  </th>
+                  <th className="px-5 py-4 font-semibold whitespace-nowrap">
                     Name
                   </th>
                   <th className="px-5 py-4 font-semibold whitespace-nowrap">
@@ -696,9 +699,6 @@ export function Users() {
                   >
                     Onboarding
                   </th>
-                  <th className="px-5 py-4 text-right font-semibold whitespace-nowrap">
-                    Action
-                  </th>
                 </tr>
               </thead>
 
@@ -708,6 +708,14 @@ export function Users() {
                     className="border-t border-sage-100"
                     key={user.id}
                   >
+                    <td className="px-5 py-4 align-top whitespace-nowrap">
+                      <Link
+                        className="font-bold text-sage-700"
+                        href={`/admin/users/${user.id}`}
+                      >
+                        View
+                      </Link>
+                    </td>
                     <td className="px-5 py-4 align-top">
                       <div className="font-semibold whitespace-nowrap">
                         {user.fullName || "—"}
@@ -750,14 +758,6 @@ export function Users() {
                         : "Not completed"}
                     </td>
 
-                    <td className="px-5 py-4 align-top text-right whitespace-nowrap">
-                      <Link
-                        className="font-bold text-sage-700"
-                        href={`/admin/users/${user.id}`}
-                      >
-                        View
-                      </Link>
-                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -1195,30 +1195,6 @@ export function UserDetail({
                 : "Grant Admin Access"}
             </button>
           </div>
-        </section>
-
-        {/* DATA SUMMARY */}
-
-        <section className="surface p-5 xl:col-span-2">
-          <h2 className="font-serif text-xl font-bold">
-            Data Summary
-          </h2>
-
-          <p className="mt-2 text-sm text-muted">
-            Sensitive profile and
-            draft data are restricted
-            to this protected
-            administrator view.
-          </p>
-
-          <Link
-            className="btn-secondary mt-4"
-            href={`/admin/data?userId=${encodeURIComponent(
-              id
-            )}`}
-          >
-            View All Recorded Data
-          </Link>
         </section>
 
         {/* ==================================================
@@ -1726,6 +1702,10 @@ export function DataPage() {
             <table className="w-full min-w-[1280px] table-fixed border-separate border-spacing-0 text-left text-sm">
               <thead>
                 <tr className="text-muted">
+                  <th className="w-[210px] px-5 py-4 font-semibold whitespace-nowrap">
+                    Action
+                  </th>
+
                   <th className="w-[190px] px-5 py-4 font-semibold whitespace-nowrap">
                     Default Name
                   </th>
@@ -1749,10 +1729,6 @@ export function DataPage() {
                   <th className="w-[135px] px-5 py-4 font-semibold whitespace-nowrap">
                     Profile
                   </th>
-
-                  <th className="w-[210px] px-5 py-4 text-right font-semibold whitespace-nowrap">
-                    Action
-                  </th>
                 </tr>
               </thead>
 
@@ -1766,6 +1742,21 @@ export function DataPage() {
                     }`}
                     key={user.id}
                   >
+                    <td className="px-5 py-4 align-middle">
+                      <button
+                        className="btn-secondary whitespace-nowrap"
+                        type="button"
+                        disabled={
+                          loading && selectedId === user.id
+                        }
+                        onClick={() => load(user.id)}
+                      >
+                        {loading && selectedId === user.id
+                          ? "Loading…"
+                          : "View All Recorded Data"}
+                      </button>
+                    </td>
+
                     <td className="px-5 py-4 align-middle">
                       <div className="break-words font-semibold leading-5">
                         {user.fullName || "—"}
@@ -1808,21 +1799,6 @@ export function DataPage() {
                           ? "Completed"
                           : "Not completed"}
                       </span>
-                    </td>
-
-                    <td className="px-5 py-4 text-right align-middle">
-                      <button
-                        className="btn-secondary whitespace-nowrap"
-                        type="button"
-                        disabled={
-                          loading && selectedId === user.id
-                        }
-                        onClick={() => load(user.id)}
-                      >
-                        {loading && selectedId === user.id
-                          ? "Loading…"
-                          : "View All Recorded Data"}
-                      </button>
                     </td>
                   </tr>
                 ))}

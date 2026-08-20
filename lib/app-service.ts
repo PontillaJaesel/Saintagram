@@ -58,11 +58,13 @@ import { MODERATION_TEXT_ERROR, moderateTextContent } from "@/lib/moderation";
 import {
   syncAdminReflectionNotifications
 } from "@/lib/system-notification-bootstrap";
+import { syncRequiredFollows } from "@/lib/required-follow-sync";
 import {
   DEFAULT_PRIVACY_PREFERENCES,
   EMPTY_DRAFT,
   type AppUser,
   type PersonalDataExport,
+  type PersonalDataJourneyEvent,
   type ProfileImageHistoryEntry,
   type ProfileDraft,
   type ProfileDraftData,
@@ -615,6 +617,30 @@ function storedReflectionComment(
     content,
     createdAt,
     updatedAt
+  };
+}
+
+function storedPersonalDataJourneyEvent(
+  id: string,
+  value: unknown
+): PersonalDataJourneyEvent | null {
+  if (!value || typeof value !== "object") return null;
+  const data = value as Record<string, unknown>;
+  const userId = stringValue(data.userId);
+  const createdAt = dateValue(data.createdAt);
+  const changes = Array.isArray(data.changes)
+    ? data.changes.filter(
+        (item): item is string => typeof item === "string" && Boolean(item.trim())
+      )
+    : [];
+  const imagePath = stringValue(data.imagePath);
+  if (!userId || !changes.length || Number.isNaN(Date.parse(createdAt))) return null;
+  return {
+    id,
+    userId,
+    changes,
+    ...(imagePath ? { imagePath } : {}),
+    createdAt
   };
 }
 
@@ -2001,25 +2027,21 @@ export const appService = {
       );
     }
 
-    if (postOwnerId === userId) {
-      throw new Error(
-        "You cannot comment on your own reflection."
-      );
-    }
+    if (postOwnerId !== userId) {
+      const followSnapshot =
+        await getDoc(
+          doc(
+            services.db,
+            "follows",
+            `${userId}_${postOwnerId}`
+          )
+        );
 
-    const followSnapshot =
-      await getDoc(
-        doc(
-          services.db,
-          "follows",
-          `${userId}_${postOwnerId}`
-        )
-      );
-
-    if (!followSnapshot.exists()) {
-      throw new Error(
-        "Follow this person before commenting."
-      );
+      if (!followSnapshot.exists()) {
+        throw new Error(
+          "Follow this person before commenting."
+        );
+      }
     }
 
     const commentRef = doc(
@@ -2060,14 +2082,16 @@ export const appService = {
       comment
     );
 
-    batch.set(
-      doc(
-        services.db,
-        "notifications",
-        notification.id
-      ),
-      notification
-    );
+    if (postOwnerId !== userId) {
+      batch.set(
+        doc(
+          services.db,
+          "notifications",
+          notification.id
+        ),
+        notification
+      );
+    }
 
     await batch.commit();
 
@@ -3087,6 +3111,10 @@ export const appService = {
                   );
                 }
               );
+
+            void syncRequiredFollows().catch((error) => {
+              console.error("[REQUIRED FOLLOW SYNC]", error);
+            });
           } catch {
             callback(
               null
@@ -4842,14 +4870,60 @@ export const appService = {
       this.getReflections(userId),
       this.getDraft(userId)
     ]);
+
+    let likes: ReflectionLike[] = [];
+    let comments: ReflectionComment[] = [];
+    let profileJourneyEvents: PersonalDataJourneyEvent[] = [];
+
+    if (isFirebaseConfigured) {
+      assertFirebaseOwner(userId);
+      const services = getFirebaseServices();
+      if (!services) throw new Error("Firebase is not available.");
+
+      const [likesSnapshot, commentsSnapshot, eventsSnapshot] = await Promise.all([
+        getDocs(
+          query(
+            collection(services.db, "reflectionLikes"),
+            where("userId", "==", userId)
+          )
+        ),
+        getDocs(
+          query(
+            collection(services.db, "reflectionComments"),
+            where("userId", "==", userId)
+          )
+        ),
+        getDocs(
+          query(
+            collection(services.db, "profileJourneyEvents"),
+            where("userId", "==", userId)
+          )
+        )
+      ]);
+
+      likes = likesSnapshot.docs
+        .map((item) => storedReflectionLike(item.id, item.data()))
+        .filter((item): item is ReflectionLike => Boolean(item));
+      comments = commentsSnapshot.docs
+        .map((item) => storedReflectionComment(item.id, item.data()))
+        .filter((item): item is ReflectionComment => Boolean(item));
+      profileJourneyEvents = eventsSnapshot.docs
+        .map((item) => storedPersonalDataJourneyEvent(item.id, item.data()))
+        .filter((item): item is PersonalDataJourneyEvent => Boolean(item));
+    }
+
     return {
       exportedAt: nowIso(),
       notice:
-        "Private personal archive requested by the account owner. Keep this file secure; it can contain a Hidden Story and private reflections.",
+        "Private personal archive requested by the account owner. Keep this file secure; it contains profile information, reflections, media links, and recorded account activity.",
       user,
       profile,
       reflections,
-      unfinishedDraft
+      unfinishedDraft,
+      likes,
+      comments,
+      profileJourneyEvents,
+      downloadLinks: { reflectionMedia: {} }
     };
   },
 

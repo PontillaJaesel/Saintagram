@@ -28,10 +28,14 @@ import {
 
 export function FollowButton({
   targetUserId,
-  targetIsPrivate
+  targetIsPrivate,
+  onStateChange,
+  followingLabel = "Following"
 }: {
   targetUserId: string;
   targetIsPrivate?: boolean;
+  onStateChange?: (state: FollowState) => void;
+  followingLabel?: string;
 }) {
   const { user } =
     useAuth();
@@ -201,6 +205,7 @@ export function FollowButton({
           setPrivateAccount(
             result.targetIsPrivate
           );
+          onStateChange?.(result.state);
 
           notify(
             "You unfollowed this profile."
@@ -235,6 +240,7 @@ export function FollowButton({
           setPrivateAccount(
             result.targetIsPrivate
           );
+          onStateChange?.(result.state);
 
           notify(
             "Follow request cancelled."
@@ -274,6 +280,7 @@ export function FollowButton({
         setPrivateAccount(
           result.targetIsPrivate
         );
+        onStateChange?.(result.state);
 
         if (
           result.state ===
@@ -326,7 +333,7 @@ export function FollowButton({
     "following"
   ) {
     label =
-      "Following";
+      followingLabel;
   }
 
   if (

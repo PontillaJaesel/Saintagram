@@ -17,6 +17,10 @@ const archive: PersonalDataExport = {
   },
   profile: null,
   unfinishedDraft: null,
+  likes: [],
+  comments: [],
+  profileJourneyEvents: [],
+  downloadLinks: { reflectionMedia: {} },
   reflections: [
     {
       id: "public-1",
@@ -42,7 +46,7 @@ describe("personal data PDF", () => {
     const definition = personalDataPdfDefinition(archive);
     const serialized = JSON.stringify(definition.content);
 
-    expect(serialized).toContain("Public reflections");
+    expect(serialized).toContain("Posts God Sees / Reflection");
     expect(serialized).toContain("A public moment of grace.");
     expect(serialized).toContain("Private reflections");
     expect(serialized).toContain("A private prayer: Salamat, Diyos. 🙏");
@@ -54,8 +58,8 @@ describe("personal data PDF", () => {
       ...archive,
       reflections: []
     });
-    expect(JSON.stringify(definition.content)).toContain(
-      "No reflections in this section."
-    );
+    const serialized = JSON.stringify(definition.content);
+    expect(serialized).toContain("No public reflections are currently stored.");
+    expect(serialized).toContain("No reflections in this section.");
   });
 });

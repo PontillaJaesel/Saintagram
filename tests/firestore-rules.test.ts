@@ -107,6 +107,7 @@ const aliceReflection = {
   title: "A quiet kindness",
   content: "I noticed a quiet kindness today.",
   isPrivate: false,
+  accountPrivate: false,
   createdAt: NOW,
   updatedAt: NOW
 };
@@ -597,6 +598,57 @@ describe("Saintagram Firestore ownership rules", () => {
       deleteDoc(doc(bobDb, "reflectionPosts", aliceReflection.id))
     );
     await assertSucceeds(deleteDoc(aliceRef));
+  });
+
+  it("allows public and private-account owners to comment and reply on their own public reflections", async () => {
+    const publicReflectionId = "alice-public-self-comment";
+    const privateAccountReflectionId = "alice-private-account-self-comment";
+
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      const db = context.firestore();
+      for (const [id, accountPrivate] of [
+        [publicReflectionId, false],
+        [privateAccountReflectionId, true]
+      ] as const) {
+        await setDoc(doc(db, "reflectionPosts", id), {
+          ...aliceReflection,
+          id,
+          accountPrivate
+        });
+      }
+    });
+
+    const aliceDb = testEnv.authenticatedContext(ALICE_ID, VERIFIED_EMAIL).firestore();
+
+    for (const reflectionId of [publicReflectionId, privateAccountReflectionId]) {
+      const commentId = `${reflectionId}-comment`;
+      await assertSucceeds(
+        setDoc(doc(aliceDb, "reflectionComments", commentId), {
+          id: commentId,
+          reflectionId,
+          postOwnerId: ALICE_ID,
+          userId: ALICE_ID,
+          content: "A note on my own reflection.",
+          createdAt: NOW,
+          updatedAt: NOW
+        })
+      );
+
+      const replyId = `${reflectionId}-reply`;
+      await assertSucceeds(
+        setDoc(doc(aliceDb, "reflectionComments", replyId), {
+          id: replyId,
+          reflectionId,
+          postOwnerId: ALICE_ID,
+          userId: ALICE_ID,
+          parentCommentId: commentId,
+          replyToUserId: ALICE_ID,
+          content: "A reply to my own comment.",
+          createdAt: NOW,
+          updatedAt: NOW
+        })
+      );
+    }
   });
 
   it("accepts only canonical optional FiAt fields on reflections", async () => {

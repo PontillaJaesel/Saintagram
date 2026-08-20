@@ -25,6 +25,7 @@
     "deploy:vinext": "npm run deploy",
     "deploy:admin": "npm run build:admin && node scripts/validate-deployment-target.mjs dist/server/wrangler.admin.json saintagram-admin admin && wrangler deploy --config dist/server/wrangler.admin.json",
     "admin:claim": "node --env-file=.env.production scripts/set-admin-claim.mjs",
+    "migrate:required-follows": "node --env-file=.env.production scripts/backfill-required-follows.mjs",
     "prepare:ffmpeg": "node scripts/prepare-ffmpeg-assets.mjs",
     "auth:provision": "node --env-file=.env.local scripts/provision-temporary-accounts.mjs"
   },
