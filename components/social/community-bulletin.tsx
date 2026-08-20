@@ -66,114 +66,114 @@ function BulletinRow({
 }: {
   item: BulletinItem;
 }) {
+  const isEvent =
+    item.type === "event";
+
   const content = (
     <div className="group relative px-5 py-5">
-      <div className="flex min-w-0 items-start justify-between gap-4">
-        <div className="min-w-0 flex-1">
+      <div className="min-w-0">
 
-          {/* Type / pinned badges */}
-          <div className="mb-2 flex flex-wrap items-center gap-2">
-            <span
-              className={`inline-flex items-center rounded-full px-2.5 py-1 text-[10px] font-bold tracking-wide ${
-                item.type ===
-                "event"
-                  ? "bg-sage-100/70 text-sage-700"
-                  : "bg-brand-50 text-brand-500"
-              }`}
-            >
-              {item.type ===
-              "event"
-                ? "Event"
-                : "Announcement"}
+        {/* Type + pinned */}
+        <div className="mb-3 flex flex-wrap items-center gap-2">
+          <span
+            className={`inline-flex items-center rounded-full border px-3 py-1 text-[11px] font-extrabold ${
+              isEvent
+                ? "border-amber-400/25 bg-amber-400/15 text-amber-700 dark:text-amber-300"
+                : "border-rose-400/25 bg-rose-400/15 text-rose-700 dark:text-rose-300"
+            }`}
+          >
+            {isEvent
+              ? "Event"
+              : "Announcement"}
+          </span>
+
+          {item.pinned ? (
+            <span className="inline-flex items-center gap-1 rounded-full border border-sage-100 bg-sage-50 px-2.5 py-1 text-[10px] font-bold text-muted dark:bg-white/5">
+              <Pin
+                className="size-3"
+                aria-hidden="true"
+              />
+              Pinned
             </span>
-
-            {item.pinned ? (
-              <span className="inline-flex items-center gap-1 rounded-full bg-paper px-2 py-1 text-[10px] font-semibold text-muted ring-1 ring-sage-100">
-                <Pin
-                  className="size-3 text-brand-400"
-                  aria-hidden="true"
-                />
-                Pinned
-              </span>
-            ) : null}
-          </div>
-
-          {/* Title */}
-          <h3 className="text-[15px] font-bold leading-5 text-ink transition-colors group-hover:text-brand-400">
-            {item.title}
-          </h3>
-
-          {/* Description */}
-          {item.description ? (
-            <p className="mt-1.5 line-clamp-3 text-[13px] leading-5 text-muted">
-              {item.description}
-            </p>
           ) : null}
+        </div>
 
-          {/* Metadata */}
-          <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2 text-[11px] text-muted">
-            {item.eventAt ? (
-              <span className="inline-flex items-center gap-1.5">
-                <CalendarDays
-                  className="size-3.5 shrink-0"
-                  aria-hidden="true"
-                />
+        {/* Title */}
+        <h3 className="text-[16px] font-extrabold leading-6 tracking-[-0.01em] text-ink">
+          {item.title}
+        </h3>
 
-                <span>
-                  {dateLabel(
-                    item.eventAt
-                  )}
-                </span>
+        {/* Description */}
+        {item.description ? (
+          <p className="mt-2.5 text-[14px] font-medium leading-6 text-slate-700 dark:text-slate-200">
+            {item.description}
+          </p>
+        ) : null}
+
+        {/* Metadata — intentionally subtle */}
+        <div className="mt-4 space-y-2 text-[12px] font-medium text-muted">
+          {item.eventAt ? (
+            <div className="flex items-center gap-2">
+              <CalendarDays
+                className="size-3.5 shrink-0 opacity-70"
+                strokeWidth={1.8}
+                aria-hidden="true"
+              />
+
+              <span>
+                {dateLabel(
+                  item.eventAt
+                )}
               </span>
-            ) : (
+            </div>
+          ) : (
+            <div className="flex items-center gap-2">
               <span>
                 {publishedLabel(
                   item.createdAt
                 )}
               </span>
-            )}
+            </div>
+          )}
 
-            {item.location ? (
-              <span className="inline-flex min-w-0 items-center gap-1.5">
-                <MapPin
-                  className="size-3.5 shrink-0"
-                  aria-hidden="true"
-                />
-
-                <span className="truncate">
-                  {item.location}
-                </span>
-              </span>
-            ) : null}
-          </div>
-
-          {/* Link */}
-          {item.linkUrl ? (
-            <div className="mt-3 inline-flex items-center gap-1.5 text-xs font-semibold text-brand-400 transition group-hover:text-brand-300">
-              View details
-
-              <ExternalLink
-                className="size-3.5"
+          {item.location ? (
+            <div className="flex min-w-0 items-center gap-2">
+              <MapPin
+                className="size-3.5 shrink-0 opacity-70"
+                strokeWidth={1.8}
                 aria-hidden="true"
               />
+
+              <span className="truncate">
+                {item.location}
+              </span>
             </div>
           ) : null}
         </div>
+
+        {/* Optional link */}
+        {item.linkUrl ? (
+          <div className="mt-4 inline-flex items-center gap-1.5 text-xs font-bold text-brand-500 transition group-hover:text-brand-600 dark:text-brand-300">
+            View details
+
+            <ExternalLink
+              className="size-3.5"
+              strokeWidth={2}
+              aria-hidden="true"
+            />
+          </div>
+        ) : null}
       </div>
     </div>
   );
 
-  if (
-    item.linkUrl
-  ) {
+  if (item.linkUrl) {
     return (
       <a
-        href={
-          item.linkUrl
-        }
+        href={item.linkUrl}
         target="_blank"
         rel="noopener noreferrer"
-        className="block border-b border-sage-100/70 transition-colors last:border-b-0 hover:bg-sage-50/35"
+        className="block border-b border-sage-100/70 transition-colors last:border-b-0 hover:bg-sage-50/40 dark:hover:bg-white/[0.025]"
       >
         {content}
       </a>
@@ -294,11 +294,11 @@ export function CommunityBulletin({
       }`}
     >
       {/* Header */}
-      <div className="flex items-center gap-3 border-b border-sage-100/80 px-5 py-4">
-        <div className="grid size-9 shrink-0 place-items-center rounded-full bg-brand-50 text-brand-400">
+      <div className="flex items-center gap-3 border-b border-sage-100/80 px-5 py-[18px]">
+        <div className="grid size-10 shrink-0 place-items-center rounded-full border border-violet-400/20 bg-violet-500/10 text-violet-600 dark:text-violet-300">
           <Megaphone
-            className="size-[17px]"
-            strokeWidth={2}
+            className="size-[18px]"
+            strokeWidth={2.2}
             aria-hidden="true"
           />
         </div>
@@ -307,7 +307,7 @@ export function CommunityBulletin({
           id={
             headingId
           }
-          className="text-[17px] font-bold tracking-[-0.015em] text-ink"
+          className="text-[18px] font-extrabold tracking-[-0.02em] text-ink"
         >
           Saintagram Bulletin
         </h2>

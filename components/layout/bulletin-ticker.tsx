@@ -29,15 +29,41 @@ import type {
 const DISMISSED_KEY =
   "saintagram-bulletin-ticker-dismissed-v1";
 
-function tickerLabel(
-  item: BulletinItem
-): string {
-  const prefix =
-    item.type === "event"
-      ? "Event"
-      : "Announcement";
+function TickerItems({
+  items
+}: {
+  items: BulletinItem[];
+}) {
+  return (
+    <>
+      {items.map((item, index) => (
+        <span
+          key={item.id}
+          className="inline-flex shrink-0 items-center"
+        >
+          {/* Separator between different bulletin items */}
+          {index > 0 ? (
+            <span
+              aria-hidden="true"
+              className="mx-5 h-4 w-px shrink-0 bg-brand-300/60 dark:bg-white/30"
+            />
+          ) : null}
 
-  return `${prefix}: ${item.title}`;
+          <span className="inline-flex items-center gap-1.5">
+            <strong className="font-extrabold text-brand-600 dark:text-white">
+              {item.type === "event"
+                ? "Event:"
+                : "Announcement:"}
+            </strong>
+
+            <span className="font-semibold text-ink dark:text-white">
+              {item.title}
+            </span>
+          </span>
+        </span>
+      ))}
+    </>
+  );
 }
 
 export function BulletinTicker({
@@ -191,16 +217,15 @@ export function BulletinTicker({
     onVisibilityChange
   ]);
 
-  const tickerText =
+  const tickerContentKey =
     useMemo(
       () =>
         items
           .map(
-            tickerLabel
+            (item) =>
+              `${item.id}:${item.type}:${item.title}`
           )
-          .join(
-            "     •     "
-          ),
+          .join("|"),
       [items]
     );
   
@@ -214,7 +239,7 @@ export function BulletinTicker({
     if (
       !viewport ||
       !group ||
-      !tickerText
+      !tickerContentKey
     ) {
       return;
     }
@@ -300,7 +325,7 @@ export function BulletinTicker({
     return () => {
       observer.disconnect();
     };
-  }, [tickerText]);
+  }, [tickerContentKey]);
 
   function closeTicker() {
     setDismissed(
@@ -446,26 +471,22 @@ export function BulletinTicker({
                     }
                     className="bulletin-ticker-group flex shrink-0 items-center"
                   >
-                    <span className="inline-flex shrink-0 items-center gap-3 px-5 text-[13px] font-semibold text-ink sm:px-6 sm:text-sm dark:text-white">
-                      <CalendarDays
-                        className="size-4 shrink-0 opacity-80"
+                    <span className="inline-flex shrink-0 items-center px-5 text-[13px] sm:px-6 sm:text-sm">
+                      <TickerItems items={items} />
+
+                      <span
                         aria-hidden="true"
+                        className="mx-5 h-4 w-px shrink-0 bg-brand-300/60 dark:bg-white/30"
                       />
 
-                      <span>
-                        {tickerText}
-                      </span>
-
-                      <span className="font-bold text-brand-500 dark:text-white/75">
+                      <span className="shrink-0 font-bold text-brand-500 dark:text-white/75">
                         Tap to view
                       </span>
 
                       <span
                         aria-hidden="true"
-                        className="mx-3 text-brand-300 dark:text-white/50"
-                      >
-                        •
-                      </span>
+                        className="mx-5 h-4 w-px shrink-0 bg-brand-300/60 dark:bg-white/30"
+                      />
                     </span>
                   </div>
                 )
