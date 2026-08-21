@@ -15,6 +15,16 @@ import {
   ACCESS_COOKIE_NAME,
   createAccessSessionToken
 } from "@/lib/access-session";
+import {
+  COMMON_ENTRY_BYPASS_COOKIE,
+  COMMON_VISIT_COOKIE,
+  QR_VISIT_COOKIE,
+  VISIT_SESSION_COOKIE
+} from "@/lib/link-tracking";
+import {
+  OPEN_EVENT_ID_PARAM,
+  OPEN_EVENT_TOKEN_PARAM
+} from "@/lib/link-tracking-shared";
 
 const SESSION_SECRET = "s".repeat(32);
 
@@ -181,6 +191,123 @@ describe("access proxy", () => {
     expect(response.status).toBe(307);
     expect(response.headers.get("location")).toBe(
       "https://saintagram.example/open/qr?campaign=parish-2026"
+    );
+  });
+
+  it("routes a direct root visit through common-link tracking", async () => {
+    const response = await proxy(nextRequest("/"));
+
+    expect(response.status).toBe(307);
+    expect(response.headers.get("location")).toBe(
+      "https://saintagram.example/open/common"
+    );
+  });
+
+  it("tracks a common-link visit even when a QR/general visit cookie already exists", async () => {
+    const headers = new Headers();
+    headers.set(
+      "cookie",
+      `${VISIT_SESSION_COOKIE}=qr_general_visit; ${QR_VISIT_COOKIE}=qr_source_visit`
+    );
+    const request = new NextRequest("https://saintagram.example/", { headers });
+    const response = await proxy(request);
+
+    expect(response.status).toBe(307);
+    expect(response.headers.get("location")).toBe(
+      "https://saintagram.example/open/common"
+    );
+  });
+
+  it("keeps same-origin root navigation inside the current common visit", async () => {
+    const token = await createAccessSessionToken(SESSION_SECRET);
+    const headers = new Headers();
+    headers.set(
+      "cookie",
+      `${ACCESS_COOKIE_NAME}=${token}; ${COMMON_VISIT_COOKIE}=common_visit_123`
+    );
+    headers.set("sec-fetch-site", "same-origin");
+    headers.set("sec-fetch-mode", "navigate");
+    headers.set("sec-fetch-dest", "document");
+    const request = new NextRequest("https://saintagram.example/", { headers });
+    const response = await proxy(request);
+
+    expect(response.headers.get("x-middleware-next")).toBe("1");
+    expect(response.headers.get("location")).toBeNull();
+  });
+
+  it("records a fresh common entry when the user directly opens the root again", async () => {
+    const token = await createAccessSessionToken(SESSION_SECRET);
+    const headers = new Headers();
+    headers.set(
+      "cookie",
+      `${ACCESS_COOKIE_NAME}=${token}; ${COMMON_VISIT_COOKIE}=older_common_visit`
+    );
+    headers.set("sec-fetch-site", "none");
+    headers.set("sec-fetch-mode", "navigate");
+    headers.set("sec-fetch-dest", "document");
+    const request = new NextRequest("https://saintagram.example/", { headers });
+    const response = await proxy(request);
+
+    expect(response.status).toBe(307);
+    expect(response.headers.get("location")).toBe(
+      "https://saintagram.example/open/common"
+    );
+  });
+
+  it("records a fresh common entry when saintagram.com is opened from another site", async () => {
+    const headers = new Headers();
+    headers.set("cookie", `${COMMON_VISIT_COOKIE}=older_common_visit`);
+    headers.set("sec-fetch-site", "cross-site");
+    headers.set("sec-fetch-mode", "navigate");
+    headers.set("sec-fetch-dest", "document");
+    const request = new NextRequest("https://saintagram.example/", { headers });
+    const response = await proxy(request);
+
+    expect(response.status).toBe(307);
+    expect(response.headers.get("location")).toBe(
+      "https://saintagram.example/open/common"
+    );
+  });
+
+
+  it("allows the explicit tracked-entry return even if redirect cookies are missing", async () => {
+    const token = await createAccessSessionToken(SESSION_SECRET);
+    const eventId = "event_123";
+    const trackingToken = "a".repeat(64);
+    const headers = new Headers();
+    headers.set("cookie", `${ACCESS_COOKIE_NAME}=${token}`);
+    headers.set("sec-fetch-site", "none");
+    headers.set("sec-fetch-mode", "navigate");
+    headers.set("sec-fetch-dest", "document");
+    const request = new NextRequest(
+      `https://saintagram.example/?${OPEN_EVENT_ID_PARAM}=${eventId}&${OPEN_EVENT_TOKEN_PARAM}=${trackingToken}`,
+      { headers }
+    );
+    const response = await proxy(request);
+
+    expect(response.headers.get("x-middleware-next")).toBe("1");
+    expect(response.headers.get("location")).toBeNull();
+  });
+
+  it("allows the one-time return from /open/common and consumes its bypass cookie", async () => {
+    const token = await createAccessSessionToken(SESSION_SECRET);
+    const headers = new Headers();
+    headers.set(
+      "cookie",
+      `${ACCESS_COOKIE_NAME}=${token}; ${COMMON_VISIT_COOKIE}=new_common_visit; ${COMMON_ENTRY_BYPASS_COOKIE}=new_common_visit`
+    );
+    // Redirect chains can preserve the original user-navigation metadata, so
+    // the bypass cookie is what prevents /open/common -> / -> /open/common.
+    headers.set("sec-fetch-site", "none");
+    headers.set("sec-fetch-mode", "navigate");
+    headers.set("sec-fetch-dest", "document");
+    const request = new NextRequest("https://saintagram.example/", { headers });
+    const response = await proxy(request);
+
+    expect(response.headers.get("x-middleware-next")).toBe("1");
+    expect(response.headers.get("location")).toBeNull();
+    expect(response.headers.get("set-cookie")).toContain(
+      `${COMMON_ENTRY_BYPASS_COOKIE}=;`
     );
   });
 

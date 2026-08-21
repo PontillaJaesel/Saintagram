@@ -11,7 +11,16 @@ import {
   isAdminPagePath,
   isLocalDevelopmentHostname
 } from "@/lib/admin-routing";
-import { VISIT_ID_PATTERN, VISIT_SESSION_COOKIE } from "@/lib/link-tracking";
+import {
+  COMMON_ENTRY_BYPASS_COOKIE,
+  COMMON_VISIT_COOKIE,
+  VISIT_ID_PATTERN
+} from "@/lib/link-tracking";
+import {
+  OPEN_EVENT_ID_PARAM,
+  OPEN_EVENT_TOKEN_PARAM,
+  OPEN_EVENT_TOKEN_PATTERN
+} from "@/lib/link-tracking-shared";
 
 const ACCESS_PAGE = "/access";
 const ACCESS_ENDPOINT = "/api/access";
@@ -93,10 +102,60 @@ export async function enforceAccessGate(request: NextRequest) {
     return NextResponse.next();
   }
 
-  const visitId = request.cookies.get(VISIT_SESSION_COOKIE)?.value;
-  if (pathname === "/" && (!visitId || !VISIT_ID_PATTERN.test(visitId))) {
+  // A valid common-source cookie alone is not enough to decide that a root
+  // request is "already tracked". It can still point to an older visit for up
+  // to 30 minutes, which used to suppress a real later opening of
+  // saintagram.com (especially when the user was already signed in).
+  //
+  // Modern browsers expose top-level navigation context through Fetch
+  // Metadata. Treat an address-bar/bookmark/external navigation to `/` as a
+  // fresh common-link entry even when an older common cookie exists. Same-
+  // origin app navigation/reloads keep the existing visit window behavior.
+  const explicitOpenEventId = request.nextUrl.searchParams.get(OPEN_EVENT_ID_PARAM);
+  const explicitOpenEventToken = request.nextUrl.searchParams.get(OPEN_EVENT_TOKEN_PARAM);
+  const hasExplicitTrackedReturn = Boolean(
+    explicitOpenEventId &&
+      VISIT_ID_PATTERN.test(explicitOpenEventId) &&
+      explicitOpenEventToken &&
+      OPEN_EVENT_TOKEN_PATTERN.test(explicitOpenEventToken)
+  );
+
+  const commonVisitId = request.cookies.get(COMMON_VISIT_COOKIE)?.value;
+  const commonBypassId = request.cookies.get(COMMON_ENTRY_BYPASS_COOKIE)?.value;
+  const hasValidCommonVisit = Boolean(
+    commonVisitId && VISIT_ID_PATTERN.test(commonVisitId)
+  );
+  const isTrackedCommonReturn = Boolean(
+    hasValidCommonVisit && commonBypassId === commonVisitId
+  );
+  const fetchSite = request.headers.get("sec-fetch-site");
+  const fetchMode = request.headers.get("sec-fetch-mode");
+  const fetchDest = request.headers.get("sec-fetch-dest");
+  const isTopLevelNavigation =
+    (!fetchMode || fetchMode === "navigate") &&
+    (!fetchDest || fetchDest === "document");
+  const isExternalOrDirectNavigation =
+    isTopLevelNavigation &&
+    (fetchSite === "none" ||
+      fetchSite === "cross-site" ||
+      fetchSite === "same-site" ||
+      (!fetchSite && !request.headers.get("referer")));
+
+  if (
+    pathname === "/" &&
+    !hasExplicitTrackedReturn &&
+    !isTrackedCommonReturn &&
+    (!hasValidCommonVisit || isExternalOrDirectNavigation)
+  ) {
     return NextResponse.redirect(new URL("/open/common", request.url));
   }
+
+  const clearCommonBypass = <T extends NextResponse>(response: T): T => {
+    if (pathname === "/" && isTrackedCommonReturn) {
+      response.cookies.delete(COMMON_ENTRY_BYPASS_COOKIE);
+    }
+    return response;
+  };
 
   const sessionSecret = process.env.SITE_ACCESS_SESSION_SECRET;
   const cookie = request.cookies.get(ACCESS_COOKIE_NAME)?.value;
@@ -109,15 +168,15 @@ export async function enforceAccessGate(request: NextRequest) {
     (await verifyAccessSessionToken(cookie, sessionSecret as string));
 
   if (pathname === ACCESS_PAGE) {
-    if (!hasAccess) return NextResponse.next();
+    if (!hasAccess) return clearCommonBypass(NextResponse.next());
 
     const destination = getSafeAccessDestination(
       request.nextUrl.searchParams.get("next")
     );
-    return NextResponse.redirect(new URL(destination, request.url));
+    return clearCommonBypass(NextResponse.redirect(new URL(destination, request.url)));
   }
 
-  if (hasAccess) return NextResponse.next();
+  if (hasAccess) return clearCommonBypass(NextResponse.next());
 
   if (pathname.startsWith("/api/")) {
     const response = NextResponse.json(
@@ -137,5 +196,5 @@ export async function enforceAccessGate(request: NextRequest) {
   accessUrl.searchParams.set("next", `${pathname}${search}`);
   const response = NextResponse.redirect(accessUrl);
   if (cookie) response.cookies.delete(ACCESS_COOKIE_NAME);
-  return response;
+  return clearCommonBypass(response);
 }
