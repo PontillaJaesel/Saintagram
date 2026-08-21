@@ -1,0 +1,81 @@
+diff --git a/app/users/[userId]/connections/page.tsx b/app/users/[userId]/connections/page.tsx
+--- a/app/users/[userId]/connections/page.tsx
++++ b/app/users/[userId]/connections/page.tsx
+@@ -11,7 +11,7 @@
+ 
+   return (
+     <RouteGuard requireProfile>
+-      <AppShell title="Followers & Following" description="People connected through Saintagram.">
++      <AppShell>
+         <SocialConnectionsView userId={userId} />
+       </AppShell>
+     </RouteGuard>
+diff --git a/components/social/social-connections-view.tsx b/components/social/social-connections-view.tsx
+--- a/components/social/social-connections-view.tsx
++++ b/components/social/social-connections-view.tsx
+@@ -95,10 +95,14 @@
+ 
+   if (error || !data?.profile) {
+     return (
+-      <div className="space-y-5">
+-        <Link href={`/users/${userId}`} className="btn-quiet inline-flex">
+-          <ArrowLeft className="size-4" aria-hidden="true" />
+-          Back to profile
++      <div className="mx-auto max-w-3xl space-y-4">
++        <Link
++          href={currentUserId === userId ? "/profile" : `/users/${userId}`}
++          aria-label="Back to profile"
++          title="Back to profile"
++          className="grid size-11 place-items-center rounded-full border border-sage-100 bg-paper text-ink shadow-sm transition hover:bg-sage-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sage-500 focus-visible:ring-offset-2"
++        >
++          <ArrowLeft className="size-5" aria-hidden="true" />
+         </Link>
+         <div className="surface p-7 text-center" role="alert">
+           <p className="font-bold text-clay-600">{error || "Profile not found."}</p>
+@@ -111,13 +115,14 @@
+   const entries = tab === "followers" ? data.followers : data.following;
+ 
+   return (
+-    <div className="mx-auto max-w-3xl space-y-5">
++    <div className="mx-auto max-w-3xl space-y-4">
+       <Link
+         href={currentUserId === userId ? "/profile" : `/users/${userId}`}
+-        className="btn-quiet inline-flex"
++        aria-label="Back to profile"
++        title="Back to profile"
++        className="grid size-11 place-items-center rounded-full border border-sage-100 bg-paper text-ink shadow-sm transition hover:bg-sage-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sage-500 focus-visible:ring-offset-2"
+       >
+-        <ArrowLeft className="size-4" aria-hidden="true" />
+-        Back to profile
++        <ArrowLeft className="size-5" aria-hidden="true" />
+       </Link>
+ 
+       <section className="surface overflow-hidden p-0">
+diff --git a/components/layout/app-shell.tsx b/components/layout/app-shell.tsx
+--- a/components/layout/app-shell.tsx
++++ b/components/layout/app-shell.tsx
+@@ -100,7 +100,8 @@
+     "/reflect",
+     "/reflections",
+     "/journey",
+-    "/settings"
++    "/settings",
++    "/users"
+   ].some((route) => pathname === route || pathname.startsWith(`${route}/`));
+ 
+   const [profileHeaderActive, setProfileHeaderActive] = useState(false);
+@@ -298,7 +299,13 @@
+           className={`app-page-enter w-full ${
+             isProfile
+               ? "min-w-0 px-0 py-0"
+-              : `mx-auto min-w-0 max-w-6xl px-4 pt-7 sm:px-8 sm:pt-12 ${needsMobileFooterSpace ? "pb-12 sm:pb-12 lg:pb-0" : "pb-0"}`
++              : `mx-auto min-w-0 max-w-6xl px-4 pt-7 sm:px-8 sm:pt-12 ${
++                  needsMobileFooterSpace
++                    ? bulletinTickerVisible
++                      ? "pb-[calc(10rem+env(safe-area-inset-bottom))] sm:pb-[calc(10rem+env(safe-area-inset-bottom))] lg:pb-0"
++                      : "pb-[calc(6.5rem+env(safe-area-inset-bottom))] sm:pb-[calc(6.5rem+env(safe-area-inset-bottom))] lg:pb-0"
++                    : "pb-0"
++                }`}
+           }`}
+         >
+           {(title ||

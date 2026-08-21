@@ -95,10 +95,14 @@ export function SocialConnectionsView({ userId }: { userId: string }) {
 
   if (error || !data?.profile) {
     return (
-      <div className="space-y-5">
-        <Link href={`/users/${userId}`} className="btn-quiet inline-flex">
-          <ArrowLeft className="size-4" aria-hidden="true" />
-          Back to profile
+      <div className="mx-auto max-w-3xl space-y-4">
+        <Link
+          href={currentUserId === userId ? "/profile" : `/users/${userId}`}
+          aria-label="Back to profile"
+          title="Back to profile"
+          className="grid size-11 place-items-center rounded-full border border-sage-100 bg-paper text-ink shadow-sm transition hover:bg-sage-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sage-500 focus-visible:ring-offset-2"
+        >
+          <ArrowLeft className="size-5" aria-hidden="true" />
         </Link>
         <div className="surface p-7 text-center" role="alert">
           <p className="font-bold text-clay-600">{error || "Profile not found."}</p>
@@ -111,13 +115,14 @@ export function SocialConnectionsView({ userId }: { userId: string }) {
   const entries = tab === "followers" ? data.followers : data.following;
 
   return (
-    <div className="mx-auto max-w-3xl space-y-5">
+    <div className="mx-auto max-w-3xl space-y-4">
       <Link
         href={currentUserId === userId ? "/profile" : `/users/${userId}`}
-        className="btn-quiet inline-flex"
+        aria-label="Back to profile"
+        title="Back to profile"
+        className="grid size-11 place-items-center rounded-full border border-sage-100 bg-paper text-ink shadow-sm transition hover:bg-sage-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sage-500 focus-visible:ring-offset-2"
       >
-        <ArrowLeft className="size-4" aria-hidden="true" />
-        Back to profile
+        <ArrowLeft className="size-5" aria-hidden="true" />
       </Link>
 
       <section className="surface overflow-hidden p-0">
