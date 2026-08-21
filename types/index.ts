@@ -262,6 +262,20 @@ export interface ProfileDraft {
   updatedAt: string;
 }
 
+export interface PersonalDataJourneyEvent {
+  id: string;
+  userId: string;
+  changes: string[];
+  imagePath?: string;
+  createdAt: string;
+}
+
+export interface PersonalDataDownloadLinks {
+  profileImage?: string;
+  coverImage?: string;
+  reflectionMedia: Record<string, string>;
+}
+
 export interface PersonalDataExport {
   exportedAt: string;
   notice: string;
@@ -269,6 +283,10 @@ export interface PersonalDataExport {
   profile: SpiritualProfile | null;
   reflections: ReflectionPost[];
   unfinishedDraft: ProfileDraft | null;
+  likes: ReflectionLike[];
+  comments: ReflectionComment[];
+  profileJourneyEvents: PersonalDataJourneyEvent[];
+  downloadLinks: PersonalDataDownloadLinks;
 }
 
 export const EMPTY_DRAFT: ProfileDraftData = {

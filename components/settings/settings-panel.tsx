@@ -26,6 +26,9 @@ import { appService } from "@/lib/app-service";
 import { adminFetch } from "@/lib/admin-api";
 import { getFirebaseServices } from "@/lib/firebase";
 import { createPersonalDataPdf } from "@/lib/personal-data-pdf";
+import { downloadFirebaseProfileImage } from "@/lib/profile-images";
+import { getProfileCover } from "@/lib/profile-covers";
+import { reflectionMediaUrl } from "@/lib/reflection-media";
 import { resolvePostAuthRoute } from "@/lib/routes";
 import {
   formatFriendlyDate,
@@ -313,6 +316,45 @@ export function SettingsPanel() {
     setExporting(true);
     try {
       const archive = await appService.exportPersonalData(user.id);
+
+      const mediaPaths = Array.from(
+        new Set(
+          archive.reflections.flatMap((post) =>
+            (post.media ?? []).map((media) => media.path)
+          )
+        )
+      );
+      const mediaPairs = await Promise.all(
+        mediaPaths.map(async (path) => {
+          try {
+            return [path, await reflectionMediaUrl(path)] as const;
+          } catch {
+            return [path, ""] as const;
+          }
+        })
+      );
+      archive.downloadLinks.reflectionMedia = Object.fromEntries(
+        mediaPairs.filter(([, url]) => Boolean(url))
+      );
+
+      if (archive.profile?.imagePath) {
+        try {
+          archive.downloadLinks.profileImage = await downloadFirebaseProfileImage(
+            archive.profile.imagePath
+          );
+        } catch {
+          // Keep the export usable even when an old Storage object is missing.
+        }
+      }
+
+      const selectedCover = getProfileCover(archive.profile?.coverImageId);
+      if (selectedCover) {
+        archive.downloadLinks.coverImage = new URL(
+          selectedCover.src,
+          window.location.origin
+        ).toString();
+      }
+
       const blob = await createPersonalDataPdf(archive);
       const url = URL.createObjectURL(blob);
       const anchor = document.createElement("a");
@@ -631,8 +673,8 @@ export function SettingsPanel() {
         </div>
         <p className="mt-3 flex items-start gap-2 text-xs leading-5 text-muted">
           <EyeOff className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
-          Your personal export may contain your Hidden Story and private
-          reflections. It is never presented as a public or shareable profile.
+          Your personal export contains private account data, reflection media links,
+          and activity history. It is never presented as a public or shareable profile.
         </p>
       </SettingsSection>
 
@@ -650,7 +692,7 @@ export function SettingsPanel() {
       <ConfirmDialog
         open={exportOpen}
         title="Download your private archive?"
-        description="The PDF contains all of your public and private reflections. Store it somewhere only you can access."
+        description="The PDF contains your profile details, public and private reflections, media download links, and recorded account activity. Store it somewhere only you can access."
         confirmLabel="Download PDF"
         headerIcon={
           <div className="flex h-16 w-16 items-center justify-center rounded-full border border-sage-100 bg-sage-50 text-sage-700 shadow-sm">

@@ -22,6 +22,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { LoadingState } from "@/components/ui/loading-state";
 import { ProfileCover } from "@/components/ui/profile-cover";
 import { calculateFiatStats } from "@/lib/fiat";
+import { getSocialConnectionSummary } from "@/lib/social-connections";
 
 import {
   downloadFirebaseProfileImage,
@@ -205,6 +206,11 @@ export function SocialProfileView({
     useState(false);
 
   const [
+    connectionSummary,
+    setConnectionSummary
+  ] = useState({ followersCount: 0, followingCount: 0, canViewConnections: false });
+
+  const [
     loading,
     setLoading
   ] =
@@ -327,6 +333,29 @@ export function SocialProfileView({
     userId
   ]);
 
+  useEffect(() => {
+    if (!user?.id || !userId) return;
+    let active = true;
+    void getSocialConnectionSummary(userId)
+      .then((result) => {
+        if (active) {
+          setConnectionSummary({
+            followersCount: result.followersCount,
+            followingCount: result.followingCount,
+            canViewConnections: result.canViewConnections
+          });
+        }
+      })
+      .catch(() => {
+        if (active) {
+          setConnectionSummary({ followersCount: 0, followingCount: 0, canViewConnections: false });
+        }
+      });
+    return () => {
+      active = false;
+    };
+  }, [user?.id, userId]);
+
   /*
    * ==========================================================
    * STATES
@@ -422,99 +451,91 @@ export function SocialProfileView({
       <section className="surface overflow-hidden">
         <ProfileCover coverColor={profile.coverColor} coverImageId={profile.coverImageId} className="h-28 sm:h-36" />
 
-        <div className="px-5 pb-6 sm:px-8 sm:pb-8">
-          <div className="-mt-12 flex flex-col gap-5 sm:-mt-14 sm:flex-row sm:items-end sm:justify-between">
-            <div className="flex min-w-0 flex-col gap-4 sm:flex-row sm:items-end">
-              <SocialProfileAvatar
-                imagePath={
-                  profile.imagePath
-                }
-                profileName={
-                  profile.profileName
-                }
-              />
+        <div className="relative px-5 pb-6 sm:px-8 sm:pb-8">
+          <div className="-mt-12 flex items-start justify-between gap-4 sm:-mt-14">
+            <SocialProfileAvatar
+              imagePath={profile.imagePath}
+              profileName={profile.profileName}
+            />
 
-              <div className="min-w-0 pb-1">
-                <div className="flex flex-wrap items-center gap-2">
-                  <h1 className="break-words font-serif text-3xl font-bold text-ink sm:text-4xl">
-                    {
-                      profile.profileName
-                    }
-                  </h1>
-
-                  {profile.isPrivateAccount && (
-                    <LockKeyhole
-                      className="size-5 shrink-0 text-muted sm:size-6"
-                      aria-label="Private account"
-                    />
-                  )}
-                </div>
-
-                {profile.heavenlyHashtag && (
-                  <p className="mt-1 flex items-center gap-1 text-sm font-bold text-sage-600">
-                    <Hash
-                      className="size-4"
-                      aria-hidden="true"
-                    />
-
-                    {profile.heavenlyHashtag.replace(
-                      /^#/,
-                      ""
-                    )}
-                  </p>
-                )}
-              </div>
-
-              {publicFiatStats.currentStreak >
-                0 && (
-                <span
-                  className="fiat-streak-badge"
-                  aria-label={`Public FiAt streak: ${publicFiatStats.currentStreak} days`}
-                >
-                  <strong>
-                    Fi@{" "}
-                    {
-                      publicFiatStats.currentStreak
-                    }
-                  </strong>
-                </span>
-              )}
-            </div>
-
-            <div className="shrink-0">
+            <div className="mt-14 shrink-0 sm:mt-16">
               {isOwnProfile ? (
-                <Link
-                  href="/profile"
-                  className="profile-edit-button btn-secondary"
-                >
+                <Link href="/profile" className="profile-edit-button btn-secondary">
                   View your profile
                 </Link>
               ) : (
                 <FollowButton
-                  targetUserId={
-                    profile.userId
-                  }
-                  targetIsPrivate={
-                    profile.isPrivateAccount
-                  }
+                  targetUserId={profile.userId}
+                  targetIsPrivate={profile.isPrivateAccount}
                 />
               )}
             </div>
           </div>
 
-          {profile.spiritualBio && (
-            <div className="mt-6 max-w-2xl">
-              <p className="eyebrow">
-                Before God, I am
-              </p>
-
-              <p className="user-content mt-2 whitespace-pre-wrap text-sm leading-7 text-muted sm:text-base">
-                {
-                  profile.spiritualBio
-                }
-              </p>
+          <div className="mt-4 min-w-0 max-w-2xl">
+            <div className="flex flex-wrap items-center gap-2">
+              <h1 className="break-words font-serif text-3xl font-bold text-ink sm:text-4xl">
+                {profile.profileName}
+              </h1>
+              {profile.isPrivateAccount && (
+                <LockKeyhole
+                  className="size-5 shrink-0 text-muted sm:size-6"
+                  aria-label="Private account"
+                />
+              )}
+              {publicFiatStats.currentStreak > 0 && (
+                <span
+                  className="fiat-streak-badge"
+                  aria-label={`Public FiAt streak: ${publicFiatStats.currentStreak} days`}
+                >
+                  <strong>Fi@ {publicFiatStats.currentStreak}</strong>
+                </span>
+              )}
             </div>
-          )}
+
+            {profile.heavenlyHashtag && (
+              <p className="mt-1 flex items-center gap-1 text-sm font-bold text-sage-600">
+                <Hash className="size-4" aria-hidden="true" />
+                {profile.heavenlyHashtag.replace(/^#/, "")}
+              </p>
+            )}
+
+            {profile.spiritualBio && (
+              <div className="mt-5">
+                <p className="eyebrow">Before God, I am</p>
+                <p className="user-content mt-2 whitespace-pre-wrap text-sm leading-7 text-muted sm:text-base">
+                  {profile.spiritualBio}
+                </p>
+              </div>
+            )}
+
+            <div className="mt-4 flex flex-wrap items-center gap-x-5 gap-y-2 text-sm text-muted">
+              <Link
+                href={`/users/${profile.userId}/connections?tab=following`}
+                className="transition hover:text-sage-700"
+                title={
+                  profile.isPrivateAccount && !connectionSummary.canViewConnections
+                    ? "Follow this private account and wait for approval to view the list."
+                    : undefined
+                }
+              >
+                <strong className="text-ink">{connectionSummary.followingCount}</strong>{" "}
+                Following
+              </Link>
+              <Link
+                href={`/users/${profile.userId}/connections?tab=followers`}
+                className="transition hover:text-sage-700"
+                title={
+                  profile.isPrivateAccount && !connectionSummary.canViewConnections
+                    ? "Follow this private account and wait for approval to view the list."
+                    : undefined
+                }
+              >
+                <strong className="text-ink">{connectionSummary.followersCount}</strong>{" "}
+                Followers
+              </Link>
+            </div>
+          </div>
         </div>
       </section>
 
@@ -536,7 +557,6 @@ export function SocialProfileView({
                     initialFollowing
                   }
                   compactTimestamp
-                  hideViewProfile
                 />
               )
             )}
