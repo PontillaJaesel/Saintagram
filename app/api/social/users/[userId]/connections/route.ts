@@ -71,7 +71,10 @@ export async function GET(
       );
     }
 
-    const verified = await getFirebaseAdminAuth().verifyIdToken(token, true);
+    // Verify the Firebase ID token locally. Do not pass `true` here: that
+    // performs an additional remote revocation/user lookup, which is unreliable
+    // in the Cloudflare Workers runtime and can reject otherwise valid sessions.
+    const verified = await getFirebaseAdminAuth().verifyIdToken(token);
     const { userId } = await params;
     if (!/^[A-Za-z0-9:_-]{1,128}$/.test(userId)) {
       return NextResponse.json(

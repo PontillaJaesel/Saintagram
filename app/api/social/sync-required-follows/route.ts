@@ -11,7 +11,10 @@ export async function POST(request: Request) {
     if (!token) {
       return NextResponse.json({ error: "Authentication is required." }, { status: 401, headers });
     }
-    const verified = await getFirebaseAdminAuth().verifyIdToken(token, true);
+    // Do not request the extra remote revocation lookup in Cloudflare Workers.
+    // Signature/issuer/audience/expiration verification is sufficient for this
+    // short-lived Firebase ID token and matches the rest of the app's server auth.
+    const verified = await getFirebaseAdminAuth().verifyIdToken(token);
     await syncRequiredFollowsForUser(verified.uid);
     return NextResponse.json({ ok: true }, { headers });
   } catch (error) {
