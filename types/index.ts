@@ -320,6 +320,7 @@ export interface BulletinItem {
   eventAt: string | null;
   location: string;
   linkUrl: string;
+  imagePath: string;
   expiresAt: string | null;
   pinned: boolean;
   createdAt: string;

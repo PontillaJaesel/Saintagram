@@ -17,6 +17,7 @@ import {
 import {
   getPublicBulletins
 } from "@/lib/bulletins";
+import { bulletinImageUrl } from "@/lib/bulletin-images";
 
 import type {
   BulletinItem
@@ -61,6 +62,25 @@ function publishedLabel(
   );
 }
 
+function BulletinImage({ item }: { item: BulletinItem }) {
+  const [url, setUrl] = useState("");
+  useEffect(() => {
+    let active = true;
+    if (item.imagePath) {
+      void bulletinImageUrl(item.imagePath)
+        .then((nextUrl) => active && setUrl(nextUrl))
+        .catch(() => undefined);
+    }
+    return () => { active = false; };
+  }, [item.imagePath]);
+  if (!url) return null;
+  return (
+    <div className="mb-4 flex w-full justify-center overflow-hidden rounded-2xl border border-sage-100 bg-sage-50/50">
+      <img src={url} alt={`Picture for ${item.title}`} className="h-auto max-h-[28rem] w-full object-contain" loading="lazy" />
+    </div>
+  );
+}
+
 function BulletinRow({
   item
 }: {
@@ -72,7 +92,6 @@ function BulletinRow({
   const content = (
     <div className="group relative px-5 py-5">
       <div className="min-w-0">
-
         {/* Type + pinned */}
         <div className="mb-3 flex flex-wrap items-center gap-2">
           <span
@@ -108,6 +127,12 @@ function BulletinRow({
           <p className="mt-2.5 text-[14px] font-medium leading-6 text-slate-700 dark:text-slate-200">
             {item.description}
           </p>
+        ) : null}
+
+        {item.imagePath ? (
+          <div className="mt-4">
+            <BulletinImage item={item} />
+          </div>
         ) : null}
 
         {/* Metadata — intentionally subtle */}

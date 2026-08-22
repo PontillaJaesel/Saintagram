@@ -16,6 +16,7 @@ const TITLE_LIMIT = 100;
 const DESCRIPTION_LIMIT = 280;
 const LOCATION_LIMIT = 120;
 const LINK_LIMIT = 600;
+const BULLETIN_IMAGE_PATH = /^bulletins\/[A-Za-z0-9_-]{1,128}\/[0-9a-f-]+\.(?:jpg|png|webp)$/i;
 
 export interface AdminBulletinInput {
   type?: unknown;
@@ -24,6 +25,7 @@ export interface AdminBulletinInput {
   eventAt?: unknown;
   location?: unknown;
   linkUrl?: unknown;
+  imagePath?: unknown;
   expiresAt?: unknown;
   pinned?: unknown;
 }
@@ -145,6 +147,12 @@ function normalizedUrl(
  * 2. Saintagram's Firestore REST adapter, where
  *    timestampValue is decoded to an ISO string.
  */
+function normalizedImagePath(value: unknown): string {
+  const path = normalizedText(value, 300);
+  if (path && !BULLETIN_IMAGE_PATH.test(path)) throw new Error("BULLETIN_INVALID_IMAGE");
+  return path;
+}
+
 function timestampIso(
   value: unknown
 ): string | null {
@@ -257,6 +265,8 @@ function storedBulletin(
         data.linkUrl ?? ""
       ),
 
+    imagePath: String(data.imagePath ?? ""),
+
     expiresAt:
       timestampIso(
         data.expiresAt
@@ -318,6 +328,8 @@ function normalizedInput(
       input.linkUrl
     );
 
+  const imagePath = normalizedImagePath(input.imagePath);
+
   const pinned =
     input.pinned === true;
 
@@ -364,6 +376,7 @@ function normalizedInput(
     eventAt,
     location,
     linkUrl,
+    imagePath,
     expiresAt,
     pinned
   };
@@ -456,6 +469,9 @@ export async function createAdminBulletin(
     linkUrl:
       normalized.linkUrl,
 
+    imagePath:
+      normalized.imagePath,
+
     expiresAt:
       normalized.expiresAt,
 
@@ -491,6 +507,9 @@ export async function createAdminBulletin(
 
     linkUrl:
       normalized.linkUrl,
+
+    imagePath:
+      normalized.imagePath,
 
     expiresAt:
       normalized.expiresAt
@@ -572,6 +591,9 @@ export async function updateAdminBulletin(
     linkUrl:
       normalized.linkUrl,
 
+    imagePath:
+      normalized.imagePath,
+
     expiresAt:
       normalized.expiresAt,
 
@@ -603,6 +625,9 @@ export async function updateAdminBulletin(
 
     linkUrl:
       normalized.linkUrl,
+
+    imagePath:
+      normalized.imagePath,
 
     expiresAt:
       normalized.expiresAt

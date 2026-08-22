@@ -74,9 +74,64 @@ describe("temporary accounts", () => {
     }
   });
 
-  it("preserves Alex Pontilla as USR047", () => {
-    const account = userAccounts.find(
-      (account) => account.fullName === "Alex Pontilla"
+  it("keeps the expected number of normal user accounts", () => {
+    expect(userAccounts).toHaveLength(152);
+  });
+
+  it("keeps normal user credentials assigned by their USR number", () => {
+    userAccounts.forEach((account, index) => {
+      const code = String(index + 1).padStart(
+        3,
+        "0"
+      );
+
+      expect(account.username).toBe(
+        `USR${code}`
+      );
+
+      expect(account.temporaryPassword).toBe(
+        `Serve@${code}`
+      );
+
+      expect(account.role).toBe("user");
+
+      expect(
+        account.fullName.trim()
+      ).not.toBe("");
+    });
+  });
+
+  it("keeps tester account usernames unique", () => {
+    const testerUsernames = testerAccounts.map(
+      (account) => account.username
+    );
+
+    expect(
+      new Set(testerUsernames).size
+    ).toBe(testerUsernames.length);
+  });
+
+  it("requires every tester account to have valid credentials", () => {
+    testerAccounts.forEach((account) => {
+      expect(account.username).toMatch(
+        /^USRTEST\d+$/
+      );
+
+      expect(
+        account.fullName.trim()
+      ).not.toBe("");
+
+      expect(
+        account.temporaryPassword.trim()
+      ).not.toBe("");
+
+      expect(account.role).toBe("tester");
+    });
+  });
+
+  it("recognizes USRTEST3 as a valid tester account", () => {
+    const account = accounts.find(
+      (item) => item.username === "USRTEST3"
     );
 
     expect(account).toBeDefined();
