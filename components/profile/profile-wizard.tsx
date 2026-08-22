@@ -35,8 +35,7 @@ import {
   FOLLOWING_IDEAS,
   HASHTAG_IDEAS,
   HEART_SEEKS_IDEAS,
-  LIMITS,
-  PROFILE_NAME_IDEAS
+  LIMITS
 } from "@/lib/constants";
 import { formatFriendlyDate, normalizeHashtag } from "@/lib/validation";
 import {
@@ -490,7 +489,7 @@ export function ProfileWizard() {
               <span className="text-clay-600">*</span>
             </label>
             <p className="mb-4 text-sm leading-6 text-muted">
-              This is the name people will see on your profile. 
+              Type the name you want people to see on your profile.
             </p>
             <input
               ref={nameRef}
@@ -503,7 +502,7 @@ export function ProfileWizard() {
                 updateData("profileName", event.target.value)
               }
               maxLength={LIMITS.profileName}
-              placeholder="For example, Still Growing"
+              placeholder="Type your display name"
               required
               aria-invalid={Boolean(stepError)}
               aria-describedby={
@@ -517,28 +516,6 @@ export function ProfileWizard() {
               value={data.profileName}
               limit={LIMITS.profileName}
             />
-            <div className="mt-5">
-              <p className="mb-3 text-xs font-bold uppercase tracking-wider text-sage-600">
-                A few gentle ideas
-              </p>
-              <div className="flex flex-wrap gap-2">
-                {PROFILE_NAME_IDEAS.map((idea) => (
-                  <button
-                    key={idea}
-                    type="button"
-                    className={`chip ${
-                      data.profileName === idea ? "chip-selected" : ""
-                    }`}
-                    onClick={() => updateData("profileName", idea)}
-                  >
-                    {data.profileName === idea && (
-                      <Check className="size-4" aria-hidden="true" />
-                    )}
-                    {idea}
-                  </button>
-                ))}
-              </div>
-            </div>
           </div>
         );
       case 1:

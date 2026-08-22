@@ -100,7 +100,8 @@ export function AppShell({
     "/reflect",
     "/reflections",
     "/journey",
-    "/settings"
+    "/settings",
+    "/users"
   ].some((route) => pathname === route || pathname.startsWith(`${route}/`));
 
   const [profileHeaderActive, setProfileHeaderActive] = useState(false);
@@ -298,7 +299,13 @@ export function AppShell({
           className={`app-page-enter w-full ${
             isProfile
               ? "min-w-0 px-0 py-0"
-              : `mx-auto min-w-0 max-w-6xl px-4 pt-7 sm:px-8 sm:pt-12 ${needsMobileFooterSpace ? "pb-12 sm:pb-12 lg:pb-0" : "pb-0"}`
+              : `mx-auto min-w-0 max-w-6xl px-4 pt-7 sm:px-8 sm:pt-12 ${
+                  needsMobileFooterSpace
+                    ? bulletinTickerVisible
+                      ? "pb-[calc(10rem+env(safe-area-inset-bottom))] sm:pb-[calc(10rem+env(safe-area-inset-bottom))] lg:pb-0"
+                      : "pb-[calc(6.5rem+env(safe-area-inset-bottom))] sm:pb-[calc(6.5rem+env(safe-area-inset-bottom))] lg:pb-0"
+                    : "pb-0"
+                }`}
           }`}
         >
           {(title ||

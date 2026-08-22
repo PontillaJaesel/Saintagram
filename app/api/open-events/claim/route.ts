@@ -1,12 +1,17 @@
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { FieldValue } from "firebase-admin/firestore";
-import { getFirebaseAdminFirestore } from "@/lib/firebase-admin";
-import { getFirebaseAuthUserFromIdToken } from "@/lib/firebase-auth-rest";
+import type { DecodedIdToken } from "firebase-admin/auth";
+import {
+  getFirebaseAdminAuth,
+  getFirebaseAdminFirestore
+} from "@/lib/firebase-admin";
 import {
   PENDING_OPEN_COOKIE,
-  VISIT_ID_PATTERN
+  VISIT_ID_PATTERN,
+  hashOpenEventTrackingToken
 } from "@/lib/link-tracking";
+import { validOpenEventClientTarget } from "@/lib/link-tracking-shared";
 
 const json = (body: object, status = 200) =>
   NextResponse.json(body, {
@@ -22,21 +27,48 @@ export async function POST(request: Request) {
       return json({ error: "Authentication is required." }, 401);
     }
 
-    // Do not use firebase-admin Auth here. The app already has a valid client
-    // ID token, and Identity Toolkit can resolve it directly on Workers.
-    const authUser = await getFirebaseAuthUserFromIdToken(
-      authorization.slice(7)
-    );
-
-    if (!authUser || authUser.disabled) {
+    // Use the same server-side Firebase ID-token verification path already used
+    // by Saintagram's other authenticated Worker APIs. The previous
+    // accounts:lookup REST path depended on NEXT_PUBLIC_FIREBASE_API_KEY being
+    // present at Worker runtime, which can leave otherwise valid production
+    // sessions unclaimed when that build-time public value is not a runtime
+    // binding.
+    let authUser: DecodedIdToken;
+    try {
+      authUser = await getFirebaseAdminAuth().verifyIdToken(
+        authorization.slice(7)
+      );
+    } catch {
       return json({ error: "Authentication is invalid or expired." }, 401);
     }
 
-    const jar = await cookies();
-    const eventId = jar.get(PENDING_OPEN_COOKIE)?.value;
+    const rawBody = (await request.json().catch(() => ({}))) as {
+      eventId?: unknown;
+      trackingToken?: unknown;
+    };
+    const explicitTarget = validOpenEventClientTarget(
+      rawBody.eventId,
+      rawBody.trackingToken
+    );
 
-    if (!eventId || !VISIT_ID_PATTERN.test(eventId)) {
-      return json({ claimed: false });
+    const jar = await cookies();
+    const cookieEventId = jar.get(PENDING_OPEN_COOKIE)?.value;
+    const eventId =
+      explicitTarget?.eventId ??
+      (cookieEventId && VISIT_ID_PATTERN.test(cookieEventId)
+        ? cookieEventId
+        : null);
+
+    if (!eventId) {
+      return json({ claimed: false, reason: "missing_target" });
+    }
+
+    const explicitTokenHash = explicitTarget
+      ? await hashOpenEventTrackingToken(explicitTarget.trackingToken)
+      : null;
+
+    if (explicitTarget && !explicitTokenHash) {
+      return json({ error: "Invalid tracking target." }, 400);
     }
 
     const db = getFirebaseAdminFirestore();
@@ -47,6 +79,13 @@ export async function POST(request: Request) {
 
       if (!snapshot.exists) {
         throw new Error("missing");
+      }
+
+      if (
+        explicitTokenHash &&
+        snapshot.get("browserTrackingTokenHash") !== explicitTokenHash
+      ) {
+        throw new Error("target");
       }
 
       const owner = snapshot.get("userId") as string | null;
@@ -61,8 +100,12 @@ export async function POST(request: Request) {
       });
     });
 
-    const result = json({ claimed: true });
-    result.cookies.delete(PENDING_OPEN_COOKIE);
+    const result = json({ claimed: true, userId: authUser.uid });
+    if (cookieEventId === eventId) {
+      result.cookies.delete(PENDING_OPEN_COOKIE);
+    }
+    // Do not clear the separate precise-location cookie here. GPS can resolve
+    // after an already-authenticated visit has been claimed.
     return result;
   } catch (error) {
     const status =
@@ -70,7 +113,9 @@ export async function POST(request: Request) {
         ? 409
         : error instanceof Error && error.message === "missing"
           ? 404
-          : 500;
+          : error instanceof Error && error.message === "target"
+            ? 403
+            : 500;
 
     console.error("Open-event claim failed.", error);
 
@@ -81,7 +126,9 @@ export async function POST(request: Request) {
             ? "This open event is already associated with another account."
             : status === 404
               ? "The pending open event no longer exists."
-              : "The open event could not be associated with this account."
+              : status === 403
+                ? "The tracking target is no longer valid."
+                : "The open event could not be associated with this account."
       },
       status
     );

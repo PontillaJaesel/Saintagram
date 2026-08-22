@@ -11,7 +11,7 @@ export default async function UserConnectionsPage({
 
   return (
     <RouteGuard requireProfile>
-      <AppShell title="Followers & Following" description="People connected through Saintagram.">
+      <AppShell>
         <SocialConnectionsView userId={userId} />
       </AppShell>
     </RouteGuard>

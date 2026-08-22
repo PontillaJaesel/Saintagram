@@ -29,8 +29,7 @@ import {
   FOLLOWING_IDEAS,
   HASHTAG_IDEAS,
   HEART_SEEKS_IDEAS,
-  LIMITS,
-  PROFILE_NAME_IDEAS
+  LIMITS
 } from "@/lib/constants";
 import {
   LIVE_MODERATION_DEBOUNCE_MS,
@@ -416,7 +415,7 @@ export function ProfileEditor() {
       <div className="space-y-5">
         <EditorSection
           title="Display Name"
-          description="Choose the display name shown at the top of your profile."
+          description="Type the display name shown at the top of your profile."
           icon={UserRound}
         >
           <label htmlFor="edit-profile-name" className="label">
@@ -432,6 +431,7 @@ export function ProfileEditor() {
               void checkLiveTextWarning("profileName", event.target.value);
             }}
             maxLength={LIMITS.profileName}
+            placeholder="Type your display name"
             required
             aria-invalid={!profile.profileName.trim() && Boolean(error)}
             aria-describedby={
@@ -453,28 +453,7 @@ export function ProfileEditor() {
               A display name is required.
             </p>
           )}
-          <div className="mt-4 rounded-[var(--radius-base)] border border-sage-100 bg-sage-50/70 p-4">
-            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-sage-600">
-              A few gentle ideas
-            </p>
-            <div className="mt-3 flex flex-wrap gap-3">
-              {PROFILE_NAME_IDEAS.map((idea) => (
-                <button
-                  key={idea}
-                  type="button"
-                  className={`rounded-full border px-4 py-2 text-sm font-semibold transition ${
-                    profile.profileName === idea
-                      ? "border-sage-300 bg-sage-100 text-ink"
-                      : "border-gray-100 bg-white text-ink hover:border-gray-300"
-                  }`}
-                  onClick={() => setField("profileName", idea)}
-                >
-                  {idea}
-                </button>
-              ))}
-            </div>
-          </div>
-          <p className="mt-4 text-right text-xs text-muted">
+          <p className="mt-2 text-right text-xs text-muted">
             {profile.profileName.length} / {LIMITS.profileName}
           </p>
           <div className="mt-5 border-t border-sage-100 pt-5">
