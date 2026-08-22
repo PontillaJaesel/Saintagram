@@ -57,7 +57,7 @@ describe("temporary accounts", () => {
   });
 
   it("keeps the expected number of normal user accounts", () => {
-    expect(userAccounts).toHaveLength(144);
+    expect(userAccounts).toHaveLength(152);
   });
 
   it("keeps normal user credentials assigned by their USR number", () => {
