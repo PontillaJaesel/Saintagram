@@ -2,7 +2,12 @@
 
 import { useState } from "react";
 import { Check, Palette } from "lucide-react";
-import { PROFILE_COVERS, getProfileCover } from "@/lib/profile-covers";
+import {
+  PROFILE_COVER_CATEGORIES,
+  getProfileCover,
+  getProfileCoversByCategory,
+  type ProfileCoverCategoryId,
+} from "@/lib/profile-covers";
 import { normalizeCoverColor } from "@/lib/validation";
 import { ProfileCover } from "@/components/ui/profile-cover";
 
@@ -18,8 +23,10 @@ export function CoverBackgroundPicker({
   const [mode, setMode] = useState<"color" | "designs">(
     getProfileCover(coverImageId) ? "designs" : "color"
   );
+  const [category, setCategory] = useState<ProfileCoverCategoryId>("all");
   const selectedColor = normalizeCoverColor(coverColor);
   const selectedCover = getProfileCover(coverImageId);
+  const visibleCovers = getProfileCoversByCategory(category);
 
   return (
     <div>
@@ -73,8 +80,32 @@ export function CoverBackgroundPicker({
       ) : (
         <div>
           <p className="label">Choose a cover design</p>
+
+          <div
+            className="-mx-1 mb-4 flex gap-2 overflow-x-auto px-1 pb-2"
+            aria-label="Filter cover designs by vibe"
+          >
+            {PROFILE_COVER_CATEGORIES.map((coverCategory) => {
+              const active = category === coverCategory.id;
+              const coverCount = getProfileCoversByCategory(coverCategory.id).length;
+
+              return (
+                <button
+                  key={coverCategory.id}
+                  type="button"
+                  aria-pressed={active}
+                  onClick={() => setCategory(coverCategory.id)}
+                  className={`shrink-0 rounded-full border px-3 py-2 text-xs font-bold transition ${active ? "border-sage-600 bg-sage-600 text-white dark:border-gold-300 dark:bg-gold-300 dark:text-slate-950" : "border-sage-200 bg-paper text-muted hover:border-sage-400 hover:text-ink dark:border-slate-600 dark:bg-slate-800"}`}
+                >
+                  {coverCategory.label}
+                  <span className="ml-1.5 opacity-70">{coverCount}</span>
+                </button>
+              );
+            })}
+          </div>
+
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-            {PROFILE_COVERS.map((cover) => {
+            {visibleCovers.map((cover) => {
               const selected = selectedCover?.id === cover.id;
               return (
                 <button
@@ -86,7 +117,7 @@ export function CoverBackgroundPicker({
                   onClick={() => onChange({ coverColor: selectedColor, coverImageId: cover.id })}
                 >
                   {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={cover.src} alt="" className="aspect-[3/1] w-full object-cover transition group-hover:scale-[1.03]" />
+                  <img src={cover.src} alt="" loading="lazy" className="aspect-[3/1] w-full object-cover transition group-hover:scale-[1.03]" />
                   <span className="flex items-center justify-between gap-2 bg-paper px-3 py-2 text-xs font-bold text-ink">
                     {cover.name}
                     {selected && <Check className="size-4 text-sage-600" aria-hidden="true" />}
@@ -97,7 +128,7 @@ export function CoverBackgroundPicker({
           </div>
         </div>
       )}
-      <p className="mt-3 text-xs leading-5 text-muted">Choose a color or one of Saintagram&apos;s cover designs.</p>
+      <p className="mt-3 text-xs leading-5 text-muted">Choose a color or browse Saintagram&apos;s cover designs by vibe.</p>
     </div>
   );
 }
