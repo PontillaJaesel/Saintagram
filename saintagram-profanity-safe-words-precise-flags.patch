@@ -1,0 +1,355 @@
+diff --git a/app/api/moderation/route.ts b/app/api/moderation/route.ts
+index 23c7468..e0c816a 100644
+--- a/app/api/moderation/route.ts
++++ b/app/api/moderation/route.ts
+@@ -82,7 +82,13 @@ export async function POST(request: Request) {
+     const decision = await moderateTextWithProfanityApi(text);
+     if (!decision.allowed || decision.blocked) {
+       return NextResponse.json(
+-        { allowed: false, blocked: true, message: decision.reason, source: decision.source },
++        {
++          allowed: false,
++          blocked: true,
++          message: decision.reason,
++          matchedTerms: decision.matchedTerms,
++          source: decision.source
++        },
+         { status: 400 }
+       );
+     }
+diff --git a/lib/moderation.ts b/lib/moderation.ts
+index f0426ec..c3b68b5 100644
+--- a/lib/moderation.ts
++++ b/lib/moderation.ts
+@@ -10,6 +10,28 @@ export const MODERATION_UNAVAILABLE_ERROR =
+   "Moderation is temporarily unavailable. Please try again.";
+ export const LIVE_MODERATION_DEBOUNCE_MS = 500;
+ 
++export function formatMatchedProfanityReason(matchedTerms: string[]): string {
++  const uniqueTerms: string[] = [];
++  const seen = new Set<string>();
++
++  for (const term of matchedTerms) {
++    const trimmed = term.trim();
++    if (!trimmed) continue;
++
++    const key = trimmed.toLowerCase();
++    if (seen.has(key)) continue;
++    seen.add(key);
++    uniqueTerms.push(trimmed);
++  }
++
++  if (uniqueTerms.length === 0) return MODERATION_TEXT_ERROR;
++
++  const formattedTerms = uniqueTerms.map((term) => `"${term}"`).join(", ");
++  const noun = uniqueTerms.length === 1 ? "term" : "terms";
++
++  return `Inappropriate language detected: ${formattedTerms}. Please revise ${noun === "term" ? "this term" : "these terms"} before submitting.`;
++}
++
+ export interface ModerationDecision {
+   allowed: boolean;
+   blocked: boolean;
+@@ -60,7 +82,7 @@ export function localModerationDecision(value: string): ModerationDecision {
+     return {
+       allowed: false,
+       blocked: true,
+-      reason: MODERATION_TEXT_ERROR,
++      reason: formatMatchedProfanityReason(matches),
+       matchedTerms: matches,
+       source: "local"
+     };
+@@ -105,6 +127,7 @@ export async function moderateTextForLiveCheck(
+       allowed?: boolean;
+       blocked?: boolean;
+       message?: string;
++      matchedTerms?: string[];
+       source?: ModerationDecision["source"];
+     };
+ 
+@@ -117,7 +140,7 @@ export async function moderateTextForLiveCheck(
+         allowed: false,
+         blocked: true,
+         reason: payload.message || MODERATION_TEXT_ERROR,
+-        matchedTerms: [],
++        matchedTerms: Array.isArray(payload.matchedTerms) ? payload.matchedTerms : [],
+         source: payload.source ?? "profanity-api"
+       };
+     }
+diff --git a/lib/profanity-api.ts b/lib/profanity-api.ts
+index 8855464..266f7af 100644
+--- a/lib/profanity-api.ts
++++ b/lib/profanity-api.ts
+@@ -5,6 +5,7 @@ import {
+   localModerationDecision,
+   type ModerationDecision
+ } from "@/lib/moderation";
++import { prepareTextForProfanityApi } from "@/lib/profanity-safe-words";
+ 
+ const DEFAULT_PROFANITY_API_URL = "https://vector.profanity.dev";
+ const DEFAULT_PROFANITY_API_THRESHOLD = 0.9;
+@@ -48,6 +49,12 @@ export async function moderateTextWithProfanityApi(
+   const local = localModerationDecision(value);
+   if (!local.allowed || !value.trim()) return local;
+ 
++  // The remote API has occasionally produced false positives for ordinary
++  // Saintagram vocabulary (for example, "user"). Mask only high-confidence
++  // benign terms for the remote request. The original text has already passed
++  // Saintagram's local moderation above, and all other words stay untouched.
++  const remoteText = prepareTextForProfanityApi(value);
++
+   const url = process.env.PROFANITY_API_URL?.trim() || DEFAULT_PROFANITY_API_URL;
+   const threshold = Math.min(
+     1,
+@@ -65,7 +72,7 @@ export async function moderateTextWithProfanityApi(
+     const response = await fetch(url, {
+       method: "POST",
+       headers: { "Content-Type": "application/json" },
+-      body: JSON.stringify({ message: value }),
++      body: JSON.stringify({ message: remoteText }),
+       signal: controller.signal
+     });
+ 
+diff --git a/lib/profanity-safe-words.ts b/lib/profanity-safe-words.ts
+new file mode 100644
+index 0000000..58338ac
+--- /dev/null
++++ b/lib/profanity-safe-words.ts
+@@ -0,0 +1,144 @@
++/**
++ * High-confidence benign terms that are safe to mask before text is sent to the
++ * external profanity API.
++ *
++ * IMPORTANT:
++ * - These terms are NOT exemptions from Saintagram's local moderation.
++ * - Local profanity checks always run before this masking step.
++ * - Keep this list limited to clearly benign app/faith vocabulary. Do not add
++ *   context-sensitive slang or words that can themselves be used as insults.
++ */
++export const APP_PROFANITY_API_SAFE_TERMS = [
++  "account",
++  "accounts",
++  "admin",
++  "admins",
++  "administrator",
++  "administrators",
++  "bulletin",
++  "bulletins",
++  "comment",
++  "comments",
++  "email",
++  "emails",
++  "fiat",
++  "follower",
++  "followers",
++  "following",
++  "login",
++  "logins",
++  "moderator",
++  "moderators",
++  "notification",
++  "notifications",
++  "password",
++  "passwords",
++  "post",
++  "posts",
++  "profile",
++  "profiles",
++  "reflection",
++  "reflections",
++  "reply",
++  "replies",
++  "saintagram",
++  "tester",
++  "testers",
++  "user",
++  "users",
++  "username",
++  "usernames"
++] as const;
++
++export const ENGLISH_FAITH_PROFANITY_API_SAFE_TERMS = [
++  "bible",
++  "biblical",
++  "christ",
++  "church",
++  "churches",
++  "faith",
++  "gospel",
++  "god",
++  "holy",
++  "jesus",
++  "ministry",
++  "ministries",
++  "parish",
++  "parishes",
++  "prayer",
++  "prayers",
++  "praying",
++  "saint",
++  "saints",
++  "scripture",
++  "scriptures",
++  "spirit",
++  "verse",
++  "verses",
++  "worship"
++] as const;
++
++export const FILIPINO_FAITH_PROFANITY_API_SAFE_TERMS = [
++  "bibliya",
++  "dasal",
++  "diyos",
++  "ebanghelyo",
++  "hesus",
++  "kristo",
++  "misa",
++  "panalangin",
++  "pananampalataya",
++  "pagninilay",
++  "parokya",
++  "repleksyon",
++  "santa",
++  "santo",
++  "simbahan",
++  "talata"
++] as const;
++
++export const PROFANITY_API_SAFE_TERMS = [
++  ...APP_PROFANITY_API_SAFE_TERMS,
++  ...ENGLISH_FAITH_PROFANITY_API_SAFE_TERMS,
++  ...FILIPINO_FAITH_PROFANITY_API_SAFE_TERMS
++] as const;
++
++const SAFE_TERM_REPLACEMENT = "community";
++
++function escapeRegex(value: string): string {
++  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
++}
++
++/**
++ * Masks only complete safe terms before remote moderation. The surrounding
++ * sentence and every non-safe word remain intact, so profanity elsewhere in
++ * the text is still visible to the API.
++ *
++ * Example:
++ *   "The user wrote profanity in a comment"
++ * becomes
++ *   "The community wrote profanity in a community"
++ *
++ * We intentionally do not use substring replacement, so a future safe term
++ * cannot silently alter the middle of another word.
++ */
++export function prepareTextForProfanityApi(value: string): string {
++  let prepared = value ?? "";
++  const terms = [...new Set(PROFANITY_API_SAFE_TERMS)].sort(
++    (left, right) => right.length - left.length
++  );
++
++  for (const term of terms) {
++    const escaped = escapeRegex(term);
++    const boundaryPattern = new RegExp(
++      `(^|[^a-z0-9])${escaped}(?=$|[^a-z0-9])`,
++      "gi"
++    );
++    prepared = prepared.replace(
++      boundaryPattern,
++      (_match, prefix: string) => `${prefix}${SAFE_TERM_REPLACEMENT}`
++    );
++  }
++
++  return prepared;
++}
+diff --git a/tests/moderation.test.ts b/tests/moderation.test.ts
+index 9803ab8..5f930dd 100644
+--- a/tests/moderation.test.ts
++++ b/tests/moderation.test.ts
+@@ -57,6 +57,29 @@ describe("moderation policy", () => {
+     });
+   });
+ 
++  it("reports only the locally matched profanity terms and not nearby safe words", () => {
++    const decision = localModerationDecision("user fucking idiot");
++
++    expect(decision).toMatchObject({
++      allowed: false,
++      blocked: true,
++      matchedTerms: ["fucking", "idiot"],
++      source: "local"
++    });
++    expect(decision.reason).toContain('"fucking"');
++    expect(decision.reason).toContain('"idiot"');
++    expect(decision.reason.toLowerCase()).not.toContain('"user"');
++  });
++
++  it("uses a singular precise warning when one local profanity term is matched", () => {
++    const decision = localModerationDecision("she is a cunt");
++
++    expect(decision.matchedTerms).toEqual(["cunt"]);
++    expect(decision.reason).toBe(
++      'Inappropriate language detected: "cunt". Please revise this term before submitting.'
++    );
++  });
++
+   it("does not block context-sensitive Filipino words used normally", () => {
+     expect(localModerationDecision("Si Hudas ay binanggit sa pagbasa.")).toMatchObject({
+       allowed: true,
+diff --git a/tests/profanity-safe-words.test.ts b/tests/profanity-safe-words.test.ts
+new file mode 100644
+index 0000000..414c584
+--- /dev/null
++++ b/tests/profanity-safe-words.test.ts
+@@ -0,0 +1,53 @@
++import { describe, expect, it } from "vitest";
++import { COMMON_PROFANITY } from "@/lib/profanity";
++import {
++  APP_PROFANITY_API_SAFE_TERMS,
++  PROFANITY_API_SAFE_TERMS,
++  prepareTextForProfanityApi
++} from "@/lib/profanity-safe-words";
++
++describe("profanity API safe-word preparation", () => {
++  it("masks known benign Saintagram terms before remote moderation", () => {
++    const prepared = prepareTextForProfanityApi(
++      "The USER updated their username and Saintagram profile after Bible prayer."
++    );
++
++    expect(prepared.toLowerCase()).not.toMatch(/\buser\b/);
++    expect(prepared.toLowerCase()).not.toMatch(/\busername\b/);
++    expect(prepared.toLowerCase()).not.toMatch(/\bsaintagram\b/);
++    expect(prepared.toLowerCase()).not.toMatch(/\bprofile\b/);
++    expect(prepared.toLowerCase()).not.toMatch(/\bbible\b/);
++    expect(prepared.toLowerCase()).not.toMatch(/\bprayer\b/);
++  });
++
++  it("keeps profanity outside safe terms visible to the remote API", () => {
++    const prepared = prepareTextForProfanityApi(
++      "The user posted fucking shit in a comment."
++    ).toLowerCase();
++
++    expect(prepared).not.toMatch(/\buser\b/);
++    expect(prepared).toContain("fucking");
++    expect(prepared).toContain("shit");
++  });
++
++  it("uses exact term boundaries rather than unsafe substring replacement", () => {
++    const prepared = prepareTextForProfanityApi("enduser USER user's username");
++
++    expect(prepared).toContain("enduser");
++    expect(prepared).not.toMatch(/(^|[^a-z0-9])user(?=$|[^a-z0-9])/i);
++    expect(prepared).not.toMatch(/\busername\b/i);
++  });
++
++  it("never marks a locally blocked profanity term as remotely safe", () => {
++    const blockedTerms = new Set(COMMON_PROFANITY.map((term) => term.toLowerCase()));
++    const overlaps = PROFANITY_API_SAFE_TERMS.filter((term) =>
++      blockedTerms.has(term.toLowerCase())
++    );
++
++    expect(overlaps).toEqual([]);
++  });
++
++  it("keeps the reported false positive 'user' in the app safe dictionary", () => {
++    expect(APP_PROFANITY_API_SAFE_TERMS).toContain("user");
++  });
++});

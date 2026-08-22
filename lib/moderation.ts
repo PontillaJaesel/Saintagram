@@ -10,6 +10,28 @@ export const MODERATION_UNAVAILABLE_ERROR =
   "Moderation is temporarily unavailable. Please try again.";
 export const LIVE_MODERATION_DEBOUNCE_MS = 500;
 
+export function formatMatchedProfanityReason(matchedTerms: string[]): string {
+  const uniqueTerms: string[] = [];
+  const seen = new Set<string>();
+
+  for (const term of matchedTerms) {
+    const trimmed = term.trim();
+    if (!trimmed) continue;
+
+    const key = trimmed.toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    uniqueTerms.push(trimmed);
+  }
+
+  if (uniqueTerms.length === 0) return MODERATION_TEXT_ERROR;
+
+  const formattedTerms = uniqueTerms.map((term) => `"${term}"`).join(", ");
+  const noun = uniqueTerms.length === 1 ? "term" : "terms";
+
+  return `Inappropriate language detected: ${formattedTerms}. Please revise ${noun === "term" ? "this term" : "these terms"} before submitting.`;
+}
+
 export interface ModerationDecision {
   allowed: boolean;
   blocked: boolean;
@@ -60,7 +82,7 @@ export function localModerationDecision(value: string): ModerationDecision {
     return {
       allowed: false,
       blocked: true,
-      reason: MODERATION_TEXT_ERROR,
+      reason: formatMatchedProfanityReason(matches),
       matchedTerms: matches,
       source: "local"
     };
@@ -105,6 +127,7 @@ export async function moderateTextForLiveCheck(
       allowed?: boolean;
       blocked?: boolean;
       message?: string;
+      matchedTerms?: string[];
       source?: ModerationDecision["source"];
     };
 
@@ -117,7 +140,7 @@ export async function moderateTextForLiveCheck(
         allowed: false,
         blocked: true,
         reason: payload.message || MODERATION_TEXT_ERROR,
-        matchedTerms: [],
+        matchedTerms: Array.isArray(payload.matchedTerms) ? payload.matchedTerms : [],
         source: payload.source ?? "profanity-api"
       };
     }

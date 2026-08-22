@@ -5,6 +5,7 @@ import {
   localModerationDecision,
   type ModerationDecision
 } from "@/lib/moderation";
+import { prepareTextForProfanityApi } from "@/lib/profanity-safe-words";
 
 const DEFAULT_PROFANITY_API_URL = "https://vector.profanity.dev";
 const DEFAULT_PROFANITY_API_THRESHOLD = 0.9;
@@ -48,6 +49,12 @@ export async function moderateTextWithProfanityApi(
   const local = localModerationDecision(value);
   if (!local.allowed || !value.trim()) return local;
 
+  // The remote API has occasionally produced false positives for ordinary
+  // Saintagram vocabulary (for example, "user"). Mask only high-confidence
+  // benign terms for the remote request. The original text has already passed
+  // Saintagram's local moderation above, and all other words stay untouched.
+  const remoteText = prepareTextForProfanityApi(value);
+
   const url = process.env.PROFANITY_API_URL?.trim() || DEFAULT_PROFANITY_API_URL;
   const threshold = Math.min(
     1,
@@ -65,7 +72,7 @@ export async function moderateTextWithProfanityApi(
     const response = await fetch(url, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ message: value }),
+      body: JSON.stringify({ message: remoteText }),
       signal: controller.signal
     });
 

@@ -57,6 +57,29 @@ describe("moderation policy", () => {
     });
   });
 
+  it("reports only the locally matched profanity terms and not nearby safe words", () => {
+    const decision = localModerationDecision("user fucking idiot");
+
+    expect(decision).toMatchObject({
+      allowed: false,
+      blocked: true,
+      matchedTerms: ["fucking", "idiot"],
+      source: "local"
+    });
+    expect(decision.reason).toContain('"fucking"');
+    expect(decision.reason).toContain('"idiot"');
+    expect(decision.reason.toLowerCase()).not.toContain('"user"');
+  });
+
+  it("uses a singular precise warning when one local profanity term is matched", () => {
+    const decision = localModerationDecision("she is a cunt");
+
+    expect(decision.matchedTerms).toEqual(["cunt"]);
+    expect(decision.reason).toBe(
+      'Inappropriate language detected: "cunt". Please revise this term before submitting.'
+    );
+  });
+
   it("does not block context-sensitive Filipino words used normally", () => {
     expect(localModerationDecision("Si Hudas ay binanggit sa pagbasa.")).toMatchObject({
       allowed: true,

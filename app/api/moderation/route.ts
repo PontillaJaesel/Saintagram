@@ -82,7 +82,13 @@ export async function POST(request: Request) {
     const decision = await moderateTextWithProfanityApi(text);
     if (!decision.allowed || decision.blocked) {
       return NextResponse.json(
-        { allowed: false, blocked: true, message: decision.reason, source: decision.source },
+        {
+          allowed: false,
+          blocked: true,
+          message: decision.reason,
+          matchedTerms: decision.matchedTerms,
+          source: decision.source
+        },
         { status: 400 }
       );
     }
