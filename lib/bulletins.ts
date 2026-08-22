@@ -41,6 +41,7 @@ function storedBulletin(id: string, data: DocumentData): BulletinItem {
     eventAt: timestampIso(data.eventAt),
     location: typeof data.location === "string" ? data.location : "",
     linkUrl: typeof data.linkUrl === "string" ? data.linkUrl : "",
+    imagePath: typeof data.imagePath === "string" ? data.imagePath : "",
     expiresAt: timestampIso(data.expiresAt),
     pinned: data.pinned === true,
     createdAt: timestampIso(data.createdAt) ?? "",

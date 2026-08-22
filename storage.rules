@@ -109,5 +109,15 @@ service firebase.storage {
       allow delete: if isOwner(userId);
       allow update: if false;
     }
+    match /bulletins/{adminId}/{imageName} {
+      allow read: if signedIn();
+      allow create: if isAdmin()
+        && request.auth.uid == adminId
+        && imageName.matches('^[A-Za-z0-9_-]+\\.(jpg|png|webp)$')
+        && request.resource.size < 5242880
+        && request.resource.contentType.matches('image/(jpeg|png|webp)');
+      allow delete: if isAdmin() && request.auth.uid == adminId;
+      allow update: if false;
+    }
   }
 }

@@ -1,10 +1,11 @@
 "use client";
 
-import { FormEvent, useEffect, useMemo, useState, useRef } from "react";
+import { ChangeEvent, FormEvent, useEffect, useMemo, useState, useRef } from "react";
 import {
   CalendarDays,
   Clock3,
   ExternalLink,
+  ImagePlus,
   MapPin,
   Megaphone,
   Pencil,
@@ -18,6 +19,7 @@ import {
 import { adminFetch } from "@/lib/admin-api";
 import { useToast } from "@/components/providers/toast-provider";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { bulletinImageUrl, deleteBulletinImage, uploadBulletinImage } from "@/lib/bulletin-images";
 import type { BulletinItem, BulletinItemType } from "@/types";
 
 interface BulletinFormState {
@@ -27,6 +29,7 @@ interface BulletinFormState {
   eventAt: string;
   location: string;
   linkUrl: string;
+  imagePath: string;
   expiresAt: string;
   pinned: boolean;
 }
@@ -38,6 +41,7 @@ const EMPTY_FORM: BulletinFormState = {
   eventAt: "",
   location: "",
   linkUrl: "",
+  imagePath: "",
   expiresAt: "",
   pinned: false
 };
@@ -88,6 +92,7 @@ function itemToForm(item: BulletinItem): BulletinFormState {
     eventAt: toManilaDateTimeInput(item.eventAt),
     location: item.location,
     linkUrl: item.linkUrl,
+    imagePath: item.imagePath,
     expiresAt: toManilaDateTimeInput(item.expiresAt),
     pinned: item.pinned
   };
@@ -101,6 +106,7 @@ function requestBody(form: BulletinFormState) {
     eventAt: form.type === "event" ? toIsoOrNull(form.eventAt) : null,
     location: form.location,
     linkUrl: form.linkUrl,
+    imagePath: form.imagePath,
     expiresAt: toIsoOrNull(form.expiresAt),
     pinned: form.pinned
   };
@@ -286,6 +292,34 @@ function BulletinForm({
   busy: boolean;
   submitLabel: string;
 }) {
+  const [imageBusy, setImageBusy] = useState(false);
+  const [imageError, setImageError] = useState("");
+  const [imageUrl, setImageUrl] = useState("");
+
+  useEffect(() => {
+    let active = true;
+    setImageUrl("");
+    if (value.imagePath) {
+      void bulletinImageUrl(value.imagePath).then((url) => active && setImageUrl(url)).catch(() => active && setImageError("The image preview could not be loaded."));
+    }
+    return () => { active = false; };
+  }, [value.imagePath]);
+
+  const chooseImage = async (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+    if (!file) return;
+    setImageBusy(true);
+    setImageError("");
+    try {
+      const imagePath = await uploadBulletinImage(file);
+      onChange({ ...value, imagePath });
+    } catch (error) {
+      setImageError(error instanceof Error ? error.message : "The image could not be uploaded.");
+    } finally {
+      setImageBusy(false);
+    }
+  };
   const inputClass =
     "h-12 w-full rounded-2xl border border-sage-100 bg-paper px-4 text-sm text-ink shadow-sm outline-none transition placeholder:text-muted/70 hover:border-brand-200 focus:border-brand-300 focus:ring-4 focus:ring-brand-100/40";
 
@@ -531,6 +565,30 @@ function BulletinForm({
         </div>
       </div>
 
+      <div>
+        <div className="flex items-center justify-between gap-3">
+          <label htmlFor="bulletin-image" className="text-sm font-bold text-ink">Picture</label>
+          <span className="rounded-full bg-sage-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-muted">Optional</span>
+        </div>
+        {imageUrl ? (
+          <div className="mt-2 overflow-hidden rounded-2xl border border-sage-100 bg-sage-50">
+            <img src={imageUrl} alt="Bulletin preview" className="max-h-64 w-full object-contain" />
+          </div>
+        ) : null}
+        <div className="mt-2 flex flex-wrap gap-2">
+          <label htmlFor="bulletin-image" className="btn-secondary cursor-pointer">
+            <ImagePlus className="size-4" aria-hidden="true" />
+            {imageBusy ? "Uploading…" : value.imagePath ? "Replace picture" : "Upload picture"}
+          </label>
+          <input id="bulletin-image" type="file" accept="image/jpeg,image/png,image/webp" className="sr-only" disabled={imageBusy || busy} onChange={(event) => void chooseImage(event)} />
+          {value.imagePath ? (
+            <button type="button" className="btn-secondary text-clay-600" onClick={() => onChange({ ...value, imagePath: "" })}>Remove</button>
+          ) : null}
+        </div>
+        <p className="mt-2 text-xs leading-5 text-muted">JPG, PNG, or WebP. The full picture will scale to fit the bulletin.</p>
+        {imageError ? <p className="mt-2 text-xs font-semibold text-clay-600" role="alert">{imageError}</p> : null}
+      </div>
+
       {/* =========================
           DETAILS LINK
           ========================= */}
@@ -699,7 +757,7 @@ function BulletinForm({
         <button
           type="submit"
           disabled={
-            busy ||
+            busy || imageBusy ||
             !value.title.trim() ||
             (value.type ===
               "event" &&
@@ -828,6 +886,9 @@ export function AdminBulletins() {
       setItems((current) =>
         current.map((item) => (item.id === result.bulletin.id ? result.bulletin : item))
       );
+      if (editing.imagePath && editing.imagePath !== result.bulletin.imagePath) {
+        void deleteBulletinImage(editing.imagePath).catch(() => undefined);
+      }
       setEditing(null);
       notify("Bulletin item updated.");
     } catch (error) {
@@ -846,6 +907,7 @@ export function AdminBulletins() {
       await adminFetch(`/api/admin/bulletins/${encodeURIComponent(deleting.id)}`, {
         method: "DELETE"
       });
+      if (deleting.imagePath) void deleteBulletinImage(deleting.imagePath).catch(() => undefined);
       setItems((current) => current.filter((item) => item.id !== deleting.id));
       setDeleting(null);
       notify("Bulletin item deleted.");
