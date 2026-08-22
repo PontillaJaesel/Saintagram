@@ -59,6 +59,96 @@ export const PROFILE_COVERS = [
     name: "Mountain Vista",
     src: "/covers/cover-12.webp",
   },
+  {
+    id: "cover-13",
+    name: "Highland Sheep",
+    src: "/covers/cover-13.webp",
+  },
+  {
+    id: "cover-14",
+    name: "Sunset Clouds",
+    src: "/covers/cover-14.webp",
+  },
+  {
+    id: "cover-15",
+    name: "Cross in Wildflowers",
+    src: "/covers/cover-15.webp",
+  },
+  {
+    id: "cover-16",
+    name: "Cross on the Hill",
+    src: "/covers/cover-16.webp",
+  },
+  {
+    id: "cover-17",
+    name: "Hands in Prayer",
+    src: "/covers/cover-17.webp",
+  },
+  {
+    id: "cover-18",
+    name: "Sunset Grasses",
+    src: "/covers/cover-18.webp",
+  },
+  {
+    id: "cover-19",
+    name: "Golden Rice Field",
+    src: "/covers/cover-19.webp",
+  },
+  {
+    id: "cover-20",
+    name: "Sunlit Wildflowers",
+    src: "/covers/cover-20.webp",
+  },
+  {
+    id: "cover-21",
+    name: "Quiet Beach",
+    src: "/covers/cover-21.webp",
+  },
+  {
+    id: "cover-22",
+    name: "Bubbles in the Sky",
+    src: "/covers/cover-22.webp",
+  },
+  {
+    id: "cover-23",
+    name: "Tropical Sunset",
+    src: "/covers/cover-23.webp",
+  },
+  {
+    id: "cover-24",
+    name: "Rolling Green Hills",
+    src: "/covers/cover-24.webp",
+  },
+  {
+    id: "cover-25",
+    name: "Running Horses",
+    src: "/covers/cover-25.webp",
+  },
+  {
+    id: "cover-26",
+    name: "Ducks on the Pond",
+    src: "/covers/cover-26.webp",
+  },
+  {
+    id: "cover-27",
+    name: "The Last Supper",
+    src: "/covers/cover-27.webp",
+  },
+  {
+    id: "cover-28",
+    name: "Stories in Stained Glass",
+    src: "/covers/cover-28.webp",
+  },
+  {
+    id: "cover-29",
+    name: "Sacred Light",
+    src: "/covers/cover-29.webp",
+  },
+  {
+    id: "cover-30",
+    name: "Mountain Wildflowers",
+    src: "/covers/cover-30.webp",
+  },
 ] as const;
 
 export type ProfileCoverId = (typeof PROFILE_COVERS)[number]["id"];
@@ -96,6 +186,24 @@ const PROFILE_COVER_CATEGORY_OVERRIDES: Readonly<Record<string, ProfileCoverVibe
   "cover-10": "nature",
   "cover-11": "moody",
   "cover-12": "adventure",
+  "cover-13": "nature",
+  "cover-14": "warm",
+  "cover-15": "sacred",
+  "cover-16": "sacred",
+  "cover-17": "sacred",
+  "cover-18": "warm",
+  "cover-19": "nature",
+  "cover-20": "peaceful",
+  "cover-21": "peaceful",
+  "cover-22": "peaceful",
+  "cover-23": "warm",
+  "cover-24": "nature",
+  "cover-25": "adventure",
+  "cover-26": "nature",
+  "cover-27": "sacred",
+  "cover-28": "sacred",
+  "cover-29": "sacred",
+  "cover-30": "nature",
 };
 
 function inferProfileCoverCategory(name: string): ProfileCoverVibeId {
