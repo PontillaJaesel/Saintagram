@@ -16,14 +16,6 @@ export const SPIRITUAL_SYMBOLS: Array<{
   { id: "road", label: "Road", description: "A journey walked with God" }
 ];
 
-export const PROFILE_NAME_IDEAS = [
-  "Beloved Child of God",
-  "Friend of Jesus",
-  "A Work in Progress",
-  "Called to Serve",
-  "Still Growing"
-];
-
 export const FOLLOWING_IDEAS = [
   "Jesus",
   "Friends",

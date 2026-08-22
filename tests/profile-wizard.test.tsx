@@ -159,6 +159,10 @@ describe("ProfileWizard completion", () => {
     const name = await screen.findByLabelText(
       /What display name would you like to use/
     );
+    expect(screen.queryByText("A few gentle ideas")).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Still Growing" })
+    ).not.toBeInTheDocument();
     await user.type(name, "   ");
     await user.click(screen.getByRole("button", { name: "Next" }));
 
@@ -171,7 +175,10 @@ describe("ProfileWizard completion", () => {
       screen.getByRole("heading", { name: "Display name" })
     ).toBeInTheDocument();
 
-    await user.type(name, "Still Growing");
+    await user.clear(name);
+    await user.type(name, "Juan Dela Cruz");
+
+    expect(name).toHaveValue("Juan Dela Cruz");
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
     expect(name).toHaveAttribute("aria-invalid", "false");
   });

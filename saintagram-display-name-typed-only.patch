@@ -1,0 +1,166 @@
+diff --git a/components/profile/profile-editor.tsx b/components/profile/profile-editor.tsx
+index d76f9c9..a80a869 100644
+--- a/components/profile/profile-editor.tsx
++++ b/components/profile/profile-editor.tsx
+@@ -29,8 +29,7 @@ import {
+   FOLLOWING_IDEAS,
+   HASHTAG_IDEAS,
+   HEART_SEEKS_IDEAS,
+-  LIMITS,
+-  PROFILE_NAME_IDEAS
++  LIMITS
+ } from "@/lib/constants";
+ import {
+   LIVE_MODERATION_DEBOUNCE_MS,
+@@ -416,7 +415,7 @@ export function ProfileEditor() {
+       <div className="space-y-5">
+         <EditorSection
+           title="Display Name"
+-          description="Choose the display name shown at the top of your profile."
++          description="Type the display name shown at the top of your profile."
+           icon={UserRound}
+         >
+           <label htmlFor="edit-profile-name" className="label">
+@@ -432,6 +431,7 @@ export function ProfileEditor() {
+               void checkLiveTextWarning("profileName", event.target.value);
+             }}
+             maxLength={LIMITS.profileName}
++            placeholder="Type your display name"
+             required
+             aria-invalid={!profile.profileName.trim() && Boolean(error)}
+             aria-describedby={
+@@ -453,28 +453,7 @@ export function ProfileEditor() {
+               A display name is required.
+             </p>
+           )}
+-          <div className="mt-4 rounded-[var(--radius-base)] border border-sage-100 bg-sage-50/70 p-4">
+-            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-sage-600">
+-              A few gentle ideas
+-            </p>
+-            <div className="mt-3 flex flex-wrap gap-3">
+-              {PROFILE_NAME_IDEAS.map((idea) => (
+-                <button
+-                  key={idea}
+-                  type="button"
+-                  className={`rounded-full border px-4 py-2 text-sm font-semibold transition ${
+-                    profile.profileName === idea
+-                      ? "border-sage-300 bg-sage-100 text-ink"
+-                      : "border-gray-100 bg-white text-ink hover:border-gray-300"
+-                  }`}
+-                  onClick={() => setField("profileName", idea)}
+-                >
+-                  {idea}
+-                </button>
+-              ))}
+-            </div>
+-          </div>
+-          <p className="mt-4 text-right text-xs text-muted">
++          <p className="mt-2 text-right text-xs text-muted">
+             {profile.profileName.length} / {LIMITS.profileName}
+           </p>
+           <div className="mt-5 border-t border-sage-100 pt-5">
+diff --git a/components/profile/profile-wizard.tsx b/components/profile/profile-wizard.tsx
+index 10039e9..72776bb 100644
+--- a/components/profile/profile-wizard.tsx
++++ b/components/profile/profile-wizard.tsx
+@@ -35,8 +35,7 @@ import {
+   FOLLOWING_IDEAS,
+   HASHTAG_IDEAS,
+   HEART_SEEKS_IDEAS,
+-  LIMITS,
+-  PROFILE_NAME_IDEAS
++  LIMITS
+ } from "@/lib/constants";
+ import { formatFriendlyDate, normalizeHashtag } from "@/lib/validation";
+ import {
+@@ -490,7 +489,7 @@ export function ProfileWizard() {
+               <span className="text-clay-600">*</span>
+             </label>
+             <p className="mb-4 text-sm leading-6 text-muted">
+-              This is the name people will see on your profile. 
++              Type the name you want people to see on your profile.
+             </p>
+             <input
+               ref={nameRef}
+@@ -503,7 +502,7 @@ export function ProfileWizard() {
+                 updateData("profileName", event.target.value)
+               }
+               maxLength={LIMITS.profileName}
+-              placeholder="For example, Still Growing"
++              placeholder="Type your display name"
+               required
+               aria-invalid={Boolean(stepError)}
+               aria-describedby={
+@@ -517,28 +516,6 @@ export function ProfileWizard() {
+               value={data.profileName}
+               limit={LIMITS.profileName}
+             />
+-            <div className="mt-5">
+-              <p className="mb-3 text-xs font-bold uppercase tracking-wider text-sage-600">
+-                A few gentle ideas
+-              </p>
+-              <div className="flex flex-wrap gap-2">
+-                {PROFILE_NAME_IDEAS.map((idea) => (
+-                  <button
+-                    key={idea}
+-                    type="button"
+-                    className={`chip ${
+-                      data.profileName === idea ? "chip-selected" : ""
+-                    }`}
+-                    onClick={() => updateData("profileName", idea)}
+-                  >
+-                    {data.profileName === idea && (
+-                      <Check className="size-4" aria-hidden="true" />
+-                    )}
+-                    {idea}
+-                  </button>
+-                ))}
+-              </div>
+-            </div>
+           </div>
+         );
+       case 1:
+diff --git a/lib/constants.ts b/lib/constants.ts
+index 6ecbf1b..53f0140 100644
+--- a/lib/constants.ts
++++ b/lib/constants.ts
+@@ -16,14 +16,6 @@ export const SPIRITUAL_SYMBOLS: Array<{
+   { id: "road", label: "Road", description: "A journey walked with God" }
+ ];
+ 
+-export const PROFILE_NAME_IDEAS = [
+-  "Beloved Child of God",
+-  "Friend of Jesus",
+-  "A Work in Progress",
+-  "Called to Serve",
+-  "Still Growing"
+-];
+-
+ export const FOLLOWING_IDEAS = [
+   "Jesus",
+   "Friends",
+diff --git a/tests/profile-wizard.test.tsx b/tests/profile-wizard.test.tsx
+index fbe12d2..8a2a4ad 100644
+--- a/tests/profile-wizard.test.tsx
++++ b/tests/profile-wizard.test.tsx
+@@ -159,6 +159,10 @@ describe("ProfileWizard completion", () => {
+     const name = await screen.findByLabelText(
+       /What display name would you like to use/
+     );
++    expect(screen.queryByText("A few gentle ideas")).not.toBeInTheDocument();
++    expect(
++      screen.queryByRole("button", { name: "Still Growing" })
++    ).not.toBeInTheDocument();
+     await user.type(name, "   ");
+     await user.click(screen.getByRole("button", { name: "Next" }));
+ 
+@@ -171,7 +175,8 @@ describe("ProfileWizard completion", () => {
+       screen.getByRole("heading", { name: "Display name" })
+     ).toBeInTheDocument();
+ 
+-    await user.type(name, "Still Growing");
++    await user.type(name, "Juan Dela Cruz");
++    expect(name).toHaveValue("Juan Dela Cruz");
+     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+     expect(name).toHaveAttribute("aria-invalid", "false");
+   });
