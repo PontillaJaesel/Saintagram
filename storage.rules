@@ -14,7 +14,11 @@ service firebase.storage {
     }
 
     function isAdmin() {
-      return signedIn()
+      // Admin access is established by the server-managed custom claim. Do
+      // not inherit signedIn()'s password-provider restriction: admins may
+      // authenticate through another verified Firebase provider.
+      return request.auth != null
+        && request.auth.token.get('email_verified', false) == true
         && request.auth.token.admin == true;
     }
 

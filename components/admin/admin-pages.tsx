@@ -248,10 +248,12 @@ export function Dashboard() {
 
 function SimpleActivity({
   events,
-  timeZone = "Asia/Manila"
+  timeZone = "Asia/Manila",
+  description = "All QR and common-link visits, including visitors who did not log in. Repeated anonymous opens from the same browser session are kept as one visit with an open count."
 }: {
   events: LinkOpenEvent[];
   timeZone?: LinkActivityTimeZone;
+  description?: string;
 }) {
   const rowsPerPage = 20;
   const [page, setPage] = useState(1);
@@ -276,9 +278,7 @@ function SimpleActivity({
         <div>
           <h2 className="font-serif text-xl font-bold">Link History</h2>
           <p className="mt-1 text-sm text-muted">
-            All QR and common-link visits, including visitors who did not log in.
-            Repeated anonymous opens from the same browser session are kept as
-            one visit with an open count.
+            {description}
           </p>
         </div>
 
@@ -490,6 +490,9 @@ export function Activity() {
   const [source, setSource] =
     useState("all");
 
+  const [visitorScope, setVisitorScope] =
+    useState<"logged_in" | "all">("logged_in");
+
   const [search, setSearch] =
     useState("");
 
@@ -502,6 +505,7 @@ export function Activity() {
     (event) =>
       (source === "all" ||
         event.source === source) &&
+      (visitorScope === "all" || Boolean(event.userId)) &&
       [
         event.userFullName,
         event.userDisplayName,
@@ -525,7 +529,7 @@ export function Activity() {
         refresh={load}
       />
 
-      <div className="mb-4 flex gap-3">
+      <div className="mb-4 flex flex-col gap-3 sm:flex-row">
         <input
           className="field"
           placeholder="Filter name, user, status, place, or campaign"
@@ -557,6 +561,18 @@ export function Activity() {
 
         <select
           className="field"
+          value={visitorScope}
+          aria-label="Link history visitor filter"
+          onChange={(event) =>
+            setVisitorScope(event.target.value as "logged_in" | "all")
+          }
+        >
+          <option value="logged_in">Logged-in accounts</option>
+          <option value="all">All history (includes anonymous)</option>
+        </select>
+
+        <select
+          className="field"
           value={timeZone}
           aria-label="Link history timezone"
           onChange={(event) =>
@@ -577,6 +593,11 @@ export function Activity() {
         <SimpleActivity
           events={events}
           timeZone={timeZone}
+          description={
+            visitorScope === "logged_in"
+              ? "QR and common-link visits from accounts that successfully logged in."
+              : "All QR and common-link visits, including anonymous visitors and visits still awaiting login."
+          }
         />
       )}
     </>

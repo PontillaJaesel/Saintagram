@@ -92,8 +92,6 @@ function BulletinRow({
   const content = (
     <div className="group relative px-5 py-5">
       <div className="min-w-0">
-        {item.imagePath ? <BulletinImage item={item} /> : null}
-
         {/* Type + pinned */}
         <div className="mb-3 flex flex-wrap items-center gap-2">
           <span
@@ -129,6 +127,12 @@ function BulletinRow({
           <p className="mt-2.5 text-[14px] font-medium leading-6 text-slate-700 dark:text-slate-200">
             {item.description}
           </p>
+        ) : null}
+
+        {item.imagePath ? (
+          <div className="mt-4">
+            <BulletinImage item={item} />
+          </div>
         ) : null}
 
         {/* Metadata — intentionally subtle */}

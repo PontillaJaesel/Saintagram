@@ -9,6 +9,9 @@ async function authorizedStorage() {
   const services = getFirebaseServices();
   const user = services?.auth.currentUser;
   if (!services || !user) throw new Error("Please sign in before accessing bulletin images.");
+  // The admin route guard has already verified this token and its admin claim.
+  // Forcing a refresh here emits onIdTokenChanged and used to unmount the
+  // bulletin composer, discarding the draft while an image was uploading.
   await user.getIdToken();
   return { services, user };
 }
@@ -24,7 +27,17 @@ export async function uploadBulletinImage(file: File): Promise<string> {
   if (!extension) throw new Error("Choose a JPG, PNG, or WebP image.");
   const { services, user } = await authorizedStorage();
   const path = `bulletins/${user.uid}/${crypto.randomUUID()}.${extension}`;
-  await uploadBytes(ref(services.storage, path), file, { cacheControl: "public,max-age=3600", contentType: file.type });
+  try {
+    await uploadBytes(ref(services.storage, path), file, { cacheControl: "public,max-age=3600", contentType: file.type });
+  } catch (error) {
+    const code = typeof error === "object" && error && "code" in error
+      ? String((error as { code?: unknown }).code ?? "")
+      : "";
+    if (code === "storage/unauthorized") {
+      throw new Error("Bulletin image storage is not enabled for this admin account. Deploy the latest Firebase Storage rules, then sign out and back in.");
+    }
+    throw error;
+  }
   return path;
 }
 

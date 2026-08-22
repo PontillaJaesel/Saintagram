@@ -83,6 +83,7 @@ export function AdminRouteGuard({ children }: { children: ReactNode }) {
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const verificationSequence = useRef(0);
+  const hasAllowedSession = useRef(false);
 
   useEffect(() => {
     const services = getFirebaseServices();
@@ -123,18 +124,21 @@ export function AdminRouteGuard({ children }: { children: ReactNode }) {
             if (!verification.allowed) {
               await signOut(services.auth).catch(() => undefined);
               setVerifiedAdminToken(null);
+              hasAllowedSession.current = false;
               setError(verification.error || DENIED_MESSAGE);
               setState("login");
               return;
             }
 
             setVerifiedAdminToken(idToken);
+            hasAllowedSession.current = true;
             setError("");
             setState("allowed");
           } catch (handoffError) {
             await signOut(services.auth).catch(() => undefined);
             if (!active) return;
             setVerifiedAdminToken(null);
+            hasAllowedSession.current = false;
             setError(
               handoffError instanceof Error
                 ? handoffError.message
@@ -150,22 +154,27 @@ export function AdminRouteGuard({ children }: { children: ReactNode }) {
           const sequence = ++verificationSequence.current;
           if (!firebaseUser) {
             setVerifiedAdminToken(null);
+            hasAllowedSession.current = false;
             setState("login");
             return;
           }
 
-          setState("checking");
+          // Keep already-authorized pages mounted during Firebase's routine
+          // token renewal. Unmounting here destroys unsaved admin form state.
+          if (!hasAllowedSession.current) setState("checking");
           const idToken = await firebaseUser.getIdToken();
           const verification = await verifyCurrentAdministrator(idToken);
           if (!active || sequence !== verificationSequence.current) return;
           if (verification.allowed) {
             setVerifiedAdminToken(idToken);
+            hasAllowedSession.current = true;
             setError("");
             setState("allowed");
             return;
           }
 
           setVerifiedAdminToken(null);
+          hasAllowedSession.current = false;
           await signOut(services.auth).catch(() => undefined);
           if (!active || sequence !== verificationSequence.current) return;
           setError(verification.error || DENIED_MESSAGE);
@@ -174,6 +183,7 @@ export function AdminRouteGuard({ children }: { children: ReactNode }) {
       } catch {
         if (!active) return;
         setVerifiedAdminToken(null);
+        hasAllowedSession.current = false;
         setError("Administrator sign-in could not be initialized.");
         setState("login");
       }
@@ -208,16 +218,19 @@ export function AdminRouteGuard({ children }: { children: ReactNode }) {
       const verification = await verifyCurrentAdministrator(idToken);
       if (!verification.allowed) {
         setVerifiedAdminToken(null);
+        hasAllowedSession.current = false;
         await signOut(services.auth);
         setError(verification.error || DENIED_MESSAGE);
         setState("login");
       } else {
         setVerifiedAdminToken(idToken);
+        hasAllowedSession.current = true;
         setError("");
         setState("allowed");
       }
     } catch (authenticationError) {
       await signOut(services.auth).catch(() => undefined);
+      hasAllowedSession.current = false;
       const code =
         typeof authenticationError === "object" &&
         authenticationError !== null &&
